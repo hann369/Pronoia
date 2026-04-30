@@ -1,0 +1,19 @@
+# Secrets
+.env
+config.js
+*.key
+credentials.json
+
+# Vercel
+.vercel
+/public
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

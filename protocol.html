@@ -1900,8 +1900,12 @@
               style="font-family: var(--font-mono); font-size: .65rem; color: var(--text2); background: var(--bg-card); padding: .75rem; border: 1px solid var(--border);">
               Locating...
             </div>
+            <div class="auth-input-group" style="margin-top: 1rem;">
+              <label class="auth-label">Intelligence Key (Groq)</label>
+              <input type="password" id="groq-key-input" class="auth-input" placeholder="gsk_..." style="font-size: .65rem; padding: .5rem;">
+            </div>
             <button class="auth-btn" style="padding: .6rem; font-size: .6rem; margin-top: .5rem;"
-              onclick="Agent.saveProfile()">Update Profile</button>
+              onclick="Agent.saveProfile()">Update Profile & Key</button>
           </div>
         </div>
 
@@ -2073,7 +2077,8 @@
     // Initialize Firebase (Compat)
     firebase.initializeApp(FIREBASE_CONFIG);
 
-    const GROQ_API_KEY = "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";
+    // Groq API Key (Retrieved from localStorage for security)
+    const GROQ_API_KEY = localStorage.getItem('px_groq_key') || "YOUR_GROQ_API_KEY";
 
     class GroqService {
       static async chat(prompt, systemPrompt = "You are the Pronoia Agent. Precise, imperative, proactive.") {
