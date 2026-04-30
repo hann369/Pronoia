@@ -127,6 +127,23 @@
       border-radius: 2px;
     }
 
+    /* LOADER (from index.html) */
+    #loader {
+      position: fixed;
+      inset: 0;
+      background: #080C12;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #loader video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
     /* ═══ HEADER ════════════════════════════════════ */
     #header {
       height: 52px;
@@ -1381,6 +1398,12 @@
 
     .ob-step {
       display: none;
+      animation: obFadeIn 0.5s ease-out forwards;
+    }
+
+    @keyframes obFadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .ob-step.active {
@@ -1693,6 +1716,12 @@
 <body>
 
   <!-- ═══ AUTHENTICATION ══════════════════════════ -->
+  <div id="loader">
+    <video id="loaderVideo" autoplay muted playsinline>
+      <source src="graphic assets/Pronoia Loading Screen.mp4" type="video/mp4">
+    </video>
+  </div>
+
   <div id="auth-overlay">
     <div class="auth-card">
       <div class="auth-title" id="auth-title">System Access</div>
@@ -1751,13 +1780,14 @@
           <div class="ob-progress">
             <div class="ob-dot done"></div>
             <div class="ob-dot done"></div>
+            <div class="ob-dot"></div>
           </div>
         </div>
-        <h1 class="ob-h">Letzte Performance-Daten.</h1>
-        <p class="ob-sub">Gib deine HRV und Schlafqualität ein (optional, verbessert die Präzision).</p>
+        <h1 class="ob-h">Biometrische Daten.</h1>
+        <p class="ob-sub">Deine HRV und Schlafqualität definieren deine Basis-Kapazität.</p>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
           <div>
-            <label class="auth-label">HRV (Durchschnitt ms)</label>
+            <label class="auth-label">HRV (ms)</label>
             <input type="number" id="ob-hrv" class="auth-input" placeholder="70">
           </div>
           <div>
@@ -1765,7 +1795,56 @@
             <input type="number" id="ob-sleep" class="auth-input" placeholder="85">
           </div>
         </div>
-        <button class="ob-next" onclick="obNext(2)">System initialisieren →</button>
+        <button class="ob-next" onclick="obNext(2)">Zustands-Analyse →</button>
+      </div>
+
+      <!-- Step 2.5: Subjective State (New) -->
+      <div class="ob-step" id="ob-2-5">
+        <div class="ob-label">
+          <span>Pronoia System — Subjective State</span>
+          <div class="ob-progress">
+            <div class="ob-dot done"></div>
+            <div class="ob-dot done"></div>
+            <div class="ob-dot done"></div>
+            <div class="ob-dot"></div>
+          </div>
+        </div>
+        <h1 class="ob-h">Wie ist dein Status?</h1>
+        
+        <div style="margin-bottom: 1.5rem;">
+          <label class="auth-label">Energie-Level (1-10)</label>
+          <input type="range" id="ob-energy" min="1" max="10" value="7" style="width:100%; accent-color:var(--cobalt-bright);">
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <label class="auth-label">Stimmung / Fokus</label>
+          <div class="ob-options" id="ob-mood-options" style="display:grid; grid-template-columns: 1fr 1fr; gap:.5rem;">
+            <div class="ob-option" onclick="selectMood(this, 'focused')"><span class="ob-option-text">Fokussiert</span></div>
+            <div class="ob-option" onclick="selectMood(this, 'tired')"><span class="ob-option-text">Erschöpft</span></div>
+            <div class="ob-option" onclick="selectMood(this, 'stressed')"><span class="ob-option-text">Gestresst</span></div>
+            <div class="ob-option" onclick="selectMood(this, 'energized')"><span class="ob-option-text">Power</span></div>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
+          <div>
+            <label class="auth-label">Koffein heute?</label>
+            <select id="ob-caffeine" class="auth-input" style="background:var(--bg-card); color:var(--text); border-radius:0;">
+              <option value="none">Keines</option>
+              <option value="low">1 Tasse</option>
+              <option value="high">2+ Tassen</option>
+            </select>
+          </div>
+          <div>
+            <label class="auth-label">Training heute?</label>
+            <select id="ob-training" class="auth-input" style="background:var(--bg-card); color:var(--text); border-radius:0;">
+              <option value="none">Nein</option>
+              <option value="done">Bereits erledigt</option>
+              <option value="planned">Geplant</option>
+            </select>
+          </div>
+        </div>
+        <button class="ob-next" onclick="obNext(2.5)">System initialisieren →</button>
       </div>
 
       <!-- Step 3 — Result -->
@@ -2228,6 +2307,16 @@
           rec: 'Mg-Glycinate 400mg kritisch nach Krafttraining. Cortisol-Regulation.',
           insight: 'Mg erhöht GH-Ausschüttung in SWS-Phasen — essenziell für Muskelregeneration.'
         }
+      ],
+      evening_wind_down: [
+        { title: 'Sunset Walk', duration: 25 * 60, type: 'Health', pillar: 'health', rec: 'Niedrige Intensität. Kein Handy.', insight: 'Senkt Cortisol.' },
+        { title: 'Light Review', duration: 20 * 60, type: 'Focus', pillar: 'focus', rec: 'Journaling. Planung für Morgen.', insight: 'Schließt offene Loops im Gehirn.' },
+        { title: 'Evening Stack', duration: 10 * 60, type: 'Health', pillar: 'health', rec: 'Mg-Glycinate 400mg.', insight: 'Fördert SWS-Schlaf.' }
+      ],
+      night_recovery: [
+        { title: 'Digital Detox', duration: 30 * 60, type: 'Recovery', pillar: 'recovery', rec: 'Kein blaues Licht. Kerzenlicht oder Rotlicht.', insight: 'Melatonin-Synthese beginnt.' },
+        { title: 'Mobility / Stretching', duration: 15 * 60, type: 'Health', pillar: 'health', rec: 'Sanftes Dehnen.', insight: 'PNS-Aktivierung.' },
+        { title: 'Sleep Initiation', duration: 10 * 60, type: 'Recovery', pillar: 'recovery', rec: 'Kühles Zimmer (18°C). Dunkelheit.', insight: 'Optimale Thermoregulation.' }
       ]
     };
 
@@ -2263,10 +2352,10 @@
         this.notified5m = false;
         this.sessionID = '';
         this.log = [];
-        this.obState = { goals: '', hrv: 0, sleep: 0 };
+        this.obState = { goals: '', hrv: 0, sleep: 0, energy: 7, mood: 'focused', caffeine: 'none', training: 'none' };
         this.directives = [];
-        this.profile = { goals: '', metrics: { hrv: 0, sleep: 0 }, location: '' };
-        this.env = { city: '', temp: '', sun: '', time: '' };
+        this.profile = { goals: '', metrics: { hrv: 0, sleep: 0 }, location: '', energy: 7, mood: 'focused' };
+        this.env = { city: 'Unknown', temp: '--', sun: '--', time: '--', lat: null, lon: null };
 
         // Restore from localStorage
         this.sessionID = localStorage.getItem('px_session') || '';
@@ -2274,27 +2363,49 @@
 
       async getEnvironment() {
         const el = document.getElementById('env-context');
+        
+        // Try GPS first
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+              this.env.lat = pos.coords.latitude;
+              this.env.lon = pos.coords.longitude;
+              await this.fetchWeather(`${this.env.lat},${this.env.lon}`, el);
+            },
+            async (err) => {
+              console.warn("GPS Access Denied/Error:", err);
+              await this.fetchWeather("", el); // Fallback to IP
+            },
+            { timeout: 5000 }
+          );
+        } else {
+          await this.fetchWeather("", el);
+        }
+      }
+
+      async fetchWeather(loc, el) {
         try {
-          const res = await fetch('https://wttr.in/?format=j1');
+          const res = await fetch(`https://wttr.in/${loc}?format=j1`);
           const data = await res.json();
           const cur = data.current_condition[0];
           const ast = data.weather[0].astronomy[0];
 
           this.env = {
-            city: data.nearest_area[0].region[0].value,
+            ...this.env,
+            city: data.nearest_area[0].region[0].value || data.nearest_area[0].areaName[0].value,
             temp: cur.temp_C + '°C',
             sun: `↑ ${ast.sunrise} · ↓ ${ast.sunset}`,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           };
 
           if (el) el.innerHTML = `
-          <div>Location: ${this.env.city}</div>
-          <div>Weather: ${cur.weatherDesc[0].value}, ${this.env.temp}</div>
-          <div>Daylight: ${this.env.sun}</div>
-          <div>System Time: ${this.env.time}</div>
-        `;
+            <div>Location: ${this.env.city}</div>
+            <div>Weather: ${cur.weatherDesc[0].value}, ${this.env.temp}</div>
+            <div>Daylight: ${this.env.sun}</div>
+            <div>System Time: ${this.env.time}</div>
+          `;
         } catch (err) {
-          console.warn("Env Fetch Error:", err);
+          console.warn("Weather Fetch Error:", err);
           if (el) el.textContent = "Environment Data Offline. Using Default.";
         }
       }
@@ -2331,12 +2442,18 @@
 
         const prompt = `
         Erstelle ein Pronoia Protokoll (JSON Format) basierend auf:
+        Uhrzeit: ${new Date().toLocaleTimeString()}
         Ziele: ${context.goals}
+        Subjective Status: Energie ${this.obState.energy}/10, Mood ${this.obState.mood}, Caffeine ${this.obState.caffeine}, Training ${this.obState.training}
         Metrics: HRV ${context.metrics.hrv}, Schlaf ${context.metrics.sleep}
         Umwelt: ${context.env.city}, ${context.env.temp}, ${context.env.sun}
         
-        JSON Schema: { "blocks": [ { "title": string, "duration": seconds, "type": string, "pillar": "focus"|"health"|"skills"|"social", "rec": string, "insight": string } ] }
-        Regeln: 4-6 Blöcke. Starte mit Health/Focus. Nutze Ultradiane Rhythmen (90/20).
+        JSON Schema: { "blocks": [ { "title": string, "duration": seconds, "type": string, "pillar": "focus"|"health"|"skills"|"social"|"recovery", "rec": string, "insight": string } ] }
+        Regeln: 
+        1. 4-6 Blöcke. 
+        2. WÄHLE BLÖCKE DIE ZUR TAGESZEIT PASSEN. (Wenn spät abends, keine Deep Work Blöcke mehr, sondern Recovery).
+        3. Nutze Ultradiane Rhythmen (90/20) für Fokus.
+        4. Reagiere auf die Stimmung (wenn "tired", kürzere Blöcke, mehr Recovery).
       `;
 
         try {
@@ -2352,7 +2469,7 @@
           this.renderResultBlocks();
         } catch (err) {
           console.error("AI Protocol Error:", err);
-          this.loadProtocol('optimal_deepwork');
+          this.loadProtocol(this.getTimeAwareTemplate());
           this.renderResultBlocks();
         }
 
@@ -2396,8 +2513,8 @@
           this.obState = data.obState || this.obState;
           this.directives = data.directives || [];
           // Only load protocol if not already loaded
-          if (this.blocks.length === 0 && this.obState.feeling) {
-            this.loadProtocol(`${this.obState.feeling}_${this.obState.priority}`);
+          if (this.blocks.length === 0) {
+            this.loadProtocol(this.getTimeAwareTemplate());
           }
           this.renderUI();
         }
@@ -2450,6 +2567,18 @@
         } else {
           msgEl.textContent = msg;
         }
+      }
+
+      getTimeAwareTemplate() {
+        const hour = new Date().getHours();
+        const mood = this.obState.mood;
+
+        if (hour >= 5 && hour < 10) return mood === 'tired' ? 'tired_balanced' : 'optimal_deepwork';
+        if (hour >= 10 && hour < 17) return this.obState.training === 'planned' ? 'physical_training' : 'optimal_deepwork';
+        if (hour >= 17 && hour < 21) return 'evening_wind_down';
+        if (hour >= 21 || hour < 5) return 'night_recovery';
+        
+        return 'optimal_deepwork';
       }
 
       loadProtocol(templateKey) {
@@ -2980,14 +3109,66 @@
         Agent.obState.hrv = parseInt(document.getElementById('ob-hrv').value) || 0;
         Agent.obState.sleep = parseInt(document.getElementById('ob-sleep').value) || 0;
 
+        document.getElementById('ob-2').classList.remove('active');
+        document.getElementById('ob-2-5').classList.add('active');
+      } else if (step === 2.5) {
+        Agent.obState.energy = parseInt(document.getElementById('ob-energy').value) || 7;
+        Agent.obState.caffeine = document.getElementById('ob-caffeine').value;
+        Agent.obState.training = document.getElementById('ob-training').value;
+
         Agent.profile.goals = Agent.obState.goals;
         Agent.profile.metrics.hrv = Agent.obState.hrv;
         Agent.profile.metrics.sleep = Agent.obState.sleep;
 
-        document.getElementById('ob-2').classList.remove('active');
+        document.getElementById('ob-2-5').classList.remove('active');
         document.getElementById('ob-3').classList.add('active');
 
         Agent.generatePredictiveProtocol();
+      }
+    }
+
+    function selectMood(el, mood) {
+      document.querySelectorAll('#ob-mood-options .ob-option').forEach(opt => opt.classList.remove('selected'));
+      el.classList.add('selected');
+      Agent.obState.mood = mood;
+    }
+
+    // ── LOADER DISMISS (from index.html) ──────────
+    const loader = document.getElementById('loader');
+    const loaderVideo = document.getElementById('loaderVideo');
+    let loaderDone = false;
+
+    function dismissLoader() {
+      if (loaderDone) return;
+      loaderDone = true;
+      gsap.to(loader, {
+        opacity: 0, duration: 1.2, ease: 'power2.inOut',
+        onComplete: () => {
+          loader.style.display = 'none';
+          // Check if we need to show onboarding after loader
+          initSessionFlow();
+        }
+      });
+    }
+    if (loaderVideo) {
+      loaderVideo.addEventListener('ended', dismissLoader);
+      setTimeout(dismissLoader, 8000);
+    } else {
+      setTimeout(dismissLoader, 100);
+    }
+
+    function initSessionFlow() {
+      if (Auth.isLoggedIn) {
+        document.getElementById('auth-overlay').style.display = 'none';
+        const hadProtocol = !!localStorage.getItem('px_block_idx');
+        const didOnboarding = !!localStorage.getItem('px_onboarding_done');
+
+        if (hadProtocol || didOnboarding) {
+          Agent.loadProtocol(Agent.getTimeAwareTemplate());
+          obFinish();
+        } else {
+          document.getElementById('onboarding').style.display = 'flex';
+        }
       }
     }
 
@@ -3027,23 +3208,8 @@
     }
     document.getElementById('session-id').textContent = 'SESSION: ' + Agent.sessionID;
 
-    // ── RESTORE SESSION ─────────────────────────────
-    if (Auth.isLoggedIn) {
-      // User is returning — hide auth overlay immediately
-      document.getElementById('auth-overlay').style.display = 'none';
-
-      const hadProtocol = !!localStorage.getItem('px_block_idx');
-      const didOnboarding = !!localStorage.getItem('px_onboarding_done');
-
-      if (hadProtocol || didOnboarding) {
-        // Restore previous session
-        Agent.loadProtocol('optimal_deepwork');
-        obFinish();
-      } else {
-        // First-time user, show onboarding
-        document.getElementById('onboarding').style.display = 'flex';
-      }
-    }
+    // ── RESTORE SESSION (handled by loader dismiss) ──
+    // Moved to initSessionFlow()
 
     // ── EVENT LISTENERS ──────────────────────────────
     document.getElementById('btn-toggle').addEventListener('click', () => Agent.toggleTimer());
