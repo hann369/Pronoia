@@ -2834,50 +2834,19 @@
       Agent.triggerToast('Block Hinzugefügt', `"${title}" (${mins}min) zur Queue hinzugefügt.`, false, null);
     }
 
-    // ── ONBOARDING ──────────────────────────────────
-
-    function obNext(step) {
-      if (step === 1) {
-        document.getElementById('ob-1').classList.remove('active');
-        document.getElementById('ob-2').classList.add('active');
-        document.getElementById('dp2').classList.add('done');
-      } else if (step === 2) {
-        // Pick template
-        let key = 'optimal_deepwork';
-        if (obFeel === 'tired' || obFeel === 'recovery') key = 'tired_balanced';
-        else if (obPriority === 'physical') key = 'physical_training';
-        else if (obFeel === 'optimal' && obPriority === 'deepwork') key = 'optimal_deepwork';
-
-        Agent.loadProtocol(key);
-
-        // Show preview
-        const feelLabel = { optimal: 'Optimal', good: 'Gut', tired: 'Müde', recovery: 'Recovery' }[obFeel];
-        document.getElementById('ob3-title').textContent =
-          `${feelLabel} — ${Agent.blocks.length} Blöcke generiert.`;
-        document.getElementById('ob3-sub').textContent =
-          `Protokoll-Typ: ${key.replace(/_/g, ' ')}. Heute ${Agent.blocks.length} Blöcke, ~${Math.round(Agent.blocks.reduce((a, b) => a + b.duration, 0) / 60)} Minuten.`;
-
-        const blocksEl = document.getElementById('ob3-blocks');
-        blocksEl.innerHTML = Agent.blocks.map((b, i) => `
-        <div style="display:flex;align-items:center;gap:.75rem;padding:.7rem;border:1px solid var(--border-s);background:var(--bg-card);">
-          <span style="font-family:var(--font-mono);font-size:.6rem;color:var(--cobalt-bright);min-width:16px;">${i + 1}</span>
-          <div style="width:5px;height:5px;border-radius:50%;background:${PILLAR_COLORS[b.pillar] || '#888'};flex-shrink:0;"></div>
-          <span style="font-size:.88rem;flex:1;">${b.title}</span>
-          <span style="font-family:var(--font-mono);font-size:.62rem;color:var(--text3);">${Math.round(b.duration / 60)}m</span>
-        </div>`).join('');
-
-        document.getElementById('ob-2').classList.remove('active');
-        document.getElementById('ob-3').classList.add('active');
-        document.getElementById('dp3').classList.add('done');
-      }
-    }
+    // ── ONBOARDING (cleaned: single definition) ────
 
     function obFinish() {
+      // Safety: ensure protocol is loaded
+      if (!Agent.blocks || Agent.blocks.length === 0) {
+        Agent.loadProtocol('optimal_deepwork');
+      }
       document.getElementById('onboarding').style.opacity = '0';
       document.getElementById('onboarding').style.transition = 'opacity .5s';
       setTimeout(() => { document.getElementById('onboarding').style.display = 'none'; }, 500);
       Agent.renderUI();
-      Agent.setAgentMsg(`Protokoll geladen. ${Agent.blocks[0].title} bereit. Klicke Start oder tippe 'start'.`);
+      const firstBlock = Agent.blocks[0];
+      Agent.setAgentMsg(`Protokoll geladen. ${firstBlock ? firstBlock.title : 'System'} bereit. Klicke Start oder tippe 'start'.`);
       Agent.generateDirective('INIT');
       localStorage.setItem('px_onboarding_done', 'true');
     }
@@ -2904,9 +2873,11 @@
           this.logout();
         });
 
-        // Check for persisted session in localStorage for this prototype
+        // Check for persisted session
         if (localStorage.getItem('px_auth_token')) {
-          this.success();
+          this.isLoggedIn = true;
+          // Don't call success() here — Agent doesn't exist yet.
+          // The INIT block below handles restoring the session.
         }
       },
 
@@ -2927,7 +2898,6 @@
         document.getElementById('auth-form').style.display = 'none';
         document.getElementById('auth-loading').style.display = 'block';
 
-        // Simulation or actual Firebase
         if (FIREBASE_CONFIG.apiKey) {
           try {
             if (this.mode === 'login') {
@@ -2943,7 +2913,6 @@
             document.getElementById('auth-loading').style.display = 'none';
           }
         } else {
-          // Prototype mode: Just let them in
           setTimeout(() => this.success(), 1200);
         }
       },
@@ -2954,7 +2923,6 @@
         document.getElementById('auth-overlay').style.opacity = '0';
         setTimeout(() => {
           document.getElementById('auth-overlay').style.display = 'none';
-          // Initialize Onboarding if needed
           if (!localStorage.getItem('px_onboarding_done')) {
             document.getElementById('onboarding').style.display = 'flex';
           } else {
@@ -2966,10 +2934,17 @@
       logout() {
         firebase.auth().signOut().then(() => {
           localStorage.removeItem('px_auth_token');
+          localStorage.removeItem('px_onboarding_done');
+          localStorage.removeItem('px_block_idx');
+          localStorage.removeItem('px_time_left');
           location.reload();
         });
       }
     };
+
+    // ── INIT ────────────────────────────────────────
+    // IMPORTANT: Agent MUST be created before Auth.init()
+    const Agent = new PronoiaAgent();
 
     function obNext(step) {
       if (step === 1) {
@@ -2980,7 +2955,6 @@
         Agent.obState.hrv = parseInt(document.getElementById('ob-hrv').value) || 0;
         Agent.obState.sleep = parseInt(document.getElementById('ob-sleep').value) || 0;
 
-        // Update profile with onboarding data
         Agent.profile.goals = Agent.obState.goals;
         Agent.profile.metrics.hrv = Agent.obState.hrv;
         Agent.profile.metrics.sleep = Agent.obState.sleep;
@@ -3001,29 +2975,24 @@
 
       if (tab === 'personal') {
         Agent.getEnvironment();
-        // Pre-fill profile
         document.getElementById('profile-goals').value = Agent.profile.goals || '';
         document.getElementById('metric-hrv').value = Agent.profile.metrics.hrv || '';
         document.getElementById('metric-sleep').value = Agent.profile.metrics.sleep || '';
       }
     }
 
+    // Now safe to init Auth (Agent exists)
     Auth.init();
 
-    // ── INIT ────────────────────────────────────────
-    const Agent = new PronoiaAgent();
-
-    // Theme Logic
+    // Theme
     const toggleTheme = () => {
       document.body.classList.toggle('light-theme');
       const isLight = document.body.classList.contains('light-theme');
       localStorage.setItem('px_theme', isLight ? 'light' : 'dark');
     };
-
     if (localStorage.getItem('px_theme') === 'light') {
       document.body.classList.add('light-theme');
     }
-
     document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
 
     // Session ID
@@ -3033,18 +3002,25 @@
     }
     document.getElementById('session-id').textContent = 'SESSION: ' + Agent.sessionID;
 
-    // Restore session if authenticated
+    // ── RESTORE SESSION ─────────────────────────────
     if (Auth.isLoggedIn) {
-      const hadSession = !!localStorage.getItem('px_block_idx');
-      if (hadSession) {
+      // User is returning — hide auth overlay immediately
+      document.getElementById('auth-overlay').style.display = 'none';
+
+      const hadProtocol = !!localStorage.getItem('px_block_idx');
+      const didOnboarding = !!localStorage.getItem('px_onboarding_done');
+
+      if (hadProtocol || didOnboarding) {
+        // Restore previous session
         Agent.loadProtocol('optimal_deepwork');
         obFinish();
-      } else if (!localStorage.getItem('px_onboarding_done')) {
+      } else {
+        // First-time user, show onboarding
         document.getElementById('onboarding').style.display = 'flex';
       }
     }
 
-    // Event Listeners
+    // ── EVENT LISTENERS ──────────────────────────────
     document.getElementById('btn-toggle').addEventListener('click', () => Agent.toggleTimer());
     document.getElementById('btn-complete').addEventListener('click', () => Agent.completeBlock(true));
     document.getElementById('btn-skip').addEventListener('click', () => Agent.skipBlock());
@@ -3057,15 +3033,23 @@
       }
     });
 
-    // Context chips
+    // Context chips — map to real handleCommand patterns
     document.querySelectorAll('.ctx-chip').forEach(chip => {
       chip.addEventListener('click', function () {
         this.classList.toggle('selected');
-        Agent.handleCommand(this.dataset.cmd);
+        const cmdMap = {
+          'focus': 'fokus',
+          'tired': 'recovery',
+          'exam': 'fokus',
+          'free': 'status',
+          'shift': 'lunch verschieben'
+        };
+        const cmd = cmdMap[this.dataset.cmd] || this.dataset.cmd;
+        Agent.handleCommand(cmd);
       });
     });
 
-    // Stage badge (from localStorage or default)
+    // Stage badge
     const stage = parseInt(localStorage.getItem('px_stage')) || 1;
     document.getElementById('stage-badge').textContent = `Stage 0${stage}`;
 
