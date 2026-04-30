@@ -17,6 +17,10 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollToPlugin.min.js"></script>
   <script src="https://unpkg.com/@studio-freight/lenis@1.0.33/dist/lenis.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
   <style>
     .system-locked {
       opacity: 0.5;
@@ -439,6 +443,39 @@
       height: 30px;
       background: rgba(255, 255, 255, 0.3);
     }
+
+    /* ═══ AUTH OVERLAY ═══════════════════════════════ */
+    #px-auth-overlay {
+      position: fixed; inset: 0; z-index: 10000;
+      background: rgba(8,12,18,.96); backdrop-filter: blur(24px);
+      display: none; align-items: center; justify-content: center;
+      color: #fff; opacity: 0; transition: opacity .4s;
+    }
+    .px-auth-card {
+      background: #0d1117; border: 1px solid rgba(255,255,255,.08);
+      padding: 3.5rem; width: 100%; max-width: 440px;
+      text-align: center; box-shadow: 0 40px 100px rgba(0,0,0,.6);
+    }
+    .px-auth-card h2 { font-family: var(--font-display); font-size: 2.2rem; color: #fff; margin-bottom: .4rem; }
+    .px-auth-card .sub { font-size: .85rem; color: rgba(255,255,255,.4); margin-bottom: 2rem; }
+    .px-auth-input {
+      width: 100%; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+      padding: .85rem 1rem; color: #fff; font-family: var(--font-body); font-size: .9rem;
+      transition: border-color .3s; margin-bottom: .8rem; outline: none;
+    }
+    .px-auth-input:focus { border-color: var(--tan); }
+    .px-auth-label { display: block; text-align: left; font-size: .6rem; text-transform: uppercase; letter-spacing: .2em; color: var(--tan); margin-bottom: .4rem; }
+    .px-auth-btn {
+      width: 100%; background: var(--tan); color: #000; border: none; padding: 1rem;
+      font-weight: 700; text-transform: uppercase; letter-spacing: .2em; font-size: .72rem;
+      cursor: pointer; transition: all .3s; margin-top: .8rem;
+    }
+    .px-auth-btn:hover { background: #fff; transform: translateY(-2px); }
+    .px-auth-switch { font-size: .65rem; margin-top: 1.5rem; color: rgba(255,255,255,.35); cursor: pointer; display: block; }
+    .px-auth-switch:hover { color: #fff; }
+    .px-auth-close { position: absolute; top: 2rem; right: 2rem; background: none; border: none; color: rgba(255,255,255,.3); font-size: 1.5rem; cursor: pointer; }
+    .px-auth-close:hover { color: #fff; }
+    #px-payment-step { display: none; }
 
     /* SECTIONS GENERAL & TYPOGRAPHY */
     section {
@@ -3124,6 +3161,164 @@ void main(){
         }
       });
     }
+  </script>
+
+  <!-- ═══ AUTH & PAYMENT OVERLAY ══════════════════ -->
+  <div id="px-auth-overlay">
+    <button class="px-auth-close" id="px-auth-close">&times;</button>
+    <div class="px-auth-card">
+      <!-- AUTH STEP -->
+      <div id="px-auth-step">
+        <h2 id="px-auth-title">System Access</h2>
+        <p class="sub" id="px-auth-sub">Identity Verification Required</p>
+        <div id="px-auth-form">
+          <label class="px-auth-label">Email Address</label>
+          <input type="email" id="px-auth-email" class="px-auth-input" placeholder="name@domain.com">
+          <label class="px-auth-label">Security Pass</label>
+          <input type="password" id="px-auth-pass" class="px-auth-input" placeholder="••••••••">
+          <button class="px-auth-btn" id="px-auth-btn">Initiate Session</button>
+          <span class="px-auth-switch" id="px-auth-switch">Create New Identity Profile</span>
+        </div>
+        <div id="px-auth-loading" style="display:none; padding: 2rem 0;">
+          <div style="font-size:.7rem; letter-spacing:.3em; color:var(--tan); text-transform:uppercase;">VERIFYING...</div>
+        </div>
+      </div>
+      <!-- PAYMENT STEP -->
+      <div id="px-payment-step">
+        <h2>Activation</h2>
+        <p class="sub">One-time protocol access. Lifetime intelligence sync.</p>
+        <div style="background: rgba(255,255,255,.03); padding: 1.5rem; border: 1px solid rgba(255,255,255,.05); margin-bottom: 1.5rem; text-align: left;">
+          <div style="display:flex; justify-content:space-between; margin-bottom: .4rem;">
+            <span style="font-size:.6rem; color:rgba(255,255,255,.35); text-transform:uppercase; letter-spacing:.15em;">System Access Tier</span>
+            <span style="font-size:.6rem; color:var(--tan); text-transform:uppercase; letter-spacing:.15em;">Premium</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size: 1.2rem; font-family: var(--font-display);">
+            <span>Pronoia Protocol v2</span>
+            <span>&euro;49.00</span>
+          </div>
+        </div>
+        <button class="px-auth-btn" id="px-pay-btn">Proceed to Payment</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── FIREBASE INIT ──────────────────────────────
+    firebase.initializeApp({
+      apiKey: "AIzaSyDFu_w-MmLJRdiOOZoLii8-SQBN9FUtG60",
+      authDomain: "noodrop-c9be9.firebaseapp.com",
+      projectId: "noodrop-c9be9",
+      storageBucket: "noodrop-c9be9.firebasestorage.app",
+      messagingSenderId: "903301545011",
+      appId: "1:903301545011:web:84a6c4ba643a9b255d7746"
+    });
+
+    // ── AUTH LOGIC ─────────────────────────────────
+    const PxAuth = {
+      mode: 'login',
+
+      init() {
+        // Wire up CTA buttons to open auth
+        document.querySelectorAll('.btn-glass, .btn-diag, a[href="#diagnosis"]').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.show();
+          });
+        });
+
+        // System nav link
+        const sysLink = document.getElementById('nav-system');
+        if (sysLink) {
+          sysLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.show();
+          });
+        }
+
+        document.getElementById('px-auth-btn').addEventListener('click', () => this.handleAuth());
+        document.getElementById('px-auth-switch').addEventListener('click', () => this.toggleMode());
+        document.getElementById('px-pay-btn').addEventListener('click', () => this.handlePayment());
+        document.getElementById('px-auth-close').addEventListener('click', () => this.hide());
+
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') this.hide();
+        });
+      },
+
+      show() {
+        const overlay = document.getElementById('px-auth-overlay');
+        overlay.style.display = 'flex';
+        requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+        gsap.from('.px-auth-card', { opacity: 0, y: 40, duration: 0.7, ease: 'power4.out' });
+      },
+
+      hide() {
+        const overlay = document.getElementById('px-auth-overlay');
+        overlay.style.opacity = '0';
+        setTimeout(() => { overlay.style.display = 'none'; }, 400);
+      },
+
+      toggleMode() {
+        this.mode = this.mode === 'login' ? 'signup' : 'login';
+        document.getElementById('px-auth-title').textContent = this.mode === 'login' ? 'System Access' : 'Create Identity';
+        document.getElementById('px-auth-sub').textContent = this.mode === 'login' ? 'Identity Verification Required' : 'Initialize New Protocol Profile';
+        document.getElementById('px-auth-btn').textContent = this.mode === 'login' ? 'Initiate Session' : 'Register Profile';
+        document.getElementById('px-auth-switch').textContent = this.mode === 'login' ? 'Create New Identity Profile' : 'Existing Profile? Sign In';
+      },
+
+      async handleAuth() {
+        const email = document.getElementById('px-auth-email').value;
+        const pass = document.getElementById('px-auth-pass').value;
+        if (!email || !pass) return;
+
+        document.getElementById('px-auth-form').style.display = 'none';
+        document.getElementById('px-auth-loading').style.display = 'block';
+
+        try {
+          if (this.mode === 'login') {
+            await firebase.auth().signInWithEmailAndPassword(email, pass);
+          } else {
+            await firebase.auth().createUserWithEmailAndPassword(email, pass);
+          }
+
+          const user = firebase.auth().currentUser;
+          const doc = await firebase.firestore().collection('users').doc(user.uid).get();
+          if (doc.exists && doc.data().isPaid) {
+            window.location.href = 'protocol.html';
+          } else {
+            this.showPayment();
+          }
+        } catch (err) {
+          alert(err.message);
+          document.getElementById('px-auth-form').style.display = 'block';
+          document.getElementById('px-auth-loading').style.display = 'none';
+        }
+      },
+
+      showPayment() {
+        document.getElementById('px-auth-step').style.display = 'none';
+        document.getElementById('px-payment-step').style.display = 'block';
+        gsap.from('#px-payment-step', { opacity: 0, x: 20, duration: 0.5 });
+      },
+
+      async handlePayment() {
+        const btn = document.getElementById('px-pay-btn');
+        btn.textContent = 'PROCESSING...';
+        btn.disabled = true;
+
+        // Simulated payment — replace with stripe.redirectToCheckout() in production
+        setTimeout(async () => {
+          const user = firebase.auth().currentUser;
+          await firebase.firestore().collection('users').doc(user.uid).set({
+            isPaid: true,
+            paidAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+          window.location.href = 'protocol.html';
+        }, 1500);
+      }
+    };
+
+    PxAuth.init();
   </script>
 </body>
 

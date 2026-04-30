@@ -2082,17 +2082,42 @@
             body: JSON.stringify({ prompt, systemPrompt })
           });
           
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            console.warn("Groq API returned", response.status, errData.error || 'Unknown error');
+            return this.getFallback(prompt);
+          }
+
           const data = await response.json();
-          if (data.error) throw new Error(data.error);
+          
+          if (data.error) {
+            const errMsg = typeof data.error === 'string' ? data.error : (data.error.message || 'API Error');
+            console.warn("Groq API Error:", errMsg);
+            return this.getFallback(prompt);
+          }
+
+          if (!data.choices || !data.choices[0]) {
+            console.warn("Groq: No choices in response");
+            return this.getFallback(prompt);
+          }
+
           return data.choices[0].message.content;
         } catch (err) {
-          console.error("Proxy Error:", err);
+          console.warn("GroqService network error:", err.message);
           return this.getFallback(prompt);
         }
       }
 
       static getFallback(prompt) {
-        if (prompt.includes('onboarding')) return "Protokoll optimiert für Deep Work.";
+        const p = prompt.toLowerCase();
+        if (p.includes('prüfung') || p.includes('exam') || p.includes('fokus') || p.includes('focus'))
+          return "Fokus-Modus aktiviert. Alle nicht-essentiellen Blöcke verschoben.";
+        if (p.includes('recovery') || p.includes('müde') || p.includes('tired'))
+          return "Recovery-Modus. Reduzierte kognitive Last empfohlen.";
+        if (p.includes('json') || p.includes('protokoll'))
+          return '{"blocks":[{"title":"Deep Work","duration":5400,"type":"Focus","pillar":"focus","rec":"Fokus halten.","insight":"Ultradian Peak."}]}';
+        if (p.includes('transition') || p.includes('block'))
+          return "Block-Übergang. Kurze Pause empfohlen. Hydration prüfen.";
         return "Systemstatus stabil. Nächster Block bereit.";
       }
     }

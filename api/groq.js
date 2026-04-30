@@ -1,13 +1,26 @@
 export default async function handler(req, res) {
+  // CORS headers for cross-origin requests
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { prompt, systemPrompt } = req.body;
+  const { prompt, systemPrompt } = req.body || {};
   const apiKey = process.env.GROQ_API_KEY;
 
   if (!apiKey) {
-    return res.status(500).json({ error: 'Groq API Key not configured in Vercel environment.' });
+    return res.status(500).json({ error: 'GROQ_API_KEY not set in Vercel environment variables.' });
+  }
+
+  if (!prompt) {
+    return res.status(400).json({ error: 'Missing prompt in request body.' });
   }
 
   try {
@@ -29,8 +42,17 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
+
+    // Groq returns { error: { message, type } } on failure
+    if (data.error) {
+      const errMsg = typeof data.error === 'string' ? data.error : (data.error.message || JSON.stringify(data.error));
+      console.error('Groq API Error:', errMsg);
+      return res.status(response.status || 500).json({ error: errMsg });
+    }
+
     return res.status(200).json(data);
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to communicate with Groq API', details: error.message });
+    console.error('Proxy fetch error:', error);
+    return res.status(500).json({ error: error.message || 'Failed to reach Groq API' });
   }
 }
