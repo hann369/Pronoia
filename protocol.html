@@ -2526,10 +2526,11 @@
         const prompt = `
         Type: ${type}
         Context: ${JSON.stringify(this.obState)}
+        Profile: ${JSON.stringify(this.profile)}
         Current Block: ${this.blocks[this.blockIdx]?.title || 'None'}
         User Input: ${inputContext}
         Task: Gib eine kurze, vorausschauende Directive (max 15 Wörter). 
-        Sei der Agent, der weiß was der User braucht bevor er es weiß.
+        Sei der Agent, der weiß was der User braucht bevor er es weiß. Nutze die Daten (HRV, Mood, Energy) für präzise Empfehlungen.
       `;
         const directive = await GroqService.chat(prompt, "Du bist der Pronoia Intelligence Engine. Deine Directives sind präzise, klinisch und vorausschauend.");
         this.directives.unshift({ text: directive, type: type, ts: new Date().toLocaleTimeString() });
@@ -2694,49 +2695,42 @@
         const cmd = raw.toLowerCase().trim();
         this.setAgentMsg(`Analysiere Directive: "${raw}"…`);
 
+        // Check for AI-driven intent if not a basic structural command
+        const isBasic = /pause|stop|weiter|resume|start|los|status|was|überspringen|skip|next|abschließen|done|fertig/.test(cmd);
+        
+        if (!isBasic) {
+          // AI Path for complex commands
+          document.getElementById('agent-thinking').style.display = 'flex';
+          const aiResponse = await GroqService.chat(raw, `Du bist der Pronoia Agent. Der User gibt dir eine Anweisung: "${raw}". 
+          Antworte kurz (1 Satz) was du tust. Wenn es um Fokus geht, erwähne dass du den Fokus-Modus aktivierst. 
+          Wenn es um Müdigkeit geht, schlage Recovery vor.`);
+          this.setAgentMsg(aiResponse);
+          document.getElementById('agent-thinking').style.display = 'none';
+          
+          // Execute logic based on AI intent (simplified matching)
+          if (/fokus|focus|tiefer|konzentration/.test(cmd)) this.setFocusMode(true);
+          if (/exit.*focus|normal|ablenkung/.test(cmd)) this.setFocusMode(false);
+          if (/recovery|müde|erschöpft/.test(cmd)) {
+             this.loadProtocol('tired_balanced'); 
+             this.renderUI();
+             this.generateDirective('ADAPTATION', 'User ist erschöpft.');
+          }
+          if (/lunch|verschieb|später/.test(cmd)) this.shiftBlock('Social');
+          return;
+        }
+
         // Structural commands (fast path)
         if (/pause|stop/.test(cmd)) {
           this.pause();
-          return;
         } else if (/weiter|resume|start|los/.test(cmd)) {
           this.start();
-          return;
-        } else if (/fokus|focus|tiefer|konzentration/.test(cmd)) {
-          this.setFocusMode(true);
-
-        } else if (/exit.*focus|normal|ablenkung/.test(cmd)) {
-          this.setFocusMode(false);
-
-        } else if (/lunch|verschieb|später/.test(cmd)) {
-          this.shiftBlock('Social');
-          this.triggerToast('Queue Angepasst', 'Lunch-Block wurde nach hinten verschoben.', false, null);
-          this.setAgentMsg('Lunch verschoben. Fokus-Kontinuation priorisiert.');
-
-        } else if (/friction|unter|interrupt/.test(cmd)) {
-          logFriction('warn');
-          this.triggerToast('Friction Geloggt', 'Nächsten Block um 20% reduziert für Recovery.', true,
-            () => this.reduceDuration(0.8));
-          this.setAgentMsg('Friction-Event aufgezeichnet. Passe nächsten Block an.');
-
-        } else if (/recovery|müde|erschöpft/.test(cmd)) {
-          this.triggerToast('Recovery Modus', 'Protokoll auf minimale Last umgestellt?', true,
-            () => {
-              this.loadProtocol('tired_balanced'); this.renderUI();
-              this.setAgentMsg('Protokoll auf Recovery-Modus angepasst.');
-            });
-
         } else if (/status|info|was/.test(cmd)) {
           const cur = this.blocks[this.blockIdx];
           if (cur) this.setAgentMsg(`Block ${this.blockIdx + 1}/${this.blocks.length}: "${cur.title}" — ${this.formatTime(this.timeLeft)} verbleibend.`);
-
         } else if (/überspringen|skip|next/.test(cmd)) {
           this.skipBlock();
-
         } else if (/abschließen|done|fertig/.test(cmd)) {
           this.completeBlock(true);
-
-        } else {
-          this.setAgentMsg(`Command nicht erkannt. Verfügbar: pause, fokus, lunch verschieben, friction, recovery, status, überspringen.`);
         }
       }
 
@@ -3005,6 +2999,8 @@
       Agent.setAgentMsg(`Protokoll geladen. ${firstBlock ? firstBlock.title : 'System'} bereit. Klicke Start oder tippe 'start'.`);
       Agent.generateDirective('INIT');
       localStorage.setItem('px_onboarding_done', 'true');
+      Agent.syncProfile(); // Ensure initial data is synced to Firestore
+      Agent.syncState();
     }
 
     function obSkip() {
