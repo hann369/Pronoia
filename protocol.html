@@ -1382,7 +1382,7 @@
     .stack-editor-modal {
       position: fixed;
       inset: 0;
-      z-index: 1100;
+      z-index: 9999; /* Max priority */
       background: rgba(8, 12, 18, 0.95);
       backdrop-filter: blur(12px);
       display: none;
@@ -1903,7 +1903,10 @@
         <p class="ob-sub" id="ob3-sub">Der Agent hat deinen Tag basierend auf Zielen, Umwelt und Metrics strukturiert.
         </p>
         <div id="ob3-blocks" style="margin-bottom:2rem;display:flex;flex-direction:column;gap:.4rem;"></div>
-        <button class="ob-next" onclick="obFinish()">Protokoll starten →</button>
+        <div style="display:flex; gap:.5rem;">
+          <button class="ob-next" onclick="obFinish()">Protokoll starten →</button>
+          <button class="ob-next" style="background:var(--bg-card); border:1px solid var(--border);" onclick="Agent.generatePredictiveProtocol()">AI Regenerieren</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2380,24 +2383,22 @@
       ]
     };
 
-    // ── PILLAR COLORS ─────────────────────────────────
-    const PILLAR_COLORS = {
-      focus: '#1A6AFF',
-      health: '#6B8C5E',
-      skills: '#C4A882',
-      social: '#9B7EC8',
-      recovery: '#00A3FF',
-    };
-
-    const DEFAULT_STACK = [
-      { name: 'Creatine Monohydrate', dose: '5g', timing: 'morning', supply: 100 },
-      { name: 'Taurine', dose: '2g', timing: 'morning', supply: 100 },
-      { name: 'Magnesium Glycinate', dose: '400mg', timing: 'evening', supply: 100 },
-    ];
-
     // ── AGENT CORE ────────────────────────────────────
     class PronoiaAgent {
       constructor() {
+        this.pillarColors = {
+          focus: '#1A6AFF',
+          health: '#00C48C',
+          skills: '#F5A623',
+          social: '#FF4D4D',
+          recovery: '#00A3FF',
+        };
+        this.defaultStack = [
+          { name: 'Creatine Monohydrate', dose: '5g', timing: 'morning', supply: 100 },
+          { name: 'Taurine', dose: '2g', timing: 'morning', supply: 100 },
+          { name: 'Magnesium Glycinate', dose: '400mg', timing: 'evening', supply: 100 },
+        ];
+        
         this.blocks = [];
         this.blockIdx = 0;
         this.timeLeft = 0;
@@ -2413,7 +2414,7 @@
         this.directives = [];
         this.profile = { goals: '', metrics: { hrv: 0, sleep: 0 }, location: '', energy: 7, mood: 'focused' };
         this.env = { city: 'Unknown', temp: '--', sun: '--', time: '--', lat: null, lon: null };
-        this.stack = JSON.parse(localStorage.getItem('px_stack')) || DEFAULT_STACK;
+        this.stack = JSON.parse(localStorage.getItem('px_stack')) || this.defaultStack;
 
         // Restore from localStorage
         this.sessionID = localStorage.getItem('px_session') || '';
@@ -2959,7 +2960,7 @@
         document.getElementById('timer-sub').textContent = 'Bereit';
 
         // Pillar tag
-        const color = PILLAR_COLORS[cur.pillar] || 'var(--text2)';
+        const color = this.pillarColors[cur.pillar] || 'var(--text2)';
         document.getElementById('pillar-dot').style.background = color;
         document.getElementById('pillar-name').textContent = cur.type;
         document.getElementById('pillar-tag').style.background = `${color}18`;
@@ -2974,7 +2975,7 @@
           let cls = '';
           if (i < this.blockIdx) cls = 'completed';
           if (i === this.blockIdx) cls = 'active';
-          const color = PILLAR_COLORS[b.pillar] || '#555';
+          const color = this.pillarColors[b.pillar] || '#555';
           const li = document.createElement('li');
           li.className = `queue-item ${cls}`;
           li.innerHTML = `

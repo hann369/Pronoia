@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "Pronoia Safety",
+  "version": "0.1.0",
+  "description": "Echtzeit-Schutz vor expliziten Inhalten und gefährlichen Communities.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "webNavigation",
+    "declarativeNetRequest",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://discord.com/*",
+    "https://www.reddit.com/*",
+    "https://reddit.com/*",
+    "https://*.telegram.org/*",
+    "*://*/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "declarative_net_request": {
+    "rule_resources": [{
+      "id": "blocklist",
+      "enabled": true,
+      "path": "rules/blocklist.json"
+    }]
+  }
+}
