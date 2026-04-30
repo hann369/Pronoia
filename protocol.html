@@ -1378,6 +1378,32 @@
       background: #2A7AFF;
     }
 
+    /* ═══ SUPPLEMENT EDITOR ════════════════════════ */
+    .stack-editor-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1100;
+      background: rgba(8, 12, 18, 0.9);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .stack-editor-card {
+      width: 100%;
+      max-width: 500px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      padding: 2rem;
+    }
+    .stack-item-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 40px;
+      gap: .5rem;
+      margin-bottom: .5rem;
+      align-items: center;
+    }
+
     /* ═══ ONBOARDING OVERLAY ════════════════════════ */
     #onboarding {
       position: fixed;
@@ -1981,8 +2007,14 @@
               style="font-family: var(--font-mono); font-size: .65rem; color: var(--text2); background: var(--bg-card); padding: .75rem; border: 1px solid var(--border);">
               Locating...
             </div>
-            <button class="auth-btn" style="padding: .6rem; font-size: .6rem; margin-top: .5rem;"
-              onclick="Agent.saveProfile()">Update Profile</button>
+            
+            <span class="ctx-label" style="margin-top: 1.5rem; display: block;">Bio-Stack (Supplements)</span>
+            <button class="auth-btn" style="padding: .6rem; font-size: .6rem; margin-top: .5rem; background: var(--bg-card); border: 1px solid var(--border); color: var(--text2);"
+              onclick="Agent.openStackEditor()">Manage Supplement Stack</button>
+
+            <button class="auth-btn" style="padding: .75rem; font-size: .7rem; margin-top: 1.5rem;"
+              onclick="Agent.saveProfile()">Update Profile & Sync</button>
+          </div>
           </div>
         </div>
 
@@ -2135,6 +2167,17 @@
       <span class="cmd-key" onclick="quickCmd('lunch verschieben')">lunch ↓</span>
       <span class="cmd-key" onclick="quickCmd('recovery')">recovery</span>
       <span class="cmd-key" onclick="quickCmd('status')">status</span>
+    </div>
+  </div>
+
+  <div id="stack-editor" class="stack-editor-modal">
+    <div class="stack-editor-card">
+      <div class="auth-title" style="font-size: 1.2rem; margin-bottom: 1rem;">Manage Bio-Stack</div>
+      <div id="stack-edit-list" style="max-height: 300px; overflow-y: auto; margin-bottom: 1.5rem;"></div>
+      <button class="auth-btn" style="background: var(--bg-card); border: 1px solid var(--border); margin-bottom: .5rem;" onclick="Agent.addStackItem()">+ Add Item</button>
+      <div style="display: flex; gap: .5rem;">
+        <button class="auth-btn" onclick="Agent.closeStackEditor()">Save & Close</button>
+      </div>
     </div>
   </div>
 
@@ -2331,13 +2374,12 @@
       recovery: '#00A3FF',
     };
 
-    // ── STACK DATA ────────────────────────────────────
-    const STACK = [
-      { name: 'Creatine Monohydrate', dose: '5g', timing: 'morning', supply: 68, timingLabel: 'Morgens' },
-      { name: 'Taurine', dose: '2g', timing: 'morning', supply: 68, timingLabel: 'Morgens' },
-      { name: 'Glycine', dose: '3g', timing: 'morning', supply: 68, timingLabel: 'Morgens' },
-      { name: 'Magnesium Glycinate', dose: '400mg', timing: 'evening', supply: 71, timingLabel: 'Abends' },
-      { name: 'Bromantane', dose: '50mg', timing: 'cycle', supply: 55, timingLabel: '5/2 · Tag 3', cycleDay: 3, cycleTotal: 5 },
+    // ── DEFAULT DATA (Fallback) ───────────────────────
+    const DEFAULT_STACK = [
+      { name: 'Creatine Monohydrate', dose: '5g', timing: 'morning', supply: 68 },
+      { name: 'Taurine', dose: '2g', timing: 'morning', supply: 68 },
+      { name: 'Glycine', dose: '3g', timing: 'morning', supply: 68 },
+      { name: 'Magnesium Glycinate', dose: '400mg', timing: 'evening', supply: 71 },
     ];
 
     // ── AGENT CORE ────────────────────────────────────
@@ -2358,6 +2400,7 @@
         this.directives = [];
         this.profile = { goals: '', metrics: { hrv: 0, sleep: 0 }, location: '', energy: 7, mood: 'focused' };
         this.env = { city: 'Unknown', temp: '--', sun: '--', time: '--', lat: null, lon: null };
+        this.stack = JSON.parse(localStorage.getItem('px_stack')) || DEFAULT_STACK;
 
         // Restore from localStorage
         this.sessionID = localStorage.getItem('px_session') || '';
@@ -2425,10 +2468,18 @@
       async syncProfile() {
         if (typeof firebase === 'undefined' || !firebase.auth().currentUser) return;
         const uid = firebase.auth().currentUser.uid;
-        await firebase.firestore().collection('users').doc(uid).set({
-          profile: this.profile,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
+        console.log("Firestore Sync Initiated for:", uid);
+        try {
+          await firebase.firestore().collection('users').doc(uid).set({
+            profile: this.profile,
+            stack: this.stack,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+          console.log("Firestore Sync Success");
+        } catch (err) {
+          console.error("Firestore Sync Critical Error:", err);
+          this.triggerToast('Sync Fehler', 'Daten konnten nicht in Cloud gesichert werden.', true, null);
+        }
       }
 
       async generatePredictiveProtocol() {
@@ -2448,6 +2499,7 @@
         Erstelle ein Pronoia Protokoll (JSON Format) basierend auf:
         AKTUELLE UHRZEIT: ${context.time}
         Ziele: ${context.goals}
+        Bio-Stack: ${this.stack.map(s => `${s.name} (${s.dose}, ${s.timing})`).join(', ')}
         Subjective Status: Energie ${this.obState.energy}/10, Mood ${this.obState.mood}, Caffeine ${this.obState.caffeine}, Training ${this.obState.training}
         Metrics: HRV ${context.metrics.hrv}, Schlaf ${context.metrics.sleep}
         Umwelt: ${context.env.city}, ${context.env.temp}, ${context.env.sun}
@@ -2456,10 +2508,11 @@
         Regeln: 
         1. 4-6 Blöcke für die RESTLICHE Zeit des Tages. 
         2. WÄHLE BLÖCKE DIE ZUR AKTUELLEN UHRZEIT (${context.time}) PASSEN. 
-        3. Wenn es nach 20:00 Uhr ist, plane NUR NOCH Recovery/Wind-down (KEIN Deep Work, KEIN Training).
-        4. Wenn es nach 22:00 Uhr ist, plane Schlafvorbereitung und Digital Detox.
-        5. Nutze Ultradiane Rhythmen (90/20) für Fokus am Vormittag/Nachmittag.
-        6. Reagiere auf die Stimmung (wenn "tired", kürzere Blöcke, mehr Recovery).
+        3. Integriere Supplemente aus dem Bio-Stack in die Empfehlungen ("rec"), wenn das Timing passt.
+        4. Wenn es nach 20:00 Uhr ist, plane NUR NOCH Recovery/Wind-down (KEIN Deep Work, KEIN Training).
+        5. Wenn es nach 22:00 Uhr ist, plane Schlafvorbereitung und Digital Detox.
+        6. Nutze Ultradiane Rhythmen (90/20) für Fokus am Vormittag/Nachmittag.
+        7. Reagiere auf die Stimmung (wenn "tired", kürzere Blöcke, mehr Recovery).
       `;
 
         try {
@@ -2517,17 +2570,28 @@
       async loadState() {
         if (typeof firebase === 'undefined' || !firebase.auth().currentUser) return;
         const uid = firebase.auth().currentUser.uid;
+        console.log("Loading State for:", uid);
         const doc = await firebase.firestore().collection('users').doc(uid).get();
         if (doc.exists) {
           const data = doc.data();
           this.blockIdx = data.blockIdx || 0;
           this.obState = data.obState || this.obState;
           this.directives = data.directives || [];
+          this.profile = data.profile || this.profile;
+          this.stack = data.stack || this.stack;
+          
           // Only load protocol if not already loaded
           if (this.blocks.length === 0) {
             this.loadProtocol(this.getTimeAwareTemplate());
           }
           this.renderUI();
+          
+          // Populate profile fields
+          document.getElementById('profile-goals').value = this.profile.goals || '';
+          document.getElementById('metric-hrv').value = this.profile.metrics?.hrv || '';
+          document.getElementById('metric-sleep').value = this.profile.metrics?.sleep || '';
+        } else {
+          console.log("No remote state found. Using local defaults.");
         }
       }
 
@@ -2864,20 +2928,18 @@
       renderStack() {
         const el = document.getElementById('stack-list');
         el.innerHTML = '';
-        const showRepl = STACK.some(s => s.supply < 20);
+        const showRepl = this.stack.some(s => s.supply < 20);
         const replAlert = document.getElementById('repl-alert');
         replAlert.style.display = showRepl ? 'flex' : 'none';
 
-        STACK.forEach(s => {
-          const supplyColor = s.supply < 20 ? 'supply-low' : s.supply < 40 ? 'supply-warn' : 'supply-ok';
+        this.stack.forEach((s, idx) => {
+          const supply = s.supply || 100;
+          const supplyColor = supply < 20 ? 'supply-low' : supply < 40 ? 'supply-warn' : 'supply-ok';
+          const timingLabel = s.timing === 'morning' ? 'Morgens' : s.timing === 'evening' ? 'Abends' : 'Zyklus';
           const timingColor = s.timing === 'morning' ? 'rgba(0,196,140,.12);color:var(--green)'
             : s.timing === 'evening' ? 'rgba(0,163,255,.12);color:var(--cobalt-bright)'
               : 'rgba(245,166,35,.12);color:var(--amber)';
-          const cycleInfo = s.cycleDay
-            ? `<div style="font-family:var(--font-mono);font-size:.58rem;color:var(--amber);margin-top:.3rem;">
-               Zyklus: Tag ${s.cycleDay}/${s.cycleTotal}
-               ${'█'.repeat(s.cycleDay)}${'░'.repeat(s.cycleTotal - s.cycleDay)}
-             </div>` : '';
+          
           el.innerHTML += `
           <div class="stack-card">
             <div class="stack-card-row">
@@ -2885,16 +2947,60 @@
               <span class="stack-dose">${s.dose}</span>
             </div>
             <div class="stack-card-row">
-              <span class="stack-timing" style="background:${timingColor}">${s.timingLabel}</span>
+              <span class="stack-timing" style="background:${timingColor}">${timingLabel}</span>
             </div>
-            <div class="stack-bar"><div class="stack-bar-fill" style="width:${s.supply}%"></div></div>
+            <div class="stack-bar"><div class="stack-bar-fill" style="width:${supply}%"></div></div>
             <div class="stack-supply">
-              <span class="${supplyColor}">${s.supply}% verbleibend</span>
-              <span class="dim">${Math.round(s.supply * .3)} Tage</span>
+              <span class="${supplyColor}">${supply}% verbleibend</span>
+              <span class="dim">${Math.round(supply * .3)} Tage</span>
             </div>
-            ${cycleInfo}
           </div>`;
         });
+      }
+
+      // ── STACK EDITOR LOGIC ────────────────────────
+      openStackEditor() {
+        const modal = document.getElementById('stack-editor');
+        const list = document.getElementById('stack-edit-list');
+        modal.style.display = 'flex';
+        this.renderStackEditItems();
+      }
+
+      renderStackEditItems() {
+        const list = document.getElementById('stack-edit-list');
+        list.innerHTML = this.stack.map((s, i) => `
+          <div class="stack-item-row">
+            <input type="text" class="auth-input" style="padding:.4rem" value="${s.name}" onchange="Agent.updateStackItem(${i}, 'name', this.value)">
+            <input type="text" class="auth-input" style="padding:.4rem" value="${s.dose}" onchange="Agent.updateStackItem(${i}, 'dose', this.value)">
+            <select class="auth-input" style="padding:.4rem" onchange="Agent.updateStackItem(${i}, 'timing', this.value)">
+              <option value="morning" ${s.timing === 'morning' ? 'selected' : ''}>AM</option>
+              <option value="evening" ${s.timing === 'evening' ? 'selected' : ''}>PM</option>
+              <option value="cycle" ${s.timing === 'cycle' ? 'selected' : ''}>Cycle</option>
+            </select>
+            <button class="friction-btn f-miss" style="padding:0" onclick="Agent.removeStackItem(${i})">×</button>
+          </div>
+        `).join('');
+      }
+
+      addStackItem() {
+        this.stack.push({ name: 'New Item', dose: '0mg', timing: 'morning', supply: 100 });
+        this.renderStackEditItems();
+      }
+
+      updateStackItem(idx, key, val) {
+        this.stack[idx][key] = val;
+      }
+
+      removeStackItem(idx) {
+        this.stack.splice(idx, 1);
+        this.renderStackEditItems();
+      }
+
+      closeStackEditor() {
+        document.getElementById('stack-editor').style.display = 'none';
+        localStorage.setItem('px_stack', JSON.stringify(this.stack));
+        this.renderStack();
+        this.syncProfile();
       }
 
       // ── TOASTS ─────────────────────────────────────
