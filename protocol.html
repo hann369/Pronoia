@@ -2435,16 +2435,18 @@
         this.setAgentMsg("Synthetisiere optimalen Tagesablauf…", true);
         document.getElementById('agent-thinking').style.display = 'flex';
 
+        const now = new Date();
         const context = {
           goals: this.obState.goals || this.profile.goals,
           metrics: { hrv: this.obState.hrv || this.profile.metrics.hrv, sleep: this.obState.sleep || this.profile.metrics.sleep },
           env: this.env,
-          date: new Date().toDateString()
+          date: now.toDateString(),
+          time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
         const prompt = `
         Erstelle ein Pronoia Protokoll (JSON Format) basierend auf:
-        Uhrzeit: ${new Date().toLocaleTimeString()}
+        AKTUELLE UHRZEIT: ${context.time}
         Ziele: ${context.goals}
         Subjective Status: Energie ${this.obState.energy}/10, Mood ${this.obState.mood}, Caffeine ${this.obState.caffeine}, Training ${this.obState.training}
         Metrics: HRV ${context.metrics.hrv}, Schlaf ${context.metrics.sleep}
@@ -2452,10 +2454,12 @@
         
         JSON Schema: { "blocks": [ { "title": string, "duration": seconds, "type": string, "pillar": "focus"|"health"|"skills"|"social"|"recovery", "rec": string, "insight": string } ] }
         Regeln: 
-        1. 4-6 Blöcke. 
-        2. WÄHLE BLÖCKE DIE ZUR TAGESZEIT PASSEN. (Wenn spät abends, keine Deep Work Blöcke mehr, sondern Recovery).
-        3. Nutze Ultradiane Rhythmen (90/20) für Fokus.
-        4. Reagiere auf die Stimmung (wenn "tired", kürzere Blöcke, mehr Recovery).
+        1. 4-6 Blöcke für die RESTLICHE Zeit des Tages. 
+        2. WÄHLE BLÖCKE DIE ZUR AKTUELLEN UHRZEIT (${context.time}) PASSEN. 
+        3. Wenn es nach 20:00 Uhr ist, plane NUR NOCH Recovery/Wind-down (KEIN Deep Work, KEIN Training).
+        4. Wenn es nach 22:00 Uhr ist, plane Schlafvorbereitung und Digital Detox.
+        5. Nutze Ultradiane Rhythmen (90/20) für Fokus am Vormittag/Nachmittag.
+        6. Reagiere auf die Stimmung (wenn "tired", kürzere Blöcke, mehr Recovery).
       `;
 
         try {
@@ -2480,15 +2484,20 @@
 
       renderResultBlocks() {
         const container = document.getElementById('ob3-blocks');
-        container.innerHTML = this.blocks.map(b => `
-        <div style="background:var(--bg-card); padding:.75rem; border:1px solid var(--border-s); border-radius:2px;">
-          <div style="display:flex; justify-content:space-between; margin-bottom:.2rem;">
-            <span style="font-family:var(--font-mono); font-size:.55rem; color:var(--cobalt-bright); text-transform:uppercase;">${b.type}</span>
-            <span style="font-family:var(--font-mono); font-size:.55rem; color:var(--text3);">${Math.round(b.duration / 60)}m</span>
+        container.innerHTML = `
+          <div id="ob3-list" style="display:flex; flex-direction:column; gap:.5rem;">
+            ${this.blocks.map(b => `
+              <div style="background:var(--bg-card); padding:.75rem; border:1px solid var(--border-s); border-radius:2px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:.2rem;">
+                  <span style="font-family:var(--font-mono); font-size:.55rem; color:var(--cobalt-bright); text-transform:uppercase;">${b.type}</span>
+                  <span style="font-family:var(--font-mono); font-size:.55rem; color:var(--text3);">${Math.round(b.duration / 60)}m</span>
+                </div>
+                <div style="font-size:.78rem; font-weight:500;">${b.title}</div>
+              </div>
+            `).join('')}
           </div>
-          <div style="font-size:.78rem; font-weight:500;">${b.title}</div>
-        </div>
-      `).join('');
+          <button class="ob-skip" style="margin-top:1rem; opacity:.6;" onclick="Agent.generatePredictiveProtocol()">Regenerieren (AI)</button>
+        `;
       }
 
       async syncState() {
@@ -2987,9 +2996,9 @@
     // ── ONBOARDING (cleaned: single definition) ────
 
     function obFinish() {
-      // Safety: ensure protocol is loaded
+      // Safety: ensure protocol is loaded with time awareness
       if (!Agent.blocks || Agent.blocks.length === 0) {
-        Agent.loadProtocol('optimal_deepwork');
+        Agent.loadProtocol(Agent.getTimeAwareTemplate());
       }
       document.getElementById('onboarding').style.opacity = '0';
       document.getElementById('onboarding').style.transition = 'opacity .5s';
