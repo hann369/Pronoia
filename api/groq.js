@@ -13,10 +13,11 @@ export default async function handler(req, res) {
   }
 
   const { prompt, systemPrompt } = req.body || {};
-  const apiKey = process.env.GROQ_API_KEY;
+  // Prioritize MISTRAL_API_KEY, fallback to GROQ_API_KEY if the user hasn't renamed it yet in Vercel
+  const apiKey = process.env.MISTRAL_API_KEY || process.env.GROQ_API_KEY;
 
   if (!apiKey) {
-    return res.status(500).json({ error: 'GROQ_API_KEY not set in Vercel environment variables.' });
+    return res.status(500).json({ error: 'MISTRAL_API_KEY not set in Vercel environment variables.' });
   }
 
   if (!prompt) {
@@ -24,35 +25,35 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'mixtral-8x7b-32768',
+        model: 'mistral-small-latest',
         messages: [
           { role: 'system', content: systemPrompt || 'You are the Pronoia Agent.' },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.5,
+        temperature: 0.7,
         max_tokens: 1000
       })
     });
 
     const data = await response.json();
 
-    // Groq returns { error: { message, type } } on failure
     if (data.error) {
       const errMsg = typeof data.error === 'string' ? data.error : (data.error.message || JSON.stringify(data.error));
-      console.error('Groq API Error:', errMsg);
+      console.error('Mistral API Error:', errMsg);
       return res.status(response.status || 500).json({ error: errMsg });
     }
 
+    // Mistral format is already OpenAI-compatible { choices: [...] }
     return res.status(200).json(data);
   } catch (error) {
     console.error('Proxy fetch error:', error);
-    return res.status(500).json({ error: error.message || 'Failed to reach Groq API' });
+    return res.status(500).json({ error: error.message || 'Failed to reach Mistral API' });
   }
 }
