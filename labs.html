@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="de">
+<!-- PRONOIA_AGENT: READY -->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pronoia Labs | PX-V1</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-ui: 'DM Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      
+      /* Labs Theme */
+      --labs-bg: #FFFFFF;
+      --labs-text: #0A0A0A;
+      --labs-accent: #0047FF;
+      --labs-border: #E5E5E5;
+      --labs-subtle: #F8F8F8;
+      --labs-grid: rgba(0,0,0,0.03);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      background-color: var(--labs-bg);
+      color: var(--labs-text);
+      font-family: var(--font-ui);
+      line-height: 1.5;
+      background-image: 
+        linear-gradient(var(--labs-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--labs-grid) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    .mono { font-family: var(--font-mono); }
+    .muted { opacity: 0.6; }
+    .accent { color: var(--labs-accent); }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
+    section { padding: 6rem 0; border-bottom: 1px solid var(--labs-border); }
+    
+    /* Navigation */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0;
+      padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center;
+      background: rgba(255,255,255,0.9); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--labs-border); z-index: 100;
+    }
+    nav a { color: var(--labs-text); text-decoration: none; font-family: var(--font-mono); font-size: 0.85rem; text-transform: uppercase; margin-left: 2rem; transition: color 0.3s; }
+    nav a:hover { color: var(--labs-accent); }
+    .brand { font-family: var(--font-ui); font-weight: 700; margin-left: 0; letter-spacing: -0.02em; }
+
+    /* Hero */
+    .hero {
+      min-height: 90vh; display: flex; flex-direction: column; justify-content: center; align-items: center;
+      text-align: center; padding-top: 8rem; position: relative;
+    }
+    .hero-model-container {
+      width: 100%; max-width: 600px; height: 400px; margin: 0 auto 2rem;
+      display: flex; justify-content: center; align-items: center;
+      background: radial-gradient(circle, rgba(0,71,255,0.05) 0%, transparent 70%);
+    }
+    .hero h1 { font-family: var(--font-mono); font-size: clamp(3rem, 6vw, 5rem); letter-spacing: -0.05em; line-height: 1; margin-bottom: 1rem; }
+    .hero p { font-size: 1.25rem; max-width: 600px; margin: 0 auto 3rem; color: #4A4A4A; }
+    
+    .cta-group { display: flex; gap: 1rem; justify-content: center; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      padding: 1rem 2rem; font-family: var(--font-mono); font-size: 0.85rem; text-transform: uppercase;
+      text-decoration: none; border: 1px solid var(--labs-text); color: var(--labs-text);
+      transition: all 0.3s ease; cursor: pointer; background: transparent;
+    }
+    .btn-primary { background: var(--labs-accent); color: #fff; border-color: var(--labs-accent); }
+    .btn-primary:hover { background: #0036CC; border-color: #0036CC; }
+    .btn:hover:not(.btn-primary) { background: var(--labs-subtle); color: var(--labs-accent); border-color: var(--labs-accent); }
+
+    /* Dashboard */
+    .dashboard { padding: 4rem 0; background: #fff; }
+    .dash-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--labs-border); border: 1px solid var(--labs-border); }
+    .dash-item { background: #fff; padding: 2rem; display: flex; flex-direction: column; justify-content: center; }
+    .dash-label { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; color: #666; margin-bottom: 0.5rem; }
+    .dash-value { font-family: var(--font-mono); font-size: 2rem; letter-spacing: -0.03em; }
+
+    /* Architecture Table */
+    .architecture h2 { font-family: var(--font-mono); font-size: 1.5rem; margin-bottom: 2rem; text-transform: uppercase; }
+    .arch-table { width: 100%; border-collapse: collapse; border: 1px solid var(--labs-border); }
+    .arch-table th, .arch-table td { padding: 1.5rem; text-align: left; border-bottom: 1px solid var(--labs-border); font-size: 0.95rem; }
+    .arch-table th { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; color: #666; font-weight: normal; }
+    .arch-table tr:last-child td { border-bottom: none; }
+    
+    .row-hover { position: relative; transition: background 0.3s; }
+    .row-hover:hover { background: var(--labs-subtle); cursor: crosshair; }
+    .row-hover:hover .compound-id { color: var(--labs-accent); }
+    
+    .compound-id { font-family: var(--font-mono); font-size: 0.85rem; color: #888; transition: color 0.3s; }
+    .compound-name { font-weight: 500; }
+    .compound-dose { font-family: var(--font-mono); }
+    
+    .biochem-detail {
+      font-size: 0.85rem; color: #666; line-height: 1.4;
+      max-height: 0; overflow: hidden; opacity: 0; transition: all 0.3s;
+    }
+    .row-hover:hover .biochem-detail { max-height: 100px; opacity: 1; margin-top: 0.5rem; }
+
+    /* Safety */
+    .safety { background: var(--labs-text); color: #fff; border: none; }
+    .safety-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
+    .safety h2 { font-size: 3rem; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 2rem; }
+    .safety p { font-size: 1.1rem; color: #A0A0A0; margin-bottom: 2rem; }
+    .coa-card { background: #111; border: 1px solid #333; padding: 2rem; }
+    .coa-header { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 1rem; margin-bottom: 1rem; color: #888; }
+
+    footer { padding: 4rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.75rem; color: #666; }
+    footer a { color: var(--labs-text); margin: 0 1rem; text-decoration: none; }
+    footer a:hover { color: var(--labs-accent); }
+
+    @media (max-width: 900px) {
+      .dash-grid { grid-template-columns: repeat(2, 1fr); }
+      .safety-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .dash-grid { grid-template-columns: 1fr; }
+      nav div { display: none; }
+      .arch-table th, .arch-table td { padding: 1rem; }
+      .arch-table th:nth-child(4), .arch-table td:nth-child(4) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="index.html" class="brand">Pronoia Labs</a>
+    <div>
+      <a href="#dashboard">Data</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#safety">Safety</a>
+      <a href="protocol.html">Protocol</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="container">
+      <div class="hero-model-container">
+        <!-- ASSET: PX-V1_3D.glb (3D pill bottle, frosted glass, slow rotate) -->
+        <div class="mono muted" style="font-size: 0.85rem;">[ 3D MODEL PLACEHOLDER: PX-V1.GLB ]</div>
+      </div>
+      <h1>PX-V1</h1>
+      <p>Synergetische Matrix aus Bromantane, Creatin, Taurin und Magnesiumglycinat. Verstärker. Keine Krücke.</p>
+      <div class="cta-group">
+        <a href="protocol.html" class="btn btn-primary">Protokoll Starten</a>
+        <a href="#" class="btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+          Batch #001 PDF
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section id="dashboard" class="dashboard">
+    <div class="container">
+      <div class="dash-grid">
+        <div class="dash-item">
+          <div class="dash-label">Batch ID</div>
+          <div class="dash-value">#001</div>
+        </div>
+        <div class="dash-item">
+          <div class="dash-label">Available Units</div>
+          <div class="dash-value">47<span style="color:#A0A0A0">/100</span></div>
+        </div>
+        <div class="dash-item">
+          <div class="dash-label">Purity (CoA)</div>
+          <div class="dash-value accent">99.8%</div>
+        </div>
+        <div class="dash-item">
+          <div class="dash-label">Latency Gain</div>
+          <div class="dash-value">2.8ms</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="architecture" class="architecture">
+    <div class="container">
+      <h2>Molecular Architecture</h2>
+      <table class="arch-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Compound</th>
+            <th>Dose</th>
+            <th>Function / Protocol Focus</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="row-hover">
+            <td class="compound-id">C01</td>
+            <td class="compound-name">Creatin Monohydrat</td>
+            <td class="compound-dose">5.00g</td>
+            <td>
+              Zelluläre ATP-Regeneration
+              <div class="biochem-detail">Erhöht den zellulären Energie-Output und reduziert mentale Erschöpfung während tiefen Fokus-Blöcken.</div>
+            </td>
+          </tr>
+          <tr class="row-hover">
+            <td class="compound-id">C02</td>
+            <td class="compound-name">Taurin</td>
+            <td class="compound-dose">2.00g</td>
+            <td>
+              Zellvoluminisierung & ZNS-Beruhigung
+              <div class="biochem-detail">Wirkt osmoregulatorisch und moduliert GABA-Rezeptoren, verhindert Überreizung.</div>
+            </td>
+          </tr>
+          <tr class="row-hover">
+            <td class="compound-id">C03</td>
+            <td class="compound-name">Glycin</td>
+            <td class="compound-dose">3.00g</td>
+            <td>
+              Neuro-Inhibitorische Balance
+              <div class="biochem-detail">Senkt die Körperkerntemperatur und unterstützt tiefe Schlafphasen nach intensiven Stimulationen.</div>
+            </td>
+          </tr>
+          <tr class="row-hover">
+            <td class="compound-id">C04</td>
+            <td class="compound-name">Magnesiumglycinat</td>
+            <td class="compound-dose">400mg</td>
+            <td>
+              Muskuläre Relaxation
+              <div class="biochem-detail">Höchste Bioverfügbarkeit zur Regulation des Cortisolspiegels und zellulären Enzymaktivität.</div>
+            </td>
+          </tr>
+          <tr class="row-hover">
+            <td class="compound-id">C05</td>
+            <td class="compound-name">Bromantane</td>
+            <td class="compound-dose">50mg</td>
+            <td>
+              Dopamin-Synthese-Upregulation
+              <div class="biochem-detail">Steigert die Tyrosinhydroxylase, erhöht die intrinsische Motivation ohne adrenergen Crash.</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="safety" class="safety">
+    <div class="container safety-grid">
+      <div>
+        <h2>The grey market doesn't have to be grey.</h2>
+        <p>Bromantane works. The problem is you never know what you're actually getting. Pronoia Labs publishes the Certificate of Analysis for every batch, before you order. If it's not tested, it's not in our protocol.</p>
+        <a href="#" class="btn btn-primary" style="background:#fff; color:#000; border-color:#fff;">View Certificates</a>
+      </div>
+      <div class="coa-card">
+        <div class="coa-header">
+          <span>REPORT: 2026-B001</span>
+          <span class="accent">VERIFIED</span>
+        </div>
+        <div class="mono" style="font-size:0.85rem; color:#A0A0A0; line-height:1.6;">
+          > Spectrometry Analysis: COMPLETE<br>
+          > Heavy Metals: UNDETECTED<br>
+          > Target Compound (Bromantane): 99.82%<br>
+          <br>
+          <span style="color:#fff;">STATUS: CLEARED FOR PROTOCOL INTEGRATION.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <div style="margin-bottom:1rem;">
+        <a href="index.html">Core</a>
+        <a href="health.html">Health</a>
+        <a href="protocol.html">Protocol</a>
+      </div>
+      &copy; 2026 Pronoia Labs. Built for execution.
+    </div>
+  </footer>
+
+</body>
+</html>

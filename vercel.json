@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "name": "pronoia-system",
+  "builds": [
+    { "src": "*.html", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/", "dest": "/index.html" },
+    { "src": "/protocol", "dest": "/protocol.html" },
+    { "src": "/labs", "dest": "/labs.html" },
+    { "src": "/health", "dest": "/health.html" }
+  ]
+}
