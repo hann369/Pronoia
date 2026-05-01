@@ -2307,13 +2307,20 @@
           </div>
           <div id="calendar-grid" class="calendar-grid"></div>
         </div>
-        <div id="day-detail" class="day-detail" style="flex: 1; display:none;">
-          <div class="day-detail-header">
+        <div id="day-detail" class="day-detail" style="flex: 1; display:none; flex-direction: column;">
+          <div class="day-detail-header" style="display:flex; justify-content:space-between; align-items:center;">
             <span id="detail-date" class="mono">01.05.2026</span>
-            <button class="btn-add-block" style="margin:0; padding:.2rem .5rem;" onclick="Agent.generateDayAI()">AI Sync</button>
+            <div>
+              <button class="btn-add-block" style="margin:0; padding:.2rem .5rem;" onclick="Agent.addCalendarBlock()">+ Block</button>
+              <button class="btn-add-block" style="margin:0; padding:.2rem .5rem;" onclick="Agent.generateDayAI()">AI Sync</button>
+            </div>
           </div>
-          <div id="detail-protocol" class="detail-protocol" style="overflow-y: auto; max-height: 60vh;">
+          <div id="detail-protocol" class="detail-protocol" style="overflow-y: auto; flex:1; max-height: 50vh;">
             <!-- Daily routine preview -->
+          </div>
+          <div style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: .5rem; display: flex; gap: .5rem;">
+            <input type="text" id="day-chat-input" class="cmd-input" placeholder="Plan anpassen... z.B. Arzttermin 9-10" style="flex: 1; margin: 0; padding: .4rem .8rem; font-size: .8rem;" onkeydown="if(event.key==='Enter') Agent.chatWithDayAI()">
+            <button class="btn-add-block" style="margin:0; padding:.4rem .8rem; background: var(--cobalt-bright); border: none; color: white;" onclick="Agent.chatWithDayAI()">Senden</button>
           </div>
         </div>
       </div>
@@ -2573,6 +2580,34 @@
         this.sessionID = localStorage.getItem('px_session') || '';
       }
 
+      // ── UTILITIES ────────────────────────────────────
+      repairAndParseJSON(str) {
+        let cleaned = str.replace(/```json|```/g, '').trim();
+        try { return JSON.parse(cleaned); } catch(e) {}
+        
+        // Try common trailing truncations
+        const closures = [
+          '"]}', '"}', ']', '}', 
+          '""}]}}', '""}]}', '"]}}', '"}}', '}}',
+          '}]}', '}]}}', '"}]}', '"}]}}'
+        ];
+        
+        for (let c of closures) {
+          try { return JSON.parse(cleaned + c); } catch(e) {}
+        }
+        
+        // If it still fails, try to strip everything after the last valid "}" and close the array/object
+        try {
+          const lastValidBrace = cleaned.lastIndexOf('}');
+          if (lastValidBrace > 0) {
+             const stripped = cleaned.substring(0, lastValidBrace + 1);
+             return JSON.parse(stripped + ']}'); // For DayAI structure
+          }
+        } catch(e) {}
+        
+        throw new Error("JSON could not be repaired: " + str.substring(0, 50) + "...");
+      }
+
       // ── CALENDAR LOGIC ─────────────────────────────
       renderCalendar() {
         const grid = document.getElementById('calendar-grid');
@@ -2657,7 +2692,7 @@
 
         const dateStr = this.formatDate(this.selectedDate);
         dateEl.textContent = this.selectedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        detail.style.display = 'block';
+        detail.style.display = 'flex';
 
         const data = this.calendar[dateStr];
         if (!data || !data.blocks || data.blocks.length === 0) {
@@ -2665,15 +2700,97 @@
           return;
         }
 
-        protoEl.innerHTML = data.blocks.map(b => `
-          <div class="detail-block" style="border-left-color: ${this.pillarColors[b.pillar] || 'var(--cobalt-bright)'}">
+        protoEl.innerHTML = data.blocks.map((b, idx) => `
+          <div class="detail-block" style="border-left-color: ${this.pillarColors[b.pillar] || 'var(--cobalt-bright)'}; position: relative; padding-right: 3rem;">
             <div>
               <div style="font-weight:500;">${b.title}</div>
               <div class="dim" style="font-size:.6rem;">${b.rec}</div>
             </div>
             <div class="detail-block-time">${b.startTime || '--:--'}</div>
+            <div style="position: absolute; right: .5rem; top: .5rem; display: flex; gap: .25rem;">
+              <button onclick="Agent.editBlock('${dateStr}', ${idx})" style="background:transparent; border:none; color:var(--text2); cursor:pointer; font-size:.8rem;">✎</button>
+              <button onclick="Agent.deleteBlock('${dateStr}', ${idx})" style="background:transparent; border:none; color:var(--text2); cursor:pointer; font-size:.8rem;">✕</button>
+            </div>
           </div>
         `).join('');
+      }
+
+      deleteBlock(dateStr, idx) {
+        if (!this.calendar[dateStr] || !this.calendar[dateStr].blocks) return;
+        this.calendar[dateStr].blocks.splice(idx, 1);
+        localStorage.setItem('px_calendar', JSON.stringify(this.calendar));
+        this.renderCalendar();
+        this.renderDayDetail();
+      }
+
+      editBlock(dateStr, idx) {
+        if (!this.calendar[dateStr] || !this.calendar[dateStr].blocks) return;
+        const b = this.calendar[dateStr].blocks[idx];
+        const newTitle = prompt("Neuer Titel:", b.title);
+        const newTime = prompt("Neue Startzeit (HH:MM):", b.startTime || "");
+        if (newTitle !== null) b.title = newTitle;
+        if (newTime !== null) b.startTime = newTime;
+        localStorage.setItem('px_calendar', JSON.stringify(this.calendar));
+        this.renderCalendar();
+        this.renderDayDetail();
+      }
+
+      addCalendarBlock() {
+        const dateStr = this.formatDate(this.selectedDate);
+        if (!this.calendar[dateStr]) this.calendar[dateStr] = { blocks: [] };
+        const newTitle = prompt("Titel:", "Neuer Block");
+        if (!newTitle) return;
+        const newTime = prompt("Startzeit (HH:MM):", "12:00");
+        this.calendar[dateStr].blocks.push({
+          title: newTitle,
+          startTime: newTime || "--:--",
+          duration: 3600,
+          pillar: "focus",
+          rec: "",
+          insight: ""
+        });
+        this.calendar[dateStr].blocks.sort((a,b) => (a.startTime||"").localeCompare(b.startTime||""));
+        localStorage.setItem('px_calendar', JSON.stringify(this.calendar));
+        this.renderCalendar();
+        this.renderDayDetail();
+      }
+
+      async chatWithDayAI() {
+        const input = document.getElementById('day-chat-input');
+        if(!input || !input.value.trim()) return;
+        const msg = input.value.trim();
+        const dateStr = this.formatDate(this.selectedDate);
+        
+        input.value = '';
+        this.triggerToast('AI Sync', 'Passe Plan an...', false, null);
+        document.getElementById('agent-thinking').style.display = 'flex';
+        
+        const currentPlan = this.calendar[dateStr] ? JSON.stringify(this.calendar[dateStr].blocks) : "[]";
+        
+        const prompt = `
+          Date: ${dateStr}
+          Goals: ${this.profile.goals || 'Maximale Produktivität und Gesundheit'}
+          Current Plan: ${currentPlan}
+          User Instruction: "${msg}"
+          Task: Passe den Tagesplan an die User Instruction an. Formatiere den GESAMTEN neuen Tagesplan als JSON.
+          Format: { "blocks": [ {"title":"...","startTime":"HH:MM","duration":3600,"pillar":"focus","rec":"","insight":""} ] }
+          WICHTIG: Halte "rec" und "insight" extrem kurz ("" falls möglich).
+        `;
+        
+        try {
+          const res = await MistralService.chat(prompt, "Du bist der Pronoia Engine. Gib NUR valides JSON zurück.");
+          const data = this.repairAndParseJSON(res);
+          this.calendar[dateStr] = data;
+          localStorage.setItem('px_calendar', JSON.stringify(this.calendar));
+          this.renderCalendar();
+          this.renderDayDetail();
+          this.triggerToast('Erfolg', 'Plan erfolgreich angepasst.', false, null);
+        } catch(e) {
+          console.error("Day Chat AI Error", e);
+          this.triggerToast('Fehler', 'AI konnte Plan nicht anpassen.', true, null);
+        } finally {
+          document.getElementById('agent-thinking').style.display = 'none';
+        }
       }
 
       nextMonth() {
@@ -2701,8 +2818,7 @@
 
         const res = await MistralService.chat(prompt, "Du bist der Pronoia Engine. Gib NUR valides JSON zurück.");
         try {
-          const cleaned = res.replace(/```json|```/g, '').trim();
-          const data = JSON.parse(cleaned);
+          const data = this.repairAndParseJSON(res);
           this.calendar[dateStr] = data;
           localStorage.setItem('px_calendar', JSON.stringify(this.calendar));
           this.renderCalendar();
@@ -2750,11 +2866,24 @@
 
         try {
           const res = await MistralService.chat(prompt, "Du bist der Pronoia Engine. Gib NUR valides JSON zurück.");
-          const cleaned = res.replace(/```json|```/g, '').trim();
-          const data = JSON.parse(cleaned);
           
-          for (const dateStr of Object.keys(data)) {
-            this.calendar[dateStr] = data[dateStr];
+          // Use repair JSON logic, but since it's a map of dates, the stripping might fail or we might just use the native object
+          // Since generateMonthAI maps { "DATE": { ... } }, if it truncates, repairAndParseJSON might just close it like }}}}
+          let data;
+          try {
+             data = this.repairAndParseJSON(res);
+          } catch(e) {
+             // For MonthAI, we can try to find valid date objects manually if standard repair fails
+             console.warn("Month AI fallback repair");
+             data = {};
+          }
+          
+          if(data && typeof data === 'object') {
+            for (const dateStr of Object.keys(data)) {
+              if(data[dateStr] && data[dateStr].blocks) {
+                this.calendar[dateStr] = data[dateStr];
+              }
+            }
           }
           
           localStorage.setItem('px_calendar', JSON.stringify(this.calendar));
