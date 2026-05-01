@@ -2065,7 +2065,8 @@
 
     <!-- LEFT: Agent + Queue -->
     <div class="panel" id="panel-left">
-      <div class="panel-header">
+      <div class="panel-header" style="justify-content: space-between;">
+        <div>
           <button class="panel-tab-btn active" onclick="switchTab('queue')">Queue</button>
           <button class="panel-tab-btn" onclick="switchTab('personal')">Personal</button>
         </div>
@@ -2294,7 +2295,10 @@
       <div class="calendar-header">
         <button class="cal-nav-btn" onclick="Agent.prevMonth()">&lt;</button>
         <div id="calendar-month-year" class="mono cal-month-title">MAI 2026</div>
-        <button class="cal-nav-btn" onclick="Agent.nextMonth()">&gt;</button>
+        <div>
+          <button class="btn-add-block" style="margin:0 .5rem; padding:.2rem .5rem; background: var(--cobalt-bright); border: none; color: white; cursor: pointer;" onclick="Agent.generateMonthAI()">Month AI Sync</button>
+          <button class="cal-nav-btn" onclick="Agent.nextMonth()">&gt;</button>
+        </div>
       </div>
       <div style="display: flex; gap: 2rem; flex: 1;">
         <div style="flex: 3; display: flex; flex-direction: column;">
@@ -2708,6 +2712,61 @@
           console.error("Failed to parse AI response", e);
           this.triggerToast('Fehler', 'AI-Generierung fehlgeschlagen.', true, null);
         }
+      }
+
+      async generateMonthAI() {
+        this.triggerToast('AI Sync', 'Generiere Pläne für fehlende Tage...', false, null);
+        document.getElementById('agent-thinking').style.display = 'flex';
+        
+        const year = this.currentDate.getFullYear();
+        const month = this.currentDate.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const missingDays = [];
+        
+        for (let i = 1; i <= daysInMonth; i++) {
+          const d = new Date(year, month, i);
+          const dateStr = this.formatDate(d);
+          // don't generate for past days if we don't want to, but for now just missing days
+          if (!this.calendar[dateStr]) {
+            missingDays.push(dateStr);
+          }
+        }
+
+        if (missingDays.length === 0) {
+          this.triggerToast('System', 'Alle Tage haben bereits einen Plan.', false, null);
+          document.getElementById('agent-thinking').style.display = 'none';
+          return;
+        }
+
+        const chunk = missingDays.slice(0, 7); // generate 1 week at a time to keep JSON small
+        const prompt = `
+          Dates to generate: ${chunk.join(', ')}
+          Goals: ${this.profile.goals}
+          Metrics: ${JSON.stringify(this.profile.metrics)}
+          Task: Generiere ein agentic Protokoll für JEDEN dieser Tage.
+          Format: JSON-Object mapping Datum zu Tagesplan. 
+          Bsp: { "${chunk[0]}": { "blocks": [ {"title":"...","startTime":"HH:MM","duration":3600,"pillar":"focus","rec":"...","insight":"..."} ] } }
+        `;
+
+        try {
+          const res = await MistralService.chat(prompt, "Du bist der Pronoia Intelligence Engine. Gib NUR valides JSON zurück.");
+          const cleaned = res.replace(/```json|```/g, '').trim();
+          const data = JSON.parse(cleaned);
+          
+          for (const dateStr of Object.keys(data)) {
+            this.calendar[dateStr] = data[dateStr];
+          }
+          
+          localStorage.setItem('px_calendar', JSON.stringify(this.calendar));
+          this.renderCalendar();
+          if (this.selectedDate) this.renderDayDetail();
+          this.triggerToast('Erfolg', `Pläne für ${Object.keys(data).length} Tage generiert. Klicke nochmal für mehr.`, false, null);
+        } catch (e) {
+          console.error("Failed to parse AI month response", e);
+          this.triggerToast('Fehler', 'AI-Generierung fehlgeschlagen.', true, null);
+        }
+        
+        document.getElementById('agent-thinking').style.display = 'none';
       }
 
       async getEnvironment() {
