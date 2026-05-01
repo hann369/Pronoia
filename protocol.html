@@ -2694,8 +2694,7 @@
           Date: ${dateStr}
           Goals: ${this.profile.goals}
           Metrics: ${JSON.stringify(this.profile.metrics)}
-          Task: Generiere ein agentic Protokoll für diesen Tag als JSON. 
-          Das Protokoll sollte physische und mentale Peaks berücksichtigen.
+          Task: Generiere ein agentic Protokoll für diesen Tag als JSON. Max 4 Blöcke. Halte Texte extrem kurz.
           Format: { "blocks": [ { "title": "...", "startTime": "HH:MM", "duration": seconds, "pillar": "focus|health|skills|social|recovery", "rec": "...", "insight": "..." } ] }
         `;
 
@@ -2718,8 +2717,8 @@
         this.triggerToast('AI Sync', 'Generiere Pläne für fehlende Tage...', false, null);
         document.getElementById('agent-thinking').style.display = 'flex';
         
-        const year = this.currentDate.getFullYear();
-        const month = this.currentDate.getMonth();
+        const year = this.currentMonth.getFullYear();
+        const month = this.currentMonth.getMonth();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         const missingDays = [];
         
@@ -2743,7 +2742,7 @@
           Dates to generate: ${chunk.join(', ')}
           Goals: ${this.profile.goals}
           Metrics: ${JSON.stringify(this.profile.metrics)}
-          Task: Generiere ein agentic Protokoll für JEDEN dieser Tage.
+          Task: Generiere ein agentic Protokoll für JEDEN dieser Tage. Halte Texte extrem kurz! Max 3 Blöcke pro Tag!
           Format: JSON-Object mapping Datum zu Tagesplan. 
           Bsp: { "${chunk[0]}": { "blocks": [ {"title":"...","startTime":"HH:MM","duration":3600,"pillar":"focus","rec":"...","insight":"..."} ] } }
         `;
