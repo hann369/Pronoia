@@ -2692,9 +2692,11 @@
         
         const prompt = `
           Date: ${dateStr}
-          Task: Generiere ein agentic Protokoll für diesen Tag als JSON. Max 4 Blöcke.
-          WICHTIG: Setze "rec" und "insight" auf leere Strings "", um Token zu sparen!
-          Format: { "blocks": [ { "title": "Deep Work", "startTime": "HH:MM", "duration": 3600, "pillar": "focus", "rec": "", "insight": "" } ] }
+          Goals: ${this.profile.goals || 'Maximale Produktivität und Gesundheit'}
+          Task: Generiere ein agentic Protokoll für den GESAMTEN Tag als JSON. 
+          Plane 5-7 Blöcke von morgens (z.B. 07:00) bis abends.
+          Nutze die Goals als Basis für die Aufgaben. 
+          Format: { "blocks": [ { "title": "Deep Work", "startTime": "08:00", "duration": 5400, "pillar": "focus", "rec": "...", "insight": "..." } ] }
         `;
 
         const res = await MistralService.chat(prompt, "Du bist der Pronoia Engine. Gib NUR valides JSON zurück.");
@@ -2736,13 +2738,14 @@
           return;
         }
 
-        const chunk = missingDays.slice(0, 3); // generate 3 days at a time to keep JSON VERY small
+        const chunk = missingDays.slice(0, 2); // generate 2 days at a time to prevent token limits
         const prompt = `
           Dates to generate: ${chunk.join(', ')}
-          Task: Generiere ein kurzes Protokoll für JEDEN dieser Tage.
-          Format: JSON-Object mapping Datum zu Tagesplan. Max 3 Blöcke pro Tag!
-          WICHTIG: Setze "rec" und "insight" auf leere Strings "", um Token zu sparen!
-          Bsp: { "${chunk[0]}": { "blocks": [ {"title":"Deep Work","startTime":"09:00","duration":3600,"pillar":"focus","rec":"","insight":""} ] } }
+          Goals: ${this.profile.goals || 'Maximale Produktivität und Gesundheit'}
+          Task: Generiere ein agentic Protokoll für JEDEN dieser Tage.
+          Plane für jeden Tag 5-7 Blöcke von morgens bis abends, passend zu den Goals.
+          Format: JSON-Object mapping Datum zu Tagesplan. 
+          Bsp: { "${chunk[0]}": { "blocks": [ {"title":"Deep Work","startTime":"08:00","duration":5400,"pillar":"focus","rec":"...","insight":"..."} ] } }
         `;
 
         try {
