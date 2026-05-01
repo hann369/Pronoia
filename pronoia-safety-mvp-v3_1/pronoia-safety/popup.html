@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Pronoia Safety</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:320px;background:#0a0c0f;color:#f0f0ee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px}
+.screen{display:none}
+.screen.active{display:block}
+header{display:flex;align-items:center;gap:10px;padding:1rem 1rem 0.75rem;border-bottom:0.5px solid rgba(255,255,255,0.07)}
+.logo{width:30px;height:30px;background:linear-gradient(135deg,#2db87a,#1a8a57);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.logo-text{font-size:13px;font-weight:600}
+.logo-ver{font-size:10px;color:rgba(240,240,238,0.3);margin-top:1px;font-family:monospace}
+/* PIN */
+#pin-screen{padding:1.5rem 1rem;text-align:center}
+.pin-title{font-size:14px;font-weight:600;margin-bottom:0.35rem}
+.pin-sub{font-size:11px;color:rgba(240,240,238,0.35);margin-bottom:1.5rem}
+.pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:1.5rem}
+.pin-dot{width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,0.1);border:0.5px solid rgba(255,255,255,0.2);transition:.15s}
+.pin-dot.filled{background:#2db87a;border-color:#2db87a}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:200px;margin:0 auto}
+.numpad button{background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.08);color:#f0f0ee;border-radius:10px;padding:0.75rem;font-size:16px;font-weight:500;cursor:pointer;font-family:inherit}
+.numpad button:active{background:rgba(45,184,122,0.15);border-color:rgba(45,184,122,0.4)}
+.pin-error{font-size:11px;color:#e24b4a;margin-top:0.75rem;min-height:16px}
+.skip-btn{background:none;border:none;color:rgba(240,240,238,0.2);font-size:11px;cursor:pointer;margin-top:0.5rem;font-family:inherit}
+/* MAIN */
+.pad{padding:0.75rem}
+.card{background:#111417;border:0.5px solid rgba(255,255,255,0.07);border-radius:12px;padding:0.85rem;margin-bottom:0.65rem}
+.status-row{display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0;border-bottom:0.5px solid rgba(255,255,255,0.04);color:rgba(240,240,238,0.55)}
+.status-row:last-child{border-bottom:none}
+.badge-ok{background:rgba(45,184,122,0.12);color:#2db87a;border:0.5px solid rgba(45,184,122,0.3);border-radius:5px;padding:1px 7px;font-size:10px;font-family:monospace}
+.badge-bad{background:rgba(226,75,74,0.12);color:#e24b4a;border:0.5px solid rgba(226,75,74,0.3);border-radius:5px;padding:1px 7px;font-size:10px;font-family:monospace}
+.toggle-row{display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0;border-bottom:0.5px solid rgba(255,255,255,0.04)}
+.toggle-row:last-child{border-bottom:none}
+.tl{font-size:12px;color:rgba(240,240,238,0.7)}
+.ts{font-size:10px;color:rgba(240,240,238,0.28);margin-top:2px}
+.toggle{position:relative;width:34px;height:19px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;inset:0;background:rgba(255,255,255,0.1);border-radius:19px;transition:.2s}
+.slider:before{position:absolute;content:"";height:13px;width:13px;left:3px;bottom:3px;background:rgba(255,255,255,0.45);border-radius:50%;transition:.2s}
+input:checked+.slider{background:#2db87a}
+input:checked+.slider:before{transform:translateX(15px);background:#fff}
+.btn{display:block;width:100%;border:none;padding:0.6rem;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;text-align:center}
+.btn-green{background:rgba(45,184,122,0.12);color:#2db87a;border:0.5px solid rgba(45,184,122,0.3)}
+.btn-green:hover{background:rgba(45,184,122,0.2)}
+.btn-dash{background:#2db87a;color:#081a11;border:none}
+.btn-dash:hover{background:#27a66e}
+.scan-result{text-align:center;font-size:11px;color:rgba(240,240,238,0.35);margin:0.3rem 0 0.5rem;min-height:15px}
+.log-label{font-size:10px;color:rgba(240,240,238,0.25);text-transform:uppercase;letter-spacing:.08em;font-family:monospace;margin-bottom:0.4rem}
+.log-item{background:#0e1013;border-radius:7px;padding:0.45rem 0.65rem;margin-bottom:0.3rem;font-size:10px}
+.log-t{font-family:monospace;margin-bottom:2px}
+.log-u{color:rgba(240,240,238,0.3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* SETTINGS */
+.settings-inner{padding:0.75rem}
+.back-btn{background:none;border:none;color:#2db87a;font-size:11px;cursor:pointer;font-family:inherit;padding:0;margin-bottom:0.75rem}
+.section-title{font-size:10px;color:rgba(240,240,238,0.3);text-transform:uppercase;letter-spacing:.08em;font-family:monospace;margin:0.75rem 0 0.4rem}
+.pin-input-row{display:flex;gap:8px}
+.pin-input-row input{flex:1;background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.1);color:#f0f0ee;border-radius:8px;padding:0.5rem 0.75rem;font-size:12px;font-family:monospace;letter-spacing:0.1em}
+.pin-input-row button{background:rgba(45,184,122,0.12);color:#2db87a;border:0.5px solid rgba(45,184,122,0.3);border-radius:8px;padding:0.5rem 0.75rem;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit}
+.msg{font-size:11px;margin-top:0.4rem;min-height:16px}
+.msg.ok{color:#2db87a}.msg.err{color:#e24b4a}
+.icon-gear{font-size:16px;line-height:1}
+</style>
+</head>
+<body>
+
+<!-- PIN LOCK -->
+<div id="pin-screen" class="screen active">
+  <header>
+    <div class="logo">&#128737;</div>
+    <div><div class="logo-text">Pronoia Safety</div><div class="logo-ver">v0.2.0</div></div>
+  </header>
+  <div style="padding:1.5rem 1rem;text-align:center">
+    <div class="pin-title">PIN eingeben</div>
+    <div class="pin-sub">Geschützte Einstellungen</div>
+    <div class="pin-dots">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+    </div>
+    <div class="numpad">
+      <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
+      <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button>
+      <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
+      <button data-key="del" style="font-size:13px">&#9003;</button>
+      <button data-key="0">0</button>
+      <button data-key="ok" style="background:rgba(45,184,122,0.15);border-color:rgba(45,184,122,0.4);color:#2db87a;font-size:12px">OK</button>
+    </div>
+    <div class="pin-error" id="pin-error"></div>
+    <button class="skip-btn" id="skip-btn">Überspringen (kein PIN gesetzt)</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main-screen" class="screen">
+  <header>
+    <div class="logo">&#128737;</div>
+    <div style="flex:1"><div class="logo-text">Pronoia Safety</div><div class="logo-ver">v0.2.0</div></div>
+    <button id="settings-btn" style="background:none;border:none;color:rgba(240,240,238,0.35);cursor:pointer;padding:0;line-height:1;font-size:17px">&#9881;</button>
+  </header>
+  <div class="pad">
+    <div class="card">
+      <div class="status-row"><span>Aktuelle Seite</span><span id="s-host" class="badge-ok">&#8212;</span></div>
+      <div class="status-row"><span>Adult-Domain</span><span id="s-adult" class="badge-ok">&#8212;</span></div>
+      <div class="status-row"><span>Safe Browsing</span><span id="s-sb" class="badge-ok">&#8212;</span></div>
+      <div class="status-row"><span>Community</span><span id="s-comm" class="badge-ok">&#8212;</span></div>
+    </div>
+    <button class="btn btn-green" id="scan-btn">&#8635; Jetzt scannen</button>
+    <div class="scan-result" id="scan-msg"></div>
+    <div class="card">
+      <div class="toggle-row">
+        <div><div class="tl">Schutz aktiv</div><div class="ts">Alle Filter</div></div>
+        <label class="toggle"><input type="checkbox" id="t-enabled"><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div><div class="tl">Adult Sites blocken</div><div class="ts">Domain + Keywords</div></div>
+        <label class="toggle"><input type="checkbox" id="t-adult"><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div><div class="tl">Google Safe Browsing</div><div class="ts">Malware &amp; Phishing</div></div>
+        <label class="toggle"><input type="checkbox" id="t-sb"><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div><div class="tl">Community Scanner</div><div class="ts">Discord · Reddit</div></div>
+        <label class="toggle"><input type="checkbox" id="t-comm"><span class="slider"></span></label>
+      </div>
+    </div>
+    <button class="btn btn-dash" id="dashboard-btn">&#128202; Eltern-Dashboard öffnen</button>
+    <div class="log-label">// Letzte Ereignisse</div>
+    <div id="log-list"><div style="font-size:11px;color:rgba(240,240,238,0.2);text-align:center;padding:.3rem">Keine Einträge</div></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div id="settings-screen" class="screen">
+  <header>
+    <div class="logo">&#128737;</div>
+    <div><div class="logo-text">Einstellungen</div></div>
+  </header>
+  <div class="settings-inner">
+    <button class="back-btn" id="back-btn">&#8592; Zurück</button>
+    <div class="section-title">// PIN-Schutz</div>
+    <div class="card">
+      <div id="pin-status" style="font-size:11px;color:rgba(240,240,238,0.4);margin-bottom:0.6rem">Kein PIN gesetzt</div>
+      <div class="pin-input-row">
+        <input type="password" id="new-pin" placeholder="Neuer PIN (min. 4)" maxlength="8">
+        <button id="set-pin-btn">Setzen</button>
+      </div>
+      <div class="msg" id="pin-msg"></div>
+      <div style="margin-top:0.75rem" id="remove-pin-row">
+        <div class="pin-input-row">
+          <input type="password" id="del-pin" placeholder="Aktueller PIN">
+          <button id="del-pin-btn" style="background:rgba(226,75,74,0.1);color:#e24b4a;border-color:rgba(226,75,74,0.3)">Entfernen</button>
+        </div>
+        <div class="msg" id="del-pin-msg"></div>
+      </div>
+    </div>
+    <div class="section-title">// Eltern-Benachrichtigung</div>
+    <div class="card">
+      <div class="toggle-row">
+        <div><div class="tl">E-Mail Alerts</div><div class="ts">Bei jedem Block-Ereignis</div></div>
+        <label class="toggle"><input type="checkbox" id="t-notify"><span class="slider"></span></label>
+      </div>
+      <div style="margin-top:0.6rem">
+        <input id="parent-email" type="email" placeholder="eltern@email.de"
+          style="width:100%;background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.1);color:#f0f0ee;border-radius:8px;padding:0.5rem 0.75rem;font-size:12px;font-family:inherit">
+        <button class="btn btn-green" id="save-email-btn" style="margin-top:0.5rem">Speichern</button>
+        <div class="msg" id="email-msg"></div>
+      </div>
+    </div>
+    <div class="section-title">// Daten</div>
+    <div class="card">
+      <button class="btn" id="clear-log-btn" style="background:rgba(226,75,74,0.08);color:#e24b4a;border:0.5px solid rgba(226,75,74,0.2)">Log leeren</button>
+    </div>
+  </div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>

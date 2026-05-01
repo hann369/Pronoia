@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Pronoia Safety",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Echtzeit-Schutz vor expliziten Inhalten und gefährlichen Communities.",
   "permissions": [
     "storage",
@@ -15,6 +15,7 @@
     "https://www.reddit.com/*",
     "https://reddit.com/*",
     "https://*.telegram.org/*",
+    "https://safebrowsing.googleapis.com/*",
     "*://*/*"
   ],
   "background": {

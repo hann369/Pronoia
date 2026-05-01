@@ -1405,6 +1405,140 @@
       align-items: center;
     }
 
+    /* ═══ CALENDAR SYSTEM ═══════════════════════════ */
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding: 0 .5rem;
+    }
+    .cal-month-title {
+      font-size: .75rem;
+      letter-spacing: .2em;
+      color: var(--text);
+    }
+    .cal-nav-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text3);
+      cursor: pointer;
+      padding: .2rem .5rem;
+      font-family: var(--font-mono);
+      font-size: .6rem;
+      transition: all .2s;
+    }
+    .cal-nav-btn:hover {
+      border-color: var(--text2);
+      color: var(--text);
+    }
+    .calendar-grid-header {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+      margin-bottom: 5px;
+      text-align: center;
+    }
+    .calendar-grid-header span {
+      font-family: var(--font-mono);
+      font-size: .5rem;
+      color: var(--text3);
+      letter-spacing: .1em;
+    }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+      background: var(--border);
+      border: 1px solid var(--border);
+    }
+    .cal-day {
+      aspect-ratio: 1;
+      background: var(--bg-panel);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: .65rem;
+      color: var(--text2);
+      cursor: pointer;
+      position: relative;
+      transition: all .2s;
+    }
+    .cal-day:hover {
+      background: var(--bg-card);
+      color: var(--text);
+    }
+    .cal-day.today {
+      color: var(--cobalt-bright);
+      font-weight: bold;
+    }
+    .cal-day.today::after {
+      content: '';
+      position: absolute;
+      bottom: 4px;
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--cobalt-bright);
+    }
+    .cal-day.has-protocol::before {
+      content: '';
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--green);
+      opacity: .6;
+    }
+    .cal-day.other-month {
+      opacity: .2;
+      pointer-events: none;
+    }
+    .cal-day.active {
+      background: var(--cobalt-dim);
+      border: 1px solid var(--cobalt-bright);
+      color: var(--text);
+    }
+
+    .day-detail {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      animation: obFadeIn 0.3s ease-out;
+    }
+    .day-detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: .5rem;
+    }
+    .detail-protocol {
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+    }
+    .detail-block {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: .75rem;
+      padding: .4rem .6rem;
+      background: var(--bg-panel);
+      border-left: 2px solid var(--cobalt-bright);
+    }
+    .detail-block-time {
+      font-family: var(--font-mono);
+      font-size: .6rem;
+      color: var(--text3);
+    }
+
     /* ═══ ONBOARDING OVERLAY ════════════════════════ */
     #onboarding {
       position: fixed;
@@ -1953,6 +2087,7 @@
       <div class="panel-header">
         <div class="panel-tabs">
           <button class="panel-tab-btn active" onclick="switchTab('queue')">Queue</button>
+          <button class="panel-tab-btn" onclick="switchTab('calendar')">Calendar</button>
           <button class="panel-tab-btn" onclick="switchTab('personal')">Personal</button>
         </div>
         <span class="mono dim" style="font-size:.6rem;" id="queue-count">0 / 0</span>
@@ -1994,10 +2129,32 @@
             </div>
           </div>
 
-          <!-- Queue -->
           <div class="queue-section">
             <ul id="queue-list"></ul>
             <button class="btn-add-block" onclick="addCustomBlock()">+ Block hinzufügen</button>
+          </div>
+        </div>
+
+        <!-- CALENDAR TAB CONTENT -->
+        <div id="tab-calendar-content" style="display: none;">
+          <div class="calendar-header">
+            <button class="cal-nav-btn" onclick="Agent.prevMonth()">&lt;</button>
+            <div id="calendar-month-year" class="mono cal-month-title">MAI 2026</div>
+            <button class="cal-nav-btn" onclick="Agent.nextMonth()">&gt;</button>
+          </div>
+          <div class="calendar-grid-header">
+            <span>MO</span><span>DI</span><span>MI</span><span>DO</span><span>FR</span><span>SA</span><span>SO</span>
+          </div>
+          <div id="calendar-grid" class="calendar-grid"></div>
+          
+          <div id="day-detail" class="day-detail" style="display:none;">
+            <div class="day-detail-header">
+              <span id="detail-date" class="mono">01.05.2026</span>
+              <button class="btn-add-block" style="margin:0; padding:.2rem .5rem;" onclick="Agent.generateDayAI()">AI Sync</button>
+            </div>
+            <div id="detail-protocol" class="detail-protocol">
+              <!-- Daily routine preview -->
+            </div>
           </div>
         </div>
 
@@ -2215,7 +2372,7 @@
     // Initialize Firebase (Compat)
     firebase.initializeApp(FIREBASE_CONFIG);
 
-    class GroqService {
+    class MistralService {
       static async chat(prompt, systemPrompt = "You are the Pronoia Agent. Precise, imperative, proactive.") {
         try {
           const response = await fetch('/api/groq', {
@@ -2226,7 +2383,7 @@
 
           if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
-            console.warn("Groq API returned", response.status, errData.error || 'Unknown error');
+            console.warn("Mistral API returned", response.status, errData.error || 'Unknown error');
             return this.getFallback(prompt);
           }
 
@@ -2234,7 +2391,7 @@
 
           if (data.error) {
             const errMsg = typeof data.error === 'string' ? data.error : (data.error.message || 'API Error');
-            console.warn("Groq API Error:", errMsg);
+            console.warn("Mistral API Error:", errMsg);
             return this.getFallback(prompt);
           }
 
@@ -2411,13 +2568,148 @@
         this.sessionID = '';
         this.log = [];
         this.obState = { goals: '', hrv: 0, sleep: 0, energy: 7, mood: 'focused', caffeine: 'none', training: 'none' };
-        this.directives = [];
         this.profile = { goals: '', metrics: { hrv: 0, sleep: 0 }, location: '', energy: 7, mood: 'focused' };
         this.env = { city: 'Unknown', temp: '--', sun: '--', time: '--', lat: null, lon: null };
         this.stack = JSON.parse(localStorage.getItem('px_stack')) || this.defaultStack;
 
+        // Calendar state
+        this.currentMonth = new Date();
+        this.selectedDate = new Date();
+        this.calendar = JSON.parse(localStorage.getItem('px_calendar')) || {}; // { "YYYY-MM-DD": { blocks: [...] } }
+
         // Restore from localStorage
         this.sessionID = localStorage.getItem('px_session') || '';
+      }
+
+      // ── CALENDAR LOGIC ─────────────────────────────
+      renderCalendar() {
+        const grid = document.getElementById('calendar-grid');
+        const monthTitle = document.getElementById('calendar-month-year');
+        if (!grid || !monthTitle) return;
+
+        grid.innerHTML = '';
+        const year = this.currentMonth.getFullYear();
+        const month = this.currentMonth.getMonth();
+        
+        const monthNames = ["JANUAR", "FEBRUAR", "MÄRZ", "APRIL", "MAI", "JUNI", "JULI", "AUGUST", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DEZEMBER"];
+        monthTitle.textContent = `${monthNames[month]} ${year}`;
+
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        
+        // Adjust for Monday start (JS 0=Sun, 1=Mon)
+        let startIdx = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+        
+        // Previous month padding
+        const prevLastDay = new Date(year, month, 0).getDate();
+        for (let i = startIdx - 1; i >= 0; i--) {
+          const div = document.createElement('div');
+          div.className = 'cal-day other-month';
+          div.textContent = prevLastDay - i;
+          grid.appendChild(div);
+        }
+
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+        // Current month days
+        for (let d = 1; d <= lastDay.getDate(); d++) {
+          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          const div = document.createElement('div');
+          div.className = 'cal-day';
+          if (dateStr === todayStr) div.classList.add('today');
+          if (this.calendar[dateStr]) div.classList.add('has-protocol');
+          if (dateStr === this.formatDate(this.selectedDate)) div.classList.add('active');
+          
+          div.textContent = d;
+          div.onclick = () => this.selectDay(new Date(year, month, d));
+          grid.appendChild(div);
+        }
+
+        // Next month padding
+        const totalCells = grid.children.length;
+        const nextPadding = 42 - totalCells;
+        for (let i = 1; i <= nextPadding; i++) {
+          const div = document.createElement('div');
+          div.className = 'cal-day other-month';
+          div.textContent = i;
+          grid.appendChild(div);
+        }
+      }
+
+      formatDate(d) {
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      }
+
+      selectDay(date) {
+        this.selectedDate = date;
+        this.renderCalendar();
+        this.renderDayDetail();
+      }
+
+      renderDayDetail() {
+        const detail = document.getElementById('day-detail');
+        const dateEl = document.getElementById('detail-date');
+        const protoEl = document.getElementById('detail-protocol');
+        if (!detail || !dateEl || !protoEl) return;
+
+        const dateStr = this.formatDate(this.selectedDate);
+        dateEl.textContent = this.selectedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        detail.style.display = 'block';
+
+        const data = this.calendar[dateStr];
+        if (!data || !data.blocks || data.blocks.length === 0) {
+          protoEl.innerHTML = '<div class="mono dim" style="font-size:.65rem; padding:1rem 0;">Kein Protokoll für diesen Tag.</div>';
+          return;
+        }
+
+        protoEl.innerHTML = data.blocks.map(b => `
+          <div class="detail-block" style="border-left-color: ${this.pillarColors[b.pillar] || 'var(--cobalt-bright)'}">
+            <div>
+              <div style="font-weight:500;">${b.title}</div>
+              <div class="dim" style="font-size:.6rem;">${b.rec}</div>
+            </div>
+            <div class="detail-block-time">${b.startTime || '--:--'}</div>
+          </div>
+        `).join('');
+      }
+
+      nextMonth() {
+        this.currentMonth.setMonth(this.currentMonth.getMonth() + 1);
+        this.renderCalendar();
+      }
+
+      prevMonth() {
+        this.currentMonth.setMonth(this.currentMonth.getMonth() - 1);
+        this.renderCalendar();
+      }
+
+      async generateDayAI() {
+        const dateStr = this.formatDate(this.selectedDate);
+        this.triggerToast('AI Sync', `Generiere Plan für ${dateStr}…`, false, null);
+        
+        const prompt = `
+          Date: ${dateStr}
+          Goals: ${this.profile.goals}
+          Metrics: ${JSON.stringify(this.profile.metrics)}
+          Task: Generiere ein agentic Protokoll für diesen Tag als JSON. 
+          Das Protokoll sollte physische und mentale Peaks berücksichtigen.
+          Format: { "blocks": [ { "title": "...", "startTime": "HH:MM", "duration": seconds, "pillar": "focus|health|skills|social|recovery", "rec": "...", "insight": "..." } ] }
+        `;
+
+        const res = await MistralService.chat(prompt, "Du bist der Pronoia Intelligence Engine. Gib nur valides JSON zurück.");
+        try {
+          const cleaned = res.replace(/```json|```/g, '').trim();
+          const data = JSON.parse(cleaned);
+          this.calendar[dateStr] = data;
+          localStorage.setItem('px_calendar', JSON.stringify(this.calendar));
+          this.renderCalendar();
+          this.renderDayDetail();
+          this.triggerToast('Erfolg', 'Plan erfolgreich synchronisiert.', false, null);
+        } catch (e) {
+          console.error("Failed to parse AI response", e);
+          this.triggerToast('Fehler', 'AI-Generierung fehlgeschlagen.', true, null);
+        }
       }
 
       async getEnvironment() {
@@ -2510,27 +2802,26 @@
         };
 
         const prompt = `
-        Erstelle ein Pronoia Protokoll (JSON Format) basierend auf:
-        AKTUELLE UHRZEIT: ${context.time}
-        Ziele: ${context.goals}
-        Bio-Stack: ${this.stack.map(s => `${s.name} (${s.dose}, ${s.timing})`).join(', ')}
-        Subjective Status: Energie ${this.obState.energy}/10, Mood ${this.obState.mood}, Caffeine ${this.obState.caffeine}, Training ${this.obState.training}
-        Metrics: HRV ${context.metrics.hrv}, Schlaf ${context.metrics.sleep}
-        Umwelt: ${context.env.city}, ${context.env.temp}, ${context.env.sun}
-        
-        JSON Schema: { "blocks": [ { "title": string, "duration": seconds, "type": string, "pillar": "focus"|"health"|"skills"|"social"|"recovery", "rec": string, "insight": string } ] }
-        Regeln: 
-        1. 4-6 Blöcke für die RESTLICHE Zeit des Tages. 
-        2. WÄHLE BLÖCKE DIE ZUR AKTUELLEN UHRZEIT (${context.time}) PASSEN. 
-        3. Integriere Supplemente aus dem Bio-Stack in die Empfehlungen ("rec"), wenn das Timing (morning/evening) passt.
-        4. Wenn es nach 20:00 Uhr ist, plane NUR NOCH Recovery/Wind-down (KEIN Deep Work, KEIN Training).
-        5. Wenn es nach 22:00 Uhr ist, plane Schlafvorbereitung und Digital Detox.
-        6. Nutze Ultradiane Rhythmen (90/20) für Fokus am Vormittag/Nachmittag.
-        7. Reagiere auf die Stimmung (wenn "tired", kürzere Blöcke, mehr Recovery).
-      `;
+          ERSTELLE EIN PRONOIA PROTOKOLL (JSON FORMAT) FÜR HEUTE.
+          AKTUELLE UHRZEIT: ${context.time}
+          Ziele: ${context.goals}
+          Bio-Stack: ${this.stack.map(s => `${s.name} (${s.dose}, ${s.timing})`).join(', ')}
+          Subjective Status: Energie ${this.obState.energy}/10, Mood ${this.obState.mood}, Caffeine ${this.obState.caffeine}, Training ${this.obState.training}
+          Metrics: HRV ${context.metrics.hrv}, Schlaf ${context.metrics.sleep}
+          Umwelt: ${context.env.city}, ${context.env.temp}, ${context.env.sun}
+          
+          JSON Schema: { "blocks": [ { "title": string, "startTime": "HH:MM", "duration": seconds, "type": string, "pillar": "focus"|"health"|"skills"|"social"|"recovery", "rec": string, "insight": string } ] }
+          Regeln: 
+          1. 4-6 Blöcke für die RESTLICHE Zeit des Tages. 
+          2. STARTZEITEN (startTime) MÜSSEN REALISTISCH SEIN, beginnend ab ca. 5-10 Min nach jetzt (${context.time}).
+          3. Integriere Supplemente aus dem Bio-Stack in die Empfehlungen ("rec"), wenn das Timing (morning/evening) passt.
+          4. Wenn es nach 20:00 Uhr ist, plane NUR NOCH Recovery/Wind-down.
+          5. Nutze Ultradiane Rhythmen (90/20).
+          6. Reagiere auf die Stimmung.
+        `;
 
         try {
-          const aiResponse = await GroqService.chat(prompt, "Du bist der Pronoia Architect. Antworte NUR mit validem JSON.");
+          const aiResponse = await MistralService.chat(prompt, "Du bist der Pronoia Architect. Antworte NUR mit validem JSON.");
           const cleanJSON = aiResponse.replace(/```json|```/g, '').trim();
           const data = JSON.parse(cleanJSON);
 
@@ -2619,7 +2910,7 @@
         Task: Gib eine kurze, vorausschauende Directive (max 15 Wörter). 
         Sei der Agent, der weiß was der User braucht bevor er es weiß. Nutze die Daten (HRV, Mood, Energy) für präzise Empfehlungen.
       `;
-        const directive = await GroqService.chat(prompt, "Du bist der Pronoia Intelligence Engine. Deine Directives sind präzise, klinisch und vorausschauend.");
+        const directive = await MistralService.chat(prompt, "Du bist der Pronoia Intelligence Engine. Deine Directives sind präzise, klinisch und vorausschauend.");
         this.directives.unshift({ text: directive, type: type, ts: new Date().toLocaleTimeString() });
         if (this.directives.length > 3) this.directives.pop();
         this.renderDirectives();
@@ -2776,6 +3067,20 @@
       }
 
       tick() {
+        // Clock-time awareness: Check if next block should start
+        const now = new Date();
+        const nowStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        
+        const current = this.blocks[this.blockIdx];
+        const next = this.blocks[this.blockIdx + 1];
+
+        // If current block is done but next hasn't started, or we are past next start time
+        if (next && next.startTime && nowStr >= next.startTime && !current.done) {
+          this.triggerToast('Zeit-Trigger', `Startzeit für ${next.title} erreicht.`, false, null);
+          this.completeBlock();
+          return;
+        }
+
         if (this.timeLeft <= 0) { this.completeBlock(); return; }
         this.timeLeft--;
         localStorage.setItem('px_time_left', this.timeLeft);
@@ -2855,13 +3160,31 @@
         if (!isBasic) {
           // AI Path for complex commands
           document.getElementById('agent-thinking').style.display = 'flex';
-          const aiResponse = await GroqService.chat(raw, `Du bist der Pronoia Agent. Der User gibt dir eine Anweisung: "${raw}". 
-          Antworte kurz (1 Satz) was du tust. Wenn es um Fokus geht, erwähne dass du den Fokus-Modus aktivierst. 
-          Wenn es um Müdigkeit geht, schlage Recovery vor.`);
+          
+          // Enhanced context for Mistral
+          const aiResponse = await MistralService.chat(raw, `
+            User Command: "${raw}"
+            Context: Goals=${this.profile.goals}, CalendarSize=${Object.keys(this.calendar).length}
+            Task: Handle this command. 
+            - If it's a monthly goal (e.g. "50km running this month"), say you're adding it to the plan.
+            - If it's a schedule change, explain the adjustment.
+            - Keep it to 1 concise sentence.
+          `);
+          
           this.setAgentMsg(aiResponse);
           document.getElementById('agent-thinking').style.display = 'none';
 
-          // Execute logic based on AI intent (simplified matching)
+          // Special Handling: Monthly Goals / Milestones
+          if (/monat|month|ziel|milestone/.test(cmd)) {
+            this.triggerToast('System Update', 'Monats-Meilenstein erfasst. Integriere in Predictive Engine.', false, null);
+            // In a real app, we'd generate a 30-day strategy here. 
+            // For now, we update the profile goals.
+            this.profile.goals += " | " + raw;
+            this.syncProfile();
+            switchTab('calendar');
+            return;
+          }
+
           if (/fokus|focus|tiefer|konzentration/.test(cmd)) this.setFocusMode(true);
           if (/exit.*focus|normal|ablenkung/.test(cmd)) this.setFocusMode(false);
           if (/recovery|müde|erschöpft/.test(cmd)) {
@@ -3004,42 +3327,6 @@
         });
         document.getElementById('queue-count').textContent =
           `${this.blockIdx} / ${this.blocks.length}`;
-      }
-
-      renderStack() {
-        const el = document.getElementById('stack-list');
-        el.innerHTML = '';
-        const showRepl = STACK.some(s => s.supply < 20);
-        const replAlert = document.getElementById('repl-alert');
-        replAlert.style.display = showRepl ? 'flex' : 'none';
-
-        STACK.forEach(s => {
-          const supplyColor = s.supply < 20 ? 'supply-low' : s.supply < 40 ? 'supply-warn' : 'supply-ok';
-          const timingColor = s.timing === 'morning' ? 'rgba(0,196,140,.12);color:var(--green)'
-            : s.timing === 'evening' ? 'rgba(0,163,255,.12);color:var(--cobalt-bright)'
-              : 'rgba(245,166,35,.12);color:var(--amber)';
-          const cycleInfo = s.cycleDay
-            ? `<div style="font-family:var(--font-mono);font-size:.58rem;color:var(--amber);margin-top:.3rem;">
-               Zyklus: Tag ${s.cycleDay}/${s.cycleTotal}
-               ${'█'.repeat(s.cycleDay)}${'░'.repeat(s.cycleTotal - s.cycleDay)}
-             </div>` : '';
-          el.innerHTML += `
-          <div class="stack-card">
-            <div class="stack-card-row">
-              <span class="stack-name">${s.name}</span>
-              <span class="stack-dose">${s.dose}</span>
-            </div>
-            <div class="stack-card-row">
-              <span class="stack-timing" style="background:${timingColor}">${s.timingLabel}</span>
-            </div>
-            <div class="stack-bar"><div class="stack-bar-fill" style="width:${s.supply}%"></div></div>
-            <div class="stack-supply">
-              <span class="${supplyColor}">${s.supply}% verbleibend</span>
-              <span class="dim">${Math.round(s.supply * .3)} Tage</span>
-            </div>
-            ${cycleInfo}
-          </div>`;
-        });
       }
 
       // ── TOASTS ─────────────────────────────────────
@@ -3329,8 +3616,12 @@
       btns.forEach(b => b.classList.toggle('active', b.textContent.toLowerCase() === tab));
 
       document.getElementById('tab-queue-content').style.display = tab === 'queue' ? 'block' : 'none';
+      document.getElementById('tab-calendar-content').style.display = tab === 'calendar' ? 'block' : 'none';
       document.getElementById('tab-personal-content').style.display = tab === 'personal' ? 'block' : 'none';
 
+      if (tab === 'calendar') {
+        Agent.renderCalendar();
+      }
       if (tab === 'personal') {
         Agent.getEnvironment();
         document.getElementById('profile-goals').value = Agent.profile.goals || '';
