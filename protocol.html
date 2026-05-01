@@ -2692,13 +2692,12 @@
         
         const prompt = `
           Date: ${dateStr}
-          Goals: ${this.profile.goals}
-          Metrics: ${JSON.stringify(this.profile.metrics)}
-          Task: Generiere ein agentic Protokoll für diesen Tag als JSON. Max 4 Blöcke. Halte Texte extrem kurz.
-          Format: { "blocks": [ { "title": "...", "startTime": "HH:MM", "duration": seconds, "pillar": "focus|health|skills|social|recovery", "rec": "...", "insight": "..." } ] }
+          Task: Generiere ein agentic Protokoll für diesen Tag als JSON. Max 4 Blöcke.
+          WICHTIG: Setze "rec" und "insight" auf leere Strings "", um Token zu sparen!
+          Format: { "blocks": [ { "title": "Deep Work", "startTime": "HH:MM", "duration": 3600, "pillar": "focus", "rec": "", "insight": "" } ] }
         `;
 
-        const res = await MistralService.chat(prompt, "Du bist der Pronoia Intelligence Engine. Gib nur valides JSON zurück.");
+        const res = await MistralService.chat(prompt, "Du bist der Pronoia Engine. Gib NUR valides JSON zurück.");
         try {
           const cleaned = res.replace(/```json|```/g, '').trim();
           const data = JSON.parse(cleaned);
@@ -2737,18 +2736,17 @@
           return;
         }
 
-        const chunk = missingDays.slice(0, 7); // generate 1 week at a time to keep JSON small
+        const chunk = missingDays.slice(0, 3); // generate 3 days at a time to keep JSON VERY small
         const prompt = `
           Dates to generate: ${chunk.join(', ')}
-          Goals: ${this.profile.goals}
-          Metrics: ${JSON.stringify(this.profile.metrics)}
-          Task: Generiere ein agentic Protokoll für JEDEN dieser Tage. Halte Texte extrem kurz! Max 3 Blöcke pro Tag!
-          Format: JSON-Object mapping Datum zu Tagesplan. 
-          Bsp: { "${chunk[0]}": { "blocks": [ {"title":"...","startTime":"HH:MM","duration":3600,"pillar":"focus","rec":"...","insight":"..."} ] } }
+          Task: Generiere ein kurzes Protokoll für JEDEN dieser Tage.
+          Format: JSON-Object mapping Datum zu Tagesplan. Max 3 Blöcke pro Tag!
+          WICHTIG: Setze "rec" und "insight" auf leere Strings "", um Token zu sparen!
+          Bsp: { "${chunk[0]}": { "blocks": [ {"title":"Deep Work","startTime":"09:00","duration":3600,"pillar":"focus","rec":"","insight":""} ] } }
         `;
 
         try {
-          const res = await MistralService.chat(prompt, "Du bist der Pronoia Intelligence Engine. Gib NUR valides JSON zurück.");
+          const res = await MistralService.chat(prompt, "Du bist der Pronoia Engine. Gib NUR valides JSON zurück.");
           const cleaned = res.replace(/```json|```/g, '').trim();
           const data = JSON.parse(cleaned);
           
