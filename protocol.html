@@ -3224,13 +3224,64 @@
       }
 
       loadProtocol(templateKey) {
-        const tpl = PROTOCOL_TEMPLATES[templateKey] || PROTOCOL_TEMPLATES.optimal_deepwork;
+        const dateStr = this.formatDate(new Date());
+        let sourceBlocks = [];
+        if (this.calendar[dateStr] && this.calendar[dateStr].blocks && this.calendar[dateStr].blocks.length > 0) {
+          sourceBlocks = this.calendar[dateStr].blocks;
+        } else {
+          sourceBlocks = PROTOCOL_TEMPLATES[templateKey] || PROTOCOL_TEMPLATES.optimal_deepwork;
+        }
+        
         const saved = parseInt(localStorage.getItem('px_block_idx')) || 0;
-        this.blocks = tpl.map((b, i) => ({ ...b, id: i + 1, done: i < saved }));
-        this.blockIdx = Math.min(saved, this.blocks.length - 1);
-        const savedTime = parseInt(localStorage.getItem('px_time_left'));
-        this.timeLeft = isNaN(savedTime) ? this.blocks[this.blockIdx].duration : savedTime;
-        this.totalTime = this.blocks[this.blockIdx].duration;
+        this.blocks = sourceBlocks.map((b, i) => ({ ...b, id: i + 1, done: false }));
+        
+        this.syncTimerToRealTime();
+      }
+
+      syncTimerToRealTime() {
+        const now = new Date();
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const nowSeconds = nowMinutes * 60 + now.getSeconds();
+        
+        let foundIdx = -1;
+        let foundTimeLeft = 0;
+        
+        for (let i = 0; i < this.blocks.length; i++) {
+          const b = this.blocks[i];
+          if (!b.startTime) continue;
+          
+          const [h, m] = b.startTime.split(':').map(Number);
+          const startSeconds = (h * 60 + m) * 60;
+          const endSeconds = startSeconds + b.duration;
+          
+          if (nowSeconds >= startSeconds && nowSeconds < endSeconds) {
+            foundIdx = i;
+            foundTimeLeft = endSeconds - nowSeconds;
+            break;
+          } else if (nowSeconds < startSeconds) {
+            // We haven't reached this block yet, but it's the next upcoming one
+            if (foundIdx === -1) {
+              foundIdx = i;
+              foundTimeLeft = b.duration; // Wait for it to start
+            }
+          }
+        }
+        
+        if (foundIdx !== -1) {
+          this.blockIdx = foundIdx;
+          this.timeLeft = foundTimeLeft;
+          this.totalTime = this.blocks[this.blockIdx].duration;
+          
+          // Mark previous as done
+          for (let i = 0; i < foundIdx; i++) {
+            this.blocks[i].done = true;
+          }
+        } else {
+          // All blocks done or none found, fallback
+          this.blockIdx = this.blocks.length > 0 ? this.blocks.length - 1 : 0;
+          this.timeLeft = 0;
+          this.totalTime = this.blocks.length > 0 ? this.blocks[this.blockIdx].duration : 0;
+        }
       }
 
       start() {
@@ -3261,24 +3312,25 @@
       }
 
       tick() {
-        // Clock-time awareness: Check if next block should start
-        const now = new Date();
-        const nowStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        const oldBlockIdx = this.blockIdx;
+        this.syncTimerToRealTime();
         
-        const current = this.blocks[this.blockIdx];
-        const next = this.blocks[this.blockIdx + 1];
-
-        // If current block is done but next hasn't started, or we are past next start time
-        if (next && next.startTime && nowStr >= next.startTime && !current.done) {
-          this.triggerToast('Zeit-Trigger', `Startzeit für ${next.title} erreicht.`, false, null);
-          this.completeBlock();
-          return;
+        if (this.blockIdx !== oldBlockIdx) {
+            this.renderCenter();
+            this.renderQueue();
+            this.notified50 = false;
+            this.notified5m = false;
         }
 
+        const current = this.blocks[this.blockIdx];
+        if (!current) return;
+
         if (this.timeLeft <= 0) { this.completeBlock(); return; }
-        this.timeLeft--;
+        
+        // Timer display relies on this.timeLeft being updated correctly by syncTimerToRealTime.
         localStorage.setItem('px_time_left', this.timeLeft);
         this.updateDisplay();
+        this.updateTelemetry(current);
 
         const prog = 1 - this.timeLeft / this.totalTime;
 
@@ -3297,11 +3349,58 @@
         }
       }
 
+      updateTelemetry(current) {
+        const prog = 1 - (this.timeLeft / this.totalTime);
+        const pillar = current.pillar || current.type?.toLowerCase() || 'focus';
+        
+        let targetCog = 20, targetHyd = 100, targetSns = 30, rhythmLabel = 'Peak';
+        
+        if (pillar === 'focus' || pillar === 'skills') {
+          targetCog = 40 + (prog * 50); // cognitive load increases
+          targetHyd = 100 - (prog * 15); // hydration decreases slightly
+          targetSns = 60 + (prog * 20); // SNS goes up
+          rhythmLabel = 'Peak (90m)';
+        } else if (pillar === 'recovery' || pillar === 'health') {
+          targetCog = Math.max(10, 80 - (prog * 60)); // load decreases
+          targetHyd = 100; // hydrate
+          targetSns = Math.max(10, 50 - (prog * 40)); // SNS relaxes
+          rhythmLabel = 'Rest (20m)';
+        } else if (pillar === 'social') {
+          targetCog = 30;
+          targetSns = 40;
+          rhythmLabel = 'Integration';
+        }
+        
+        const barCog = document.getElementById('bar-cog');
+        const valCog = document.getElementById('val-cog');
+        if (barCog) barCog.style.width = targetCog + '%';
+        if (valCog) valCog.textContent = Math.round(targetCog) + '%';
+        
+        const barHyd = document.getElementById('bar-hyd');
+        const valHyd = document.getElementById('val-hyd');
+        if (barHyd) barHyd.style.width = targetHyd + '%';
+        if (valHyd) valHyd.textContent = Math.round(targetHyd) + '%';
+        
+        const barSns = document.getElementById('bar-sns');
+        const valSns = document.getElementById('val-sns');
+        if (barSns) barSns.style.width = targetSns + '%';
+        if (valSns) valSns.textContent = Math.round(targetSns) + '%';
+        
+        const rhythmPhase = document.getElementById('rhythm-phase');
+        const rhythmFill = document.getElementById('rhythm-fill');
+        const rhythmCursor = document.getElementById('rhythm-cursor');
+        if (rhythmPhase) rhythmPhase.textContent = rhythmLabel;
+        if (rhythmFill) rhythmFill.style.width = (prog * 100) + '%';
+        if (rhythmCursor) rhythmCursor.style.left = (prog * 100) + '%';
+      }
+
       completeBlock(manual = false) {
         this.pause();
         const current = this.blocks[this.blockIdx];
         if (current) current.done = true;
         if (!manual) logFriction('ok', true);
+
+        this.playTransitionCue();
 
         this.blockIdx++;
         localStorage.setItem('px_block_idx', this.blockIdx);
@@ -3333,6 +3432,27 @@
         this.completeBlock(true);
         this.setAgentMsg('Block übersprungen. Protokoll angepasst.');
         this.generateDirective('ADJUSTMENT', 'User hat Block übersprungen.');
+      }
+
+      playTransitionCue() {
+        try {
+          if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          if (ctx.state === 'suspended') ctx.resume();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(432, ctx.currentTime); // 432Hz calming frequency
+          osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.5);
+          gain.gain.setValueAtTime(0.1, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.5);
+        } catch (e) {
+          console.warn("Audio/Haptic cue failed", e);
+        }
       }
 
       setFocusMode(state) {
@@ -3428,23 +3548,8 @@
         // Ring
         document.getElementById('ring-fill').style.strokeDashoffset = circumf * (1 - prog);
 
-        // Telemetry (simulated)
-        const cog = Math.round(prog * 85 + 5);
-        const hyd = Math.max(20, 100 - Math.round(prog * 55));
-        const sns = Math.min(90, 25 + Math.round(prog * 50));
-        setTelem('cog', cog, cog > 70 ? 'var(--amber)' : 'var(--cobalt-bright)');
-        setTelem('hyd', hyd, hyd < 50 ? 'var(--amber)' : 'var(--green)');
-        setTelem('sns', sns, sns > 70 ? 'var(--red)' : 'var(--amber)');
-
-        // Rhythm bar (90-min cycle, 20-min rest)
-        const cycleLen = 110 * 60; // 90+20
-        const cyclePos = ((this.blockIdx * this.totalTime + (this.totalTime - this.timeLeft)) % cycleLen) / cycleLen;
-        const rPct = Math.round(cyclePos * 100);
-        document.getElementById('rhythm-fill').style.width = rPct + '%';
-        document.getElementById('rhythm-cursor').style.left = rPct + '%';
-        const isPeak = cyclePos < (90 / 110);
-        document.getElementById('rhythm-phase').textContent = isPeak ? 'Peak' : 'Rest';
-        document.getElementById('ring-fill').style.stroke = isPeak ? 'var(--cobalt-bright)' : 'var(--green)';
+        const current = this.blocks[this.blockIdx];
+        if (current) this.updateTelemetry(current);
       }
 
       renderUI() {
@@ -3469,7 +3574,19 @@
           `Block ${this.blockIdx + 1} von ${this.blocks.length} · ${cur.type}`;
         document.getElementById('block-title').textContent = cur.title;
         document.getElementById('agent-rec').textContent = cur.rec;
-        document.getElementById('agent-insight').textContent = cur.insight || '';
+        
+        let stackActionHTML = '';
+        if ((cur.pillar === 'health' || cur.rec.toLowerCase().includes('stack') || cur.rec.toLowerCase().includes('supplement')) && this.stack.length > 0) {
+          stackActionHTML = `
+            <div style="margin-top:.75rem; padding-top:.75rem; border-top:1px solid var(--border); display:flex; gap:.5rem; flex-wrap:wrap;">
+              ${this.stack.map((s, i) => `
+                <button class="btn-add-block" style="margin:0; padding:.3rem .6rem; background:rgba(0,196,140,0.1); border:1px solid rgba(0,196,140,0.3); color:var(--green); font-size:.7rem;" onclick="Agent.consumeStack(${i})">Log ${s.name} (${s.dose})</button>
+              `).join('')}
+            </div>
+          `;
+        }
+        
+        document.getElementById('agent-insight').innerHTML = (cur.insight || '') + stackActionHTML;
         document.getElementById('timer-display').textContent = this.formatTime(this.timeLeft);
         document.getElementById('timer-display').classList.add('paused');
         document.getElementById('timer-sub').textContent = 'Bereit';
@@ -3477,10 +3594,19 @@
         // Pillar tag
         const color = this.pillarColors[cur.pillar] || 'var(--text2)';
         document.getElementById('pillar-dot').style.background = color;
-        document.getElementById('pillar-name').textContent = cur.type;
+        document.getElementById('pillar-name').textContent = cur.type || cur.pillar;
         document.getElementById('pillar-tag').style.background = `${color}18`;
         document.getElementById('pillar-tag').style.color = color;
         document.getElementById('pillar-tag').style.border = `1px solid ${color}30`;
+      }
+
+      consumeStack(idx) {
+        if (!this.stack[idx]) return;
+        this.stack[idx].supply = Math.max(0, (this.stack[idx].supply || 100) - 5);
+        localStorage.setItem('px_stack', JSON.stringify(this.stack));
+        this.syncState();
+        this.renderStack();
+        this.triggerToast('Bio-Stack Updated', `${this.stack[idx].name} logged. Supply remaining: ${this.stack[idx].supply}%`, false, null);
       }
 
       renderQueue() {
@@ -3574,6 +3700,15 @@
       };
       logEntries.unshift(entry);
       renderLog();
+
+      // Persist to daily calendar
+      const dateStr = Agent.formatDate(Agent.selectedDate || new Date());
+      if (Agent.calendar[dateStr]) {
+        if (!Agent.calendar[dateStr].frictionLog) Agent.calendar[dateStr].frictionLog = [];
+        Agent.calendar[dateStr].frictionLog.push(entry);
+        localStorage.setItem('px_calendar', JSON.stringify(Agent.calendar));
+      }
+
       if (!silent && type !== 'ok') {
         Agent.triggerToast('Friction Geloggt', `${entry.label}: ${entry.action}`, false, null);
       }
