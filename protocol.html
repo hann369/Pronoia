@@ -1406,65 +1406,45 @@
     }
 
     /* ═══ CALENDAR SYSTEM ═══════════════════════════ */
+    .calendar-modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
+      z-index: 2000; display: none; justify-content: center; align-items: center;
+    }
+    .calendar-modal {
+      background: var(--bg-app); border: 1px solid var(--border);
+      width: 90vw; max-width: 1200px; max-height: 90vh;
+      display: flex; flex-direction: column; padding: 2rem; border-radius: 4px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+    .calendar-modal-close {
+      position: absolute; top: 1rem; right: 1rem; background: none; border: none;
+      color: var(--text3); font-size: 1.5rem; cursor: pointer;
+    }
+    .calendar-modal-close:hover { color: var(--text); }
     .calendar-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-      padding: 0 .5rem;
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding: 0 .5rem;
     }
-    .cal-month-title {
-      font-size: .75rem;
-      letter-spacing: .2em;
-      color: var(--text);
-    }
+    .cal-month-title { font-size: 1rem; letter-spacing: .2em; color: var(--text); }
     .cal-nav-btn {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--text3);
-      cursor: pointer;
-      padding: .2rem .5rem;
-      font-family: var(--font-mono);
-      font-size: .6rem;
-      transition: all .2s;
+      background: none; border: 1px solid var(--border); color: var(--text3);
+      cursor: pointer; padding: .4rem .8rem; font-family: var(--font-mono); font-size: .8rem; transition: all .2s;
     }
-    .cal-nav-btn:hover {
-      border-color: var(--text2);
-      color: var(--text);
-    }
+    .cal-nav-btn:hover { border-color: var(--text2); color: var(--text); }
     .calendar-grid-header {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 2px;
-      margin-bottom: 5px;
-      text-align: center;
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 5px; text-align: center;
     }
     .calendar-grid-header span {
-      font-family: var(--font-mono);
-      font-size: .5rem;
-      color: var(--text3);
-      letter-spacing: .1em;
+      font-family: var(--font-mono); font-size: .7rem; color: var(--text3); letter-spacing: .1em;
     }
     .calendar-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 2px;
-      background: var(--border);
-      border: 1px solid var(--border);
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+      background: var(--border); border: 1px solid var(--border); flex: 1; min-height: 50vh;
     }
     .cal-day {
-      aspect-ratio: 1;
-      background: var(--bg-panel);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      font-family: var(--font-mono);
-      font-size: .65rem;
-      color: var(--text2);
-      cursor: pointer;
-      position: relative;
-      transition: all .2s;
+      background: var(--bg-panel); display: flex; flex-direction: column; align-items: flex-start;
+      justify-content: flex-start; font-family: var(--font-mono); font-size: .8rem; color: var(--text2);
+      cursor: pointer; transition: all .2s; position: relative; padding: .5rem; min-height: 80px;
     }
     .cal-day:hover {
       background: var(--bg-card);
@@ -2074,6 +2054,7 @@
       <nav class="header-nav">
         <a href="labs.html">Labs</a>
         <a href="health.html">Health</a>
+        <a href="#" onclick="openCalendarModal()">Calendar</a>
         <a href="#" id="btn-logout" style="color: var(--red);">Logout</a>
       </nav>
     </div>
@@ -2085,9 +2066,7 @@
     <!-- LEFT: Agent + Queue -->
     <div class="panel" id="panel-left">
       <div class="panel-header">
-        <div class="panel-tabs">
           <button class="panel-tab-btn active" onclick="switchTab('queue')">Queue</button>
-          <button class="panel-tab-btn" onclick="switchTab('calendar')">Calendar</button>
           <button class="panel-tab-btn" onclick="switchTab('personal')">Personal</button>
         </div>
         <span class="mono dim" style="font-size:.6rem;" id="queue-count">0 / 0</span>
@@ -2135,28 +2114,7 @@
           </div>
         </div>
 
-        <!-- CALENDAR TAB CONTENT -->
-        <div id="tab-calendar-content" style="display: none;">
-          <div class="calendar-header">
-            <button class="cal-nav-btn" onclick="Agent.prevMonth()">&lt;</button>
-            <div id="calendar-month-year" class="mono cal-month-title">MAI 2026</div>
-            <button class="cal-nav-btn" onclick="Agent.nextMonth()">&gt;</button>
-          </div>
-          <div class="calendar-grid-header">
-            <span>MO</span><span>DI</span><span>MI</span><span>DO</span><span>FR</span><span>SA</span><span>SO</span>
-          </div>
-          <div id="calendar-grid" class="calendar-grid"></div>
-          
-          <div id="day-detail" class="day-detail" style="display:none;">
-            <div class="day-detail-header">
-              <span id="detail-date" class="mono">01.05.2026</span>
-              <button class="btn-add-block" style="margin:0; padding:.2rem .5rem;" onclick="Agent.generateDayAI()">AI Sync</button>
-            </div>
-            <div id="detail-protocol" class="detail-protocol">
-              <!-- Daily routine preview -->
-            </div>
-          </div>
-        </div>
+        <!-- CALENDAR TAB CONTENT WAS HERE, NOW A MODAL -->
 
         <!-- PERSONAL TAB CONTENT -->
         <div id="tab-personal-content" style="display: none;">
@@ -2323,6 +2281,35 @@
           <div id="log-list">
             <div class="mono dim" style="font-size:.65rem;text-align:center;padding:1rem 0;letter-spacing:.15em;">KEINE
               EINTRÄGE</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CALENDAR MODAL -->
+  <div id="calendar-modal-overlay" class="calendar-modal-overlay" onclick="if(event.target===this) closeCalendarModal()">
+    <div class="calendar-modal" style="position: relative;">
+      <button class="calendar-modal-close" onclick="closeCalendarModal()">×</button>
+      <div class="calendar-header">
+        <button class="cal-nav-btn" onclick="Agent.prevMonth()">&lt;</button>
+        <div id="calendar-month-year" class="mono cal-month-title">MAI 2026</div>
+        <button class="cal-nav-btn" onclick="Agent.nextMonth()">&gt;</button>
+      </div>
+      <div style="display: flex; gap: 2rem; flex: 1;">
+        <div style="flex: 3; display: flex; flex-direction: column;">
+          <div class="calendar-grid-header">
+            <span>MO</span><span>DI</span><span>MI</span><span>DO</span><span>FR</span><span>SA</span><span>SO</span>
+          </div>
+          <div id="calendar-grid" class="calendar-grid"></div>
+        </div>
+        <div id="day-detail" class="day-detail" style="flex: 1; display:none;">
+          <div class="day-detail-header">
+            <span id="detail-date" class="mono">01.05.2026</span>
+            <button class="btn-add-block" style="margin:0; padding:.2rem .5rem;" onclick="Agent.generateDayAI()">AI Sync</button>
+          </div>
+          <div id="detail-protocol" class="detail-protocol" style="overflow-y: auto; max-height: 60vh;">
+            <!-- Daily routine preview -->
           </div>
         </div>
       </div>
@@ -2623,6 +2610,16 @@
           if (dateStr === this.formatDate(this.selectedDate)) div.classList.add('active');
           
           div.textContent = d;
+          // Show summary if blocks exist
+          if (this.calendar[dateStr] && this.calendar[dateStr].blocks) {
+            const sum = document.createElement('div');
+            sum.className = 'dim';
+            sum.style.fontSize = '0.5rem';
+            sum.style.marginTop = '0.2rem';
+            sum.textContent = this.calendar[dateStr].blocks.length + ' Blöcke';
+            div.appendChild(sum);
+          }
+
           div.onclick = () => this.selectDay(new Date(year, month, d));
           grid.appendChild(div);
         }
@@ -2787,6 +2784,14 @@
           console.error("[Pronoia] Sync Error:", err);
           this.triggerToast('Sync Fehler', 'Firestore-Verbindung fehlgeschlagen.', true, null);
         }
+      }
+
+      // ── AGENT MESSAGING ────────────────────────────
+      setAgentMsg(msg, isThinking = false) {
+        const el = document.getElementById('agent-msg');
+        if (el) el.textContent = msg;
+        const loader = document.getElementById('agent-thinking');
+        if (loader) loader.style.display = isThinking ? 'flex' : 'none';
       }
 
       async generatePredictiveProtocol() {
@@ -3178,11 +3183,9 @@
           // Special Handling: Monthly Goals / Milestones
           if (/monat|month|ziel|milestone/.test(cmd)) {
             this.triggerToast('System Update', 'Monats-Meilenstein erfasst. Integriere in Predictive Engine.', false, null);
-            // In a real app, we'd generate a 30-day strategy here. 
-            // For now, we update the profile goals.
             this.profile.goals += " | " + raw;
             this.syncProfile();
-            switchTab('calendar');
+            openCalendarModal();
             return;
           }
 
@@ -3362,6 +3365,9 @@
       }
     }
 
+    // Initialize Agent globally immediately after class definition
+    window.Agent = new PronoiaAgent();
+
     // ── HELPERS ─────────────────────────────────────
     function setTelem(id, val, color) {
       document.getElementById(`bar-${id}`).style.width = val + '%';
@@ -3429,6 +3435,11 @@
     // ── ONBOARDING (cleaned: single definition) ────
 
     function obFinish() {
+      if (!window.Agent || typeof Agent.setAgentMsg !== 'function') {
+        console.warn("[Pronoia] obFinish deferred: Agent not ready.");
+        setTimeout(obFinish, 100);
+        return;
+      }
       // Safety: ensure protocol is loaded with time awareness
       if (!Agent.blocks || Agent.blocks.length === 0) {
         Agent.loadProtocol(Agent.getTimeAwareTemplate());
@@ -3537,8 +3548,7 @@
     };
 
     // ── INIT ────────────────────────────────────────
-    // IMPORTANT: Agent MUST be created before Auth.init()
-    const Agent = new PronoiaAgent();
+    // IMPORTANT: Agent is now initialized globally above.
 
     function obNext(step) {
       if (step === 1) {
@@ -3598,6 +3608,11 @@
     }
 
     function initSessionFlow() {
+      if (!window.Agent) {
+        console.warn("[Pronoia] initSessionFlow deferred: Agent not ready.");
+        setTimeout(initSessionFlow, 100);
+        return;
+      }
       if (Auth.isLoggedIn) {
         document.getElementById('auth-overlay').style.display = 'none';
         const hadProtocol = !!localStorage.getItem('px_block_idx');
@@ -3617,18 +3632,25 @@
       btns.forEach(b => b.classList.toggle('active', b.textContent.toLowerCase() === tab));
 
       document.getElementById('tab-queue-content').style.display = tab === 'queue' ? 'block' : 'none';
-      document.getElementById('tab-calendar-content').style.display = tab === 'calendar' ? 'block' : 'none';
-      document.getElementById('tab-personal-content').style.display = tab === 'personal' ? 'block' : 'none';
+      
+      const personalTab = document.getElementById('tab-personal-content');
+      if (personalTab) personalTab.style.display = tab === 'personal' ? 'block' : 'none';
 
-      if (tab === 'calendar') {
-        Agent.renderCalendar();
-      }
       if (tab === 'personal') {
         Agent.getEnvironment();
         document.getElementById('profile-goals').value = Agent.profile.goals || '';
         document.getElementById('metric-hrv').value = Agent.profile.metrics.hrv || '';
         document.getElementById('metric-sleep').value = Agent.profile.metrics.sleep || '';
       }
+    }
+
+    function openCalendarModal() {
+      document.getElementById('calendar-modal-overlay').style.display = 'flex';
+      Agent.renderCalendar();
+    }
+    
+    function closeCalendarModal() {
+      document.getElementById('calendar-modal-overlay').style.display = 'none';
     }
 
     // Now safe to init Auth (Agent exists)
