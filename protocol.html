@@ -2402,7 +2402,7 @@
 
           return data.choices[0].message.content;
         } catch (err) {
-          console.warn("GroqService network error:", err.message);
+          console.warn("MistralService network error:", err.message);
           return this.getFallback(prompt);
         }
       }
@@ -2568,6 +2568,7 @@
         this.sessionID = '';
         this.log = [];
         this.obState = { goals: '', hrv: 0, sleep: 0, energy: 7, mood: 'focused', caffeine: 'none', training: 'none' };
+        this.directives = [];
         this.profile = { goals: '', metrics: { hrv: 0, sleep: 0 }, location: '', energy: 7, mood: 'focused' };
         this.env = { city: 'Unknown', temp: '--', sun: '--', time: '--', lat: null, lon: null };
         this.stack = JSON.parse(localStorage.getItem('px_stack')) || this.defaultStack;
