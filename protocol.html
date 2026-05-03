@@ -1426,6 +1426,20 @@
       justify-content: center;
     }
 
+    /* ═══ AGENT THINKING SPINNER ═══════════════════ */
+    .agent-thinking-spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border-s);
+      border-top-color: var(--cobalt-bright);
+      border-radius: 50%;
+      animation: spinAgent 0.8s linear infinite;
+    }
+
+    @keyframes spinAgent {
+      to { transform: rotate(360deg); }
+    }
+
     /* ═══ ONBOARDING / SKILL MODAL ═════════════════ */
     .onboarding-overlay {
       position: fixed;
@@ -2292,9 +2306,12 @@
                   <span class="mono" style="font-size: .55rem; color: var(--text3);">PROGRESS</span>
                   <span id="xp-display" class="mono" style="font-size: .55rem; color: var(--cobalt-bright);">0 / 1000 XP</span>
                 </div>
-                <div style="height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;">
+                <div style="height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 1.5rem;">
                   <div id="xp-bar-fill" style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--cobalt), var(--cobalt-bright)); transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);"></div>
                 </div>
+                
+                <button class="auth-btn" style="width: 100%; padding: .8rem; background: var(--cobalt-dim); border: 1px solid var(--cobalt-bright); color: var(--cobalt-bright); font-size: .65rem; font-weight: 600;"
+                  onclick="Agent.generateSkillMaterials()">Generate Lab Content</button>
               </div>
             </div>
             
@@ -2511,6 +2528,26 @@
     </div>
   </div>
 
+  <div id="skill-lab-modal" class="stack-editor-modal" style="display:none; align-items:center; justify-content:center;">
+    <div class="stack-editor-card" style="max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
+        <div>
+          <div id="skill-title" class="auth-title" style="font-size: 1.2rem; margin-bottom: .2rem;">Skill Lab</div>
+          <div id="skill-level-badge" class="stage-badge" style="display: inline-block;">Lvl 1</div>
+        </div>
+        <button class="friction-btn" style="font-size: 1.5rem; color: var(--text3); border: none; background: none; cursor: pointer;" onclick="document.getElementById('skill-lab-modal').style.display='none'">×</button>
+      </div>
+      
+      <div id="skill-content" style="font-family: var(--font-body); color: var(--text); line-height: 1.6;">
+        <!-- AI Generated Content Goes Here -->
+      </div>
+      
+      <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end;">
+        <button class="auth-btn" style="padding: .7rem 1.5rem;" onclick="document.getElementById('skill-lab-modal').style.display='none'">Schließen</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast-container"></div>
 
   <script>
@@ -2572,6 +2609,11 @@
           console.warn("MistralService network error:", err.message);
           return this.getFallback(prompt);
         }
+      }
+
+      static async generateDirective(prompt, context = "GENERAL") {
+        const systemPrompt = `You are the Pronoia Agent [Context: ${context}]. Precise, imperative, scientific. Format output as beautiful HTML chunks with modern technical aesthetics.`;
+        return this.chat(prompt, systemPrompt);
       }
 
       static getFallback(prompt) {
