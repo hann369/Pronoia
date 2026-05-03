@@ -101,6 +101,8 @@
       line-height: 1.5;
       user-select: none;
       transition: var(--transition-theme);
+      height: 100vh;
+      width: 100vw;
     }
 
     .mono {
@@ -291,9 +293,11 @@
     }
 
     .panel {
-      overflow-y: auto;
-      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
       border-right: 1px solid var(--border);
+      background: var(--bg-panel);
     }
 
     .panel:last-child {
@@ -355,6 +359,11 @@
 
     .panel-body {
       padding: 1.25rem;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
     }
 
     /* ═══ LEFT PANEL — AGENT + QUEUE ═══════════════ */
@@ -1382,12 +1391,82 @@
     .stack-editor-modal {
       position: fixed;
       inset: 0;
-      z-index: 9999; /* Max priority */
+      z-index: 9999;
       background: rgba(8, 12, 18, 0.95);
       backdrop-filter: blur(12px);
       display: none;
       align-items: center;
       justify-content: center;
+    }
+
+    /* ═══ ONBOARDING / SKILL MODAL ═════════════════ */
+    .onboarding-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 12, 18, 0.9);
+      backdrop-filter: blur(20px);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .onboarding-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 3rem;
+      max-width: 640px;
+      width: 100%;
+      position: relative;
+      animation: obFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes obFadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .ob-label {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--cobalt-bright);
+      margin-bottom: 1rem;
+    }
+
+    .ob-h {
+      font-family: var(--font-display);
+      font-size: 2.4rem;
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+      font-weight: 400;
+    }
+
+    .ob-sub {
+      font-size: 1rem;
+      color: var(--text2);
+      line-height: 1.6;
+      margin-bottom: 2.5rem;
+    }
+
+    .ob-next {
+      background: var(--cobalt-bright);
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .ob-next:hover {
+      background: #2A7AFF;
+      transform: translateY(-2px);
     }
     .stack-editor-card {
       width: 100%;
@@ -2032,6 +2111,7 @@
       <div class="header-divider"></div>
       <span class="session-badge" id="session-id">SESSION: —</span>
       <span class="stage-badge" id="stage-badge">Stage 01</span>
+      <div id="header-clock" class="mono" style="font-size: .75rem; color: var(--text2); margin-left: 1rem;">--:--:--</div>
     </div>
     <div class="header-right">
       <button class="theme-toggle" id="theme-toggle" title="Toggle Theme">
@@ -2118,48 +2198,56 @@
         <!-- CALENDAR TAB CONTENT WAS HERE, NOW A MODAL -->
 
         <!-- PERSONAL TAB CONTENT -->
-        <div id="tab-personal-content" style="display: none;">
-          <div class="context-section">
-            <span class="ctx-label">Wochen-Ziele</span>
-            <textarea id="profile-goals" class="auth-input" style="height: 100px; resize: none; margin-bottom: 1rem;"
-              placeholder="Was willst du diese Woche erreichen?"></textarea>
-
-            <span class="ctx-label">Metrics (Heute)</span>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-bottom: 1.5rem;">
-              <div>
-                <label class="auth-label">HRV (ms)</label>
-                <input type="number" id="metric-hrv" class="auth-input" placeholder="70">
-              </div>
-              <div>
-                <label class="auth-label">Sleep Score</label>
-                <input type="number" id="metric-sleep" class="auth-input" placeholder="85">
+        <div id="tab-personal-content" style="display: none; height: 100%;">
+          <div style="display: flex; flex-direction: column; gap: 1.5rem; padding-bottom: 2rem;">
+            
+            <div style="background: var(--bg-card); border: 1px solid var(--border); padding: 1.25rem;">
+              <span class="ctx-label" style="margin-bottom: .75rem; display: block;">Environment</span>
+              <div id="env-context" style="font-family: var(--font-mono); font-size: .65rem; color: var(--text2); line-height: 1.6;">
+                Locating...
               </div>
             </div>
 
-            <span class="ctx-label">Skill Lab Focus</span>
-            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: .5rem; margin-bottom: 1.5rem;">
-              <div>
-                <label class="auth-label">Ziel-Skill</label>
-                <input type="text" id="profile-skill" class="auth-input" placeholder="z.B. Zeichnen">
-              </div>
-              <div>
-                <label class="auth-label">Level</label>
-                <input type="number" id="profile-skill-level" class="auth-input" placeholder="1" min="1">
+            <div style="background: var(--bg-card); border: 1px solid var(--border); padding: 1.25rem;">
+              <span class="ctx-label" style="margin-bottom: .75rem; display: block;">Wochen-Ziele</span>
+              <textarea id="profile-goals" class="auth-input" style="height: 100px; resize: none; width: 100%; margin-bottom: 0;"
+                placeholder="Was willst du diese Woche erreichen?"></textarea>
+            </div>
+
+            <div style="background: var(--bg-card); border: 1px solid var(--border); padding: 1.25rem;">
+              <span class="ctx-label" style="margin-bottom: .75rem; display: block;">Metrics (Heute)</span>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                  <label class="ctx-label" style="font-size: .5rem; margin-bottom: .4rem; opacity: .7;">HRV (ms)</label>
+                  <input type="number" id="metric-hrv" class="auth-input" placeholder="70" style="width: 100%;">
+                </div>
+                <div>
+                  <label class="ctx-label" style="font-size: .5rem; margin-bottom: .4rem; opacity: .7;">Sleep Score</label>
+                  <input type="number" id="metric-sleep" class="auth-input" placeholder="85" style="width: 100%;">
+                </div>
               </div>
             </div>
 
-            <span class="ctx-label">Environment</span>
-            <div id="env-context"
-              style="font-family: var(--font-mono); font-size: .65rem; color: var(--text2); background: var(--bg-card); padding: .75rem; border: 1px solid var(--border); margin-bottom: 1.5rem;">
-              Locating...
+            <div style="background: var(--bg-card); border: 1px solid var(--border); padding: 1.25rem;">
+              <span class="ctx-label" style="margin-bottom: .75rem; display: block;">Skill Lab Focus</span>
+              <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                <div>
+                  <label class="ctx-label" style="font-size: .5rem; margin-bottom: .4rem; opacity: .7;">Ziel-Skill</label>
+                  <input type="text" id="profile-skill" class="auth-input" placeholder="z.B. Zeichnen" style="width: 100%;">
+                </div>
+                <div>
+                  <label class="ctx-label" style="font-size: .5rem; margin-bottom: .4rem; opacity: .7;">Level</label>
+                  <input type="number" id="profile-skill-level" class="auth-input" placeholder="1" min="1" style="width: 100%;">
+                </div>
+              </div>
             </div>
             
-            <span class="ctx-label" style="display: block; margin-bottom: .5rem;">Bio-Stack</span>
-            <button class="auth-btn" style="padding: .6rem; font-size: .6rem; margin-top: 0; background: var(--bg-card); border: 1px solid var(--border); color: var(--text2);"
-              onclick="Agent.openStackEditor()">Manage Supplement Stack</button>
-
-            <button class="auth-btn" style="padding: .75rem; font-size: .7rem; margin-top: 1.5rem;"
-              onclick="Agent.saveProfile()">Update Profile & Sync</button>
+            <div style="display: flex; flex-direction: column; gap: .75rem;">
+              <button class="auth-btn" style="width: 100%; padding: .8rem; background: var(--bg-card); border: 1px solid var(--border); color: var(--text2); font-size: .65rem;"
+                onclick="Agent.openStackEditor()">Manage Bio-Stack</button>
+              <button class="auth-btn" style="width: 100%; padding: 1rem; background: var(--cobalt-bright); border: none; color: white; font-weight: 600;"
+                onclick="Agent.saveProfile()">Update Profile & Sync</button>
+            </div>
           </div>
         </div>
 
@@ -2591,6 +2679,25 @@
 
         // Restore from localStorage
         this.sessionID = localStorage.getItem('px_session') || '';
+        this.profile = JSON.parse(localStorage.getItem('px_profile')) || this.profile;
+        this.env = JSON.parse(localStorage.getItem('px_env')) || this.env;
+
+        this.startClock();
+      }
+
+      startClock() {
+        setInterval(() => {
+          const now = new Date();
+          const timeStr = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          const headerClock = document.getElementById('header-clock');
+          if (headerClock) headerClock.textContent = timeStr;
+          
+          this.env.time = timeStr;
+          const envTimeEl = document.querySelector('#env-context div:last-child');
+          if (envTimeEl && envTimeEl.textContent.includes('System Time')) {
+            envTimeEl.textContent = `System Time: ${timeStr}`;
+          }
+        }, 1000);
       }
 
       // ── UTILITIES ────────────────────────────────────
@@ -3017,6 +3124,7 @@
             <div>Daylight: ${this.env.sun}</div>
             <div>System Time: ${this.env.time}</div>
           `;
+          localStorage.setItem('px_env', JSON.stringify(this.env));
         } catch (err) {
           console.warn("Weather Fetch Error:", err);
           if (el) el.textContent = "Environment Data Offline. Using Default.";
@@ -3027,10 +3135,13 @@
         this.profile.goals = document.getElementById('profile-goals').value;
         this.profile.metrics.hrv = parseInt(document.getElementById('metric-hrv').value) || 0;
         this.profile.metrics.sleep = parseInt(document.getElementById('metric-sleep').value) || 0;
+        this.profile.skill = document.getElementById('profile-skill').value;
+        this.profile.skillLevel = parseInt(document.getElementById('profile-skill-level').value) || 1;
 
+        localStorage.setItem('px_profile', JSON.stringify(this.profile));
         this.syncProfile();
-        this.triggerToast('Profile Sync', 'Performance-Daten und Ziele in Firestore gesichert.', false, null);
-        this.generateDirective('PROFILE_UPDATE', 'User hat Ziele aktualisiert.');
+        this.triggerToast('Profile Saved', 'Daten lokal und in der Cloud gesichert.', false, null);
+        this.generateDirective('PROFILE_UPDATE', 'User hat Ziele/Skills aktualisiert.');
       }
 
       async syncProfile() {
