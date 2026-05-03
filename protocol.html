@@ -2112,6 +2112,12 @@
       <span class="session-badge" id="session-id">SESSION: —</span>
       <span class="stage-badge" id="stage-badge">Stage 01</span>
       <div id="header-clock" class="mono" style="font-size: .75rem; color: var(--text2); margin-left: 1rem;">--:--:--</div>
+      
+      <!-- READINESS GAUGE -->
+      <div style="margin-left: 2rem; display: flex; align-items: center; gap: .5rem;">
+        <span class="mono" style="font-size: .55rem; color: var(--text3); text-transform: uppercase; letter-spacing: .1em;">Readiness:</span>
+        <span id="readiness-gauge" class="mono" style="font-size: .7rem; font-weight: 700; color: var(--green);">--%</span>
+      </div>
     </div>
     <div class="header-right">
       <button class="theme-toggle" id="theme-toggle" title="Toggle Theme">
@@ -2230,7 +2236,7 @@
 
             <div style="background: var(--bg-card); border: 1px solid var(--border); padding: 1.25rem;">
               <span class="ctx-label" style="margin-bottom: .75rem; display: block;">Skill Lab Focus</span>
-              <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+              <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1rem;">
                 <div>
                   <label class="ctx-label" style="font-size: .5rem; margin-bottom: .4rem; opacity: .7;">Ziel-Skill</label>
                   <input type="text" id="profile-skill" class="auth-input" placeholder="z.B. Zeichnen" style="width: 100%;">
@@ -2238,6 +2244,17 @@
                 <div>
                   <label class="ctx-label" style="font-size: .5rem; margin-bottom: .4rem; opacity: .7;">Level</label>
                   <input type="number" id="profile-skill-level" class="auth-input" placeholder="1" min="1" style="width: 100%;">
+                </div>
+              </div>
+              
+              <!-- XP PROGRESS BAR -->
+              <div id="skill-progress-container" style="margin-top: 1rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: .4rem;">
+                  <span class="mono" style="font-size: .55rem; color: var(--text3);">PROGRESS</span>
+                  <span id="xp-display" class="mono" style="font-size: .55rem; color: var(--cobalt-bright);">0 / 1000 XP</span>
+                </div>
+                <div style="height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;">
+                  <div id="xp-bar-fill" style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--cobalt), var(--cobalt-bright)); transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);"></div>
                 </div>
               </div>
             </div>
@@ -2668,7 +2685,17 @@
         this.log = [];
         this.obState = { goals: '', hrv: 0, sleep: 0, energy: 7, mood: 'focused', caffeine: 'none', training: 'none' };
         this.directives = [];
-        this.profile = { goals: '', skill: '', skillLevel: 1, metrics: { hrv: 0, sleep: 0 }, location: '', energy: 7, mood: 'focused' };
+        this.profile = { 
+          goals: '', 
+          skill: '', 
+          skillLevel: 1, 
+          xp: 0,
+          nextLevelXp: 1000,
+          metrics: { hrv: 0, sleep: 0 }, 
+          location: '', 
+          energy: 7, 
+          mood: 'focused' 
+        };
         this.env = { city: 'Unknown', temp: '--', sun: '--', time: '--', lat: null, lon: null };
         this.stack = JSON.parse(localStorage.getItem('px_stack')) || this.defaultStack;
 
@@ -3136,12 +3163,48 @@
         this.profile.metrics.hrv = parseInt(document.getElementById('metric-hrv').value) || 0;
         this.profile.metrics.sleep = parseInt(document.getElementById('metric-sleep').value) || 0;
         this.profile.skill = document.getElementById('profile-skill').value;
-        this.profile.skillLevel = parseInt(document.getElementById('profile-skill-level').value) || 1;
+        this.profile.skillLevel = parseInt(document.getElementById('profile-skill-level').value) || this.profile.skillLevel;
 
+        this.calculateReadinessScore();
         localStorage.setItem('px_profile', JSON.stringify(this.profile));
         this.syncProfile();
-        this.triggerToast('Profile Saved', 'Daten lokal und in der Cloud gesichert.', false, null);
-        this.generateDirective('PROFILE_UPDATE', 'User hat Ziele/Skills aktualisiert.');
+        this.renderUI();
+        this.triggerToast('Profile Saved', 'Biometrie analysiert und gesichert.', false, null);
+        this.generateDirective('PROFILE_UPDATE', 'User hat Metriken aktualisiert. Bereitschaft berechnet.');
+      }
+
+      calculateReadinessScore() {
+        const hrv = this.profile.metrics.hrv || 60;
+        const sleep = this.profile.metrics.sleep || 75;
+        const energy = this.profile.energy || 7;
+        
+        // Simple weighted score
+        let score = (hrv * 0.4) + (sleep * 0.4) + (energy * 2);
+        this.readiness = Math.min(100, Math.round(score));
+        
+        const el = document.getElementById('readiness-gauge');
+        if (el) {
+          el.textContent = this.readiness + '%';
+          el.style.color = this.readiness > 70 ? 'var(--green)' : this.readiness > 40 ? 'var(--amber)' : 'var(--red)';
+        }
+        return this.readiness;
+      }
+
+      getBioAdaptiveTemplate() {
+        const score = this.calculateReadinessScore();
+        const hour = new Date().getHours();
+        
+        if (score < 45) {
+          this.triggerToast('Bio-Alert', 'Niedrige Bereitschaft erkannt. Recovery-Protokoll empfohlen.', true, null);
+          return 'evening_wind_down'; // Use a lighter template
+        }
+        
+        if (score > 85 && (hour >= 6 && hour < 12)) {
+          this.triggerToast('Performance', 'Hohe Bereitschaft! High-Performance Modus aktiv.', false, null);
+          return 'optimal_deepwork';
+        }
+
+        return this.getTimeAwareTemplate();
       }
 
       async syncProfile() {
@@ -3398,6 +3461,41 @@
         this.syncProfile();
       }
 
+      async generateSkillMaterials() {
+        const skill = this.profile.skill || 'Allgemeine Produktivität';
+        const level = this.profile.skillLevel || 1;
+        const modal = document.getElementById('skill-lab-modal');
+        if (modal) modal.style.display = 'flex';
+        
+        document.getElementById('skill-title').textContent = `${skill} Lab`;
+        document.getElementById('skill-level-badge').textContent = `Lvl ${level}`;
+        document.getElementById('skill-content').innerHTML = `
+          <div style="display:flex; justify-content:center; padding:3rem;">
+            <div class="agent-thinking-spinner"></div>
+          </div>
+          <p style="text-align:center; color:var(--text3); font-size:.8rem;">Generiere personalisierte Deliberate Practice Inhalte...</p>
+        `;
+
+        const prompt = `User lernt "${skill}" auf Level ${level}/10. 
+        Erstelle 3 personalisierte Lernmaterialien für eine Deliberate Practice Session:
+        1. Ein Theorie-Modul (Arbeitsblatt/Konzept)
+        2. Ein Video-Link (Platzhalter YouTube)
+        3. Eine spezifische praktische Übung, die den aktuellen Schwierigkeitsgrad herausfordert.
+        
+        Antworte in einem strukturierten HTML Format mit Icons. Sei motivierend und präzise.`;
+
+        try {
+          const res = await MistralService.generateDirective(prompt, 'SKILL_LAB');
+          document.getElementById('skill-content').innerHTML = res;
+        } catch (e) {
+          document.getElementById('skill-content').innerHTML = `
+            <div class="ctx-card" style="border:1px solid var(--red); color:var(--red);">
+              Fehler beim Laden der Materialien. Bitte Internetverbindung prüfen.
+            </div>
+          `;
+        }
+      }
+
       getTimeAwareTemplate() {
         const hour = new Date().getHours();
         const mood = this.obState.mood;
@@ -3600,6 +3698,15 @@
         const current = this.blocks[this.blockIdx];
         if (current) {
           current.done = true;
+          
+          // Award XP
+          const baseXP = Math.round(current.duration / 60);
+          const multiplier = current.pillar === 'skills' ? 2 : 1;
+          const totalXP = baseXP * multiplier;
+          this.profile.xp = (this.profile.xp || 0) + totalXP;
+          
+          this.checkLevelUp();
+          
           // Sync back to calendar
           const dateStr = this.formatDate(new Date());
           if (this.calendar[dateStr]) {
@@ -3607,6 +3714,7 @@
             if (calBlock) calBlock.done = true;
             localStorage.setItem('px_calendar', JSON.stringify(this.calendar));
           }
+          this.triggerToast('XP Gained', `+${totalXP} XP für ${current.title}`, false, null);
         }
         if (!manual) logFriction('ok', true);
 
@@ -3614,6 +3722,7 @@
 
         this.blockIdx++;
         localStorage.setItem('px_block_idx', this.blockIdx);
+        localStorage.setItem('px_profile', JSON.stringify(this.profile));
         this.notified50 = false; this.notified5m = false;
         document.getElementById('timer-display').classList.remove('ending');
 
@@ -3635,6 +3744,37 @@
           localStorage.removeItem('px_block_idx');
           localStorage.removeItem('px_time_left');
         }
+      }
+
+      checkLevelUp() {
+        if (!this.profile.nextLevelXp) this.profile.nextLevelXp = 1000;
+        if (this.profile.xp >= this.profile.nextLevelXp) {
+          this.profile.xp -= this.profile.nextLevelXp;
+          this.profile.skillLevel++;
+          this.profile.nextLevelXp = Math.round(this.profile.nextLevelXp * 1.2);
+          
+          this.triggerToast('LEVEL UP', `Du hast Level ${this.profile.skillLevel} erreicht!`, false, null);
+          this.playLevelUpEffect();
+        }
+      }
+
+      playLevelUpEffect() {
+        const overlay = document.createElement('div');
+        overlay.style = `
+          position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+          background: rgba(10,12,18,0.9); backdrop-filter: blur(20px);
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          z-index: 10000; color: white; text-align: center;
+        `;
+        overlay.innerHTML = `
+          <h1 style="font-size: 4rem; font-weight: 900; letter-spacing: .2em; color: var(--cobalt-bright); margin-bottom: 0;">LEVEL UP</h1>
+          <p style="font-size: 1.5rem; opacity: .7;">LEVEL ${this.profile.skillLevel} ERREICHT</p>
+          <div style="margin-top: 2rem; font-family: 'Mono', monospace; color: var(--green);">SYSTEM-UPGRADE VOLLSTÄNDIG</div>
+          <button class="btn-primary" style="margin-top: 3rem; padding: 1rem 3rem;" onclick="this.parentElement.remove()">Fortfahren</button>
+        `;
+        document.body.appendChild(overlay);
+        gsap.from(overlay, { opacity: 0, duration: 1, ease: 'power4.out' });
+        gsap.from(overlay.children, { y: 50, opacity: 0, stagger: 0.2, duration: 1, ease: 'power4.out' });
       }
 
       skipBlock() {
@@ -3983,8 +4123,8 @@
         return;
       }
       // Safety: ensure protocol is loaded with time awareness
-      if (!Agent.blocks || Agent.blocks.length === 0) {
-        Agent.loadProtocol(Agent.getTimeAwareTemplate());
+      if (Agent.blocks.length === 0) {
+        Agent.loadProtocol(Agent.getBioAdaptiveTemplate());
       }
       document.getElementById('onboarding').style.opacity = '0';
       document.getElementById('onboarding').style.transition = 'opacity .5s';
@@ -4161,7 +4301,7 @@
         const didOnboarding = !!localStorage.getItem('px_onboarding_done');
 
         if (hadProtocol || didOnboarding) {
-          Agent.loadProtocol(Agent.getTimeAwareTemplate());
+          Agent.loadProtocol(Agent.getBioAdaptiveTemplate());
           obFinish();
         } else {
           document.getElementById('onboarding').style.display = 'flex';
