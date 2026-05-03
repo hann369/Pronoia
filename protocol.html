@@ -3384,19 +3384,24 @@
 
       async syncProfile() {
         if (typeof firebase === 'undefined' || !firebase.auth().currentUser) return;
-        const uid = firebase.auth().currentUser.uid;
-        console.log("[Pronoia] Syncing Profile & Stack to Firestore...");
-        try {
-          await firebase.firestore().collection('users').doc(uid).set({
-            profile: this.profile,
-            stack: this.stack,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          }, { merge: true });
-          console.log("[Pronoia] Sync Success.");
-        } catch (err) {
-          console.error("[Pronoia] Sync Error:", err);
-          this.triggerToast('Sync Fehler', 'Firestore-Verbindung fehlgeschlagen.', true, null);
-        }
+        
+        if (this._syncTimeout) clearTimeout(this._syncTimeout);
+        
+        this._syncTimeout = setTimeout(async () => {
+          const uid = firebase.auth().currentUser.uid;
+          console.log("[Pronoia] Syncing Profile & Stack to Firestore...");
+          try {
+            await firebase.firestore().collection('users').doc(uid).set({
+              profile: this.profile,
+              stack: this.stack,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            console.log("[Pronoia] Sync Success.");
+          } catch (err) {
+            console.error("[Pronoia] Sync Error:", err);
+            this.triggerToast('Sync Fehler', 'Firestore-Verbindung fehlgeschlagen.', true, null);
+          }
+        }, 1500);
       }
 
       // ── AGENT MESSAGING ────────────────────────────
