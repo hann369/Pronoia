@@ -2626,6 +2626,24 @@
           return '{"blocks":[{"title":"Deep Work","duration":5400,"type":"Focus","pillar":"focus","rec":"Fokus halten.","insight":"Ultradian Peak."}]}';
         if (p.includes('transition') || p.includes('block'))
           return "Block-Übergang. Kurze Pause empfohlen. Hydration prüfen.";
+        if (p.includes('deliberate practice') || p.includes('theorie-modul'))
+          return `
+            <div class="ctx-card" style="border: 1px solid var(--border-s); padding: 1.5rem; margin-bottom: 1rem; border-radius: 4px;">
+              <h3 style="font-family: var(--font-display); color: var(--cobalt-bright); margin-bottom: 0.5rem; font-size: 1.2rem;">[OFFLINE MODE] Skill Lab</h3>
+              <p style="color: var(--text2); font-size: 0.85rem; margin-bottom: 1.5rem;">API nicht erreichbar. Generiere lokales Fallback-Modul für Deliberate Practice.</p>
+              <div style="background: var(--bg-card); padding: 1rem; border-radius: 4px; margin-bottom: 1rem; border: 1px solid var(--border);">
+                <strong style="color:var(--text); font-size: 0.9rem;">1. Theorie (Fundamentals)</strong><br>
+                <span class="dim" style="font-size:0.85rem;">Zerlege die Ziel-Fähigkeit in 3 Kernkomponenten. Fokussiere dich heute ausschließlich auf die schwächste davon. Erkenne Muster in Fehlern.</span>
+              </div>
+              <div style="background: var(--bg-card); padding: 1rem; border-radius: 4px; margin-bottom: 1rem; border: 1px solid var(--border);">
+                <strong style="color:var(--text); font-size: 0.9rem;">2. Media Integration</strong><br>
+                <span class="dim" style="font-size:0.85rem;">Suche auf YouTube nach "Beginner Guide Fundamentals" für deinen Skill. Schaue maximal 10 Minuten. Keine Endlosschleife.</span>
+              </div>
+              <div style="background: var(--bg-card); padding: 1rem; border-radius: 4px; border: 1px solid var(--cobalt-dim);">
+                <strong style="color:var(--cobalt-bright); font-size: 0.9rem;">3. Praxis</strong><br>
+                <span class="dim" style="font-size:0.85rem;">Stelle einen Timer auf 20 Minuten. Führe die isolierte Kernkomponente ununterbrochen aus. Keine Ablenkung. Bei Fehlern: Sofort anhalten, analysieren und korrigieren.</span>
+              </div>
+            </div>`;
         return "Systemstatus stabil. Nächster Block bereit.";
       }
     }
@@ -3494,6 +3512,7 @@
             timeLeft: this.timeLeft,
             obState: this.obState,
             directives: this.directives,
+            sources: this.sources || [],
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
           }, { merge: true });
         } catch (err) { console.error("Firestore Sync Error:", err); }
@@ -3541,6 +3560,9 @@
                 this.loadProtocol(this.getBioAdaptiveTemplate());
             }
           }
+          
+          this.sources = data.sources || [];
+
           this.calculateReadinessScore();
           this.renderUI();
         }
@@ -4128,6 +4150,7 @@
         this.renderStack();
         this.renderDirectives();
         this.renderXP();
+        this.renderSources();
         this.updateDisplay();
       }
 
@@ -4266,6 +4289,56 @@
         const m = Math.floor(s / 60).toString().padStart(2, '0');
         const sec = (s % 60).toString().padStart(2, '0');
         return `${m}:${sec}`;
+      }
+
+      // ── DATA SOURCES ──────────────────────────────
+      async ingestFiles(fileList) {
+        if (!this.sources) this.sources = [];
+        
+        for (let i = 0; i < fileList.length; i++) {
+          const file = fileList[i];
+          const reader = new FileReader();
+          
+          reader.onload = (e) => {
+            const content = e.target.result;
+            this.sources.push({
+              id: Date.now() + i,
+              name: file.name,
+              type: file.type,
+              content: content.substring(0, 5000) // Limit context size
+            });
+            this.renderSources();
+            this.syncState();
+            this.triggerToast('Source Added', `${file.name} wurde in den Kontext geladen.`, false, null);
+          };
+          
+          if (file.type.startsWith('text/') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.csv') || file.name.endsWith('.js') || file.name.endsWith('.html')) {
+             reader.readAsText(file);
+          } else {
+             this.triggerToast('Unsupported File', 'Derzeit werden nur Text/Code-Dateien unterstützt.', true, null);
+          }
+        }
+      }
+
+      renderSources() {
+        const el = document.getElementById('sources-list');
+        if (!el) return;
+        if (!this.sources || this.sources.length === 0) {
+            el.innerHTML = '<span class="mono dim" style="font-size:.6rem; padding: 0.5rem 0;">Keine externen Datenquellen.</span>';
+            return;
+        }
+        el.innerHTML = this.sources.map(s => `
+            <div class="ctx-chip" style="background:var(--bg-elevated); border:1px solid var(--border-s); color:var(--text); justify-content:space-between; display:flex; width:100%; align-items:center; padding-right: 0.5rem;">
+                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:85%; font-size: 0.65rem;">${s.name}</span>
+                <span style="color:var(--text3); cursor:pointer; font-weight:bold; padding:0 .2rem; font-size: 1rem; line-height: 1;" onclick="Agent.removeSource(${s.id})" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</span>
+            </div>
+        `).join('');
+      }
+
+      removeSource(id) {
+          this.sources = this.sources.filter(s => s.id !== id);
+          this.renderSources();
+          this.syncState();
       }
     }
 
