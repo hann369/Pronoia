@@ -491,6 +491,33 @@
       background: var(--cobalt-dim);
     }
 
+    .source-chip {
+      font-family: var(--font-mono);
+      font-size: .6rem;
+      padding: .35rem .65rem;
+      border: 1px solid var(--border-s);
+      color: var(--tan);
+      background: var(--bg-card);
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      border-radius: 2px;
+      animation: slideIn .3s ease-out;
+    }
+
+    .source-chip .remove {
+      color: #ff4d4d;
+      cursor: pointer;
+      font-weight: bold;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+      font-size: .8rem;
+    }
+
+    .source-chip .remove:hover {
+      opacity: 1;
+    }
+
     /* Directives Feed */
     .directive-item {
       padding: .6rem .8rem;
@@ -2195,6 +2222,18 @@
             </div>
           </div>
 
+          <!-- DATA SOURCES -->
+          <div class="context-section" style="margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                <span class="ctx-label" style="margin-bottom:0;">System Data Sources</span>
+                <button class="mono" style="font-size: 0.55rem; background: var(--bg-elevated); border: 1px solid var(--border-s); color: var(--tan); padding: 0.2rem 0.5rem; cursor: pointer; border-radius: 2px; letter-spacing: 0.1em;" onclick="document.getElementById('source-input').click()">+ ADD SOURCE</button>
+            </div>
+            <input type="file" id="source-input" style="display:none" multiple onchange="Agent.ingestFiles(this.files)">
+            <div id="sources-list" class="ctx-chips" style="gap: 0.4rem;">
+                <!-- File chips injected here -->
+            </div>
+          </div>
+
           <div class="queue-section">
             <ul id="queue-list"></ul>
             <button class="btn-add-block" onclick="addCustomBlock()">+ Block hinzufügen</button>
@@ -2217,7 +2256,7 @@
             <div style="background: var(--bg-card); border: 1px solid var(--border); padding: 1.25rem;">
               <span class="ctx-label" style="margin-bottom: .75rem; display: block;">Wochen-Ziele</span>
               <textarea id="profile-goals" class="auth-input" style="height: 100px; resize: none; width: 100%; margin-bottom: 0;"
-                placeholder="Was willst du diese Woche erreichen?"></textarea>
+                placeholder="Was willst du diese Woche erreichen?" onchange="Agent.saveProfile()"></textarea>
             </div>
 
             <div style="background: var(--bg-card); border: 1px solid var(--border); padding: 1.25rem;">
@@ -2225,11 +2264,11 @@
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div>
                   <label class="ctx-label" style="font-size: .5rem; margin-bottom: .4rem; opacity: .7;">HRV (ms)</label>
-                  <input type="number" id="metric-hrv" class="auth-input" placeholder="70" style="width: 100%;">
+                  <input type="number" id="metric-hrv" class="auth-input" placeholder="70" style="width: 100%" onchange="Agent.saveProfile()">
                 </div>
                 <div>
                   <label class="ctx-label" style="font-size: .5rem; margin-bottom: .4rem; opacity: .7;">Sleep Score</label>
-                  <input type="number" id="metric-sleep" class="auth-input" placeholder="85" style="width: 100%;">
+                  <input type="number" id="metric-sleep" class="auth-input" placeholder="85" style="width: 100%" onchange="Agent.saveProfile()">
                 </div>
               </div>
             </div>
@@ -2239,11 +2278,11 @@
               <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1rem;">
                 <div>
                   <label class="ctx-label" style="font-size: .5rem; margin-bottom: .4rem; opacity: .7;">Ziel-Skill</label>
-                  <input type="text" id="profile-skill" class="auth-input" placeholder="z.B. Zeichnen" style="width: 100%;">
+                  <input type="text" id="profile-skill" class="auth-input" placeholder="z.B. Zeichnen" style="width: 100%" onchange="Agent.saveProfile()">
                 </div>
                 <div>
                   <label class="ctx-label" style="font-size: .5rem; margin-bottom: .4rem; opacity: .7;">Level</label>
-                  <input type="number" id="profile-skill-level" class="auth-input" placeholder="1" min="1" style="width: 100%;">
+                  <input type="number" id="profile-skill-level" class="auth-input" placeholder="1" min="1" style="width: 100%" onchange="Agent.saveProfile()">
                 </div>
               </div>
               
@@ -2488,8 +2527,20 @@
     // Initialize Firebase (Compat)
     firebase.initializeApp(FIREBASE_CONFIG);
 
+    /* ── SYSTEM STABILIZER ──────────────────────────── */
+    window.addEventListener('error', function(e) {
+      if (e.filename && e.filename.includes('contentscript.js')) return true; // Ignore extensions
+      if (e.message && (e.message.includes('SES_UNCAUGHT_EXCEPTION') || e.message.includes('lockdown-install.js'))) return true;
+      if (e.message && e.message.includes('illegal string') && e.lineno <= 1) return true;
+      return false;
+    }, true);
+
     class MistralService {
       static async chat(prompt, systemPrompt = "You are the Pronoia Agent. Precise, imperative, proactive.") {
+        if (location.protocol === 'file:') {
+          console.warn("[MistralService] Running via file:// protocol. Remote API calls are disabled by browser security. Using fallback.");
+          return this.getFallback(prompt);
+        }
         try {
           const response = await fetch('/api/groq', {
             method: 'POST',
@@ -2672,8 +2723,6 @@
           { name: 'Magnesium Glycinate', dose: '400mg', timing: 'evening', supply: 100 },
         ];
         
-        this.blocks = [];
-        this.blockIdx = 0;
         this.timeLeft = 0;
         this.totalTime = 0;
         this.isRunning = false;
@@ -2704,12 +2753,14 @@
         this.selectedDate = new Date();
         this.calendar = JSON.parse(localStorage.getItem('px_calendar')) || {}; // { "YYYY-MM-DD": { blocks: [...] } }
 
-        // Restore from localStorage
         this.sessionID = localStorage.getItem('px_session') || '';
         this.profile = JSON.parse(localStorage.getItem('px_profile')) || this.profile;
         this.env = JSON.parse(localStorage.getItem('px_env')) || this.env;
+        this.sources = [];
+        this.blocks = []; // Initialize blocks to prevent undefined errors in syncTimerToRealTime
 
         this.startClock();
+        this.getEnvironment(); // Fetch weather on init
       }
 
       startClock() {
@@ -2723,6 +2774,17 @@
           const envTimeEl = document.querySelector('#env-context div:last-child');
           if (envTimeEl && envTimeEl.textContent.includes('System Time')) {
             envTimeEl.textContent = `System Time: ${timeStr}`;
+          }
+
+          // Sync work blocks with real-time clock even if timer is paused
+          if (!this.isRunning) {
+            this.syncTimerToRealTime();
+            this.updateDisplay();
+            // Only re-render if block changed to avoid flicker
+            if (this._lastSyncedIdx !== this.blockIdx) {
+              this._lastSyncedIdx = this.blockIdx;
+              this.renderUI();
+            }
           }
         }, 1000);
       }
@@ -2753,6 +2815,56 @@
         } catch(e) {}
         
         throw new Error("JSON could not be repaired: " + str.substring(0, 50) + "...");
+      }
+
+      // ── DATA INGESTION ─────────────────────────────
+      ingestFiles(files) {
+        if (!files || files.length === 0) return;
+        
+        Array.from(files).forEach(file => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const content = e.target.result;
+            this.sources.push({
+              id: Math.random().toString(36).substr(2, 9),
+              name: file.name,
+              type: file.type || 'text/plain',
+              size: file.size,
+              content: content
+            });
+            this.renderSources();
+            this.setAgentMsg(`QUELLE INHALIERT: ${file.name.toUpperCase()}`);
+            this.generateDirective(`Neuer Kontext durch Datei: ${file.name}. Analysiere Auswirkungen auf das Protokoll.`);
+          };
+          
+          if (file.type.match('image.*')) {
+            // Future: Image analysis
+            this.setAgentMsg(`BILD-DATEN ERKANNT. OCR-MODUL NOCH NICHT AKTIV.`);
+          } else {
+            reader.readAsText(file);
+          }
+        });
+      }
+
+      renderSources() {
+        const list = document.getElementById('sources-list');
+        if (!list) return;
+        list.innerHTML = '';
+        this.sources.forEach(src => {
+          const chip = document.createElement('div');
+          chip.className = 'source-chip';
+          chip.innerHTML = `
+            <span>${src.name}</span>
+            <span class="remove" onclick="Agent.removeSource('${src.id}')">&times;</span>
+          `;
+          list.appendChild(chip);
+        });
+      }
+
+      removeSource(id) {
+        this.sources = this.sources.filter(s => s.id !== id);
+        this.renderSources();
+        this.setAgentMsg("DATENQUELLE ENTFERNT.");
       }
 
       // ── CALENDAR LOGIC ─────────────────────────────
@@ -3110,6 +3222,9 @@
 
       async getEnvironment() {
         const el = document.getElementById('env-context');
+        if (location.protocol === 'file:') {
+          console.warn("[Pronoia] Environment Fetch: Detected file:// protocol. Weather/GPS might be restricted.");
+        }
 
         // Try GPS first
         if (navigator.geolocation) {
@@ -3120,10 +3235,11 @@
               await this.fetchWeather(`${this.env.lat},${this.env.lon}`, el);
             },
             async (err) => {
-              console.warn("GPS Access Denied/Error:", err);
+              // Silence timeout warnings as they are common in local dev
+              if (err.code !== 3) console.warn("GPS Access Denied/Error:", err.message);
               await this.fetchWeather("", el); // Fallback to IP
             },
-            { timeout: 5000 }
+            { timeout: 8000, enableHighAccuracy: false } // Longer timeout, less aggressive accuracy
           );
         } else {
           await this.fetchWeather("", el);
@@ -3132,7 +3248,13 @@
 
       async fetchWeather(loc, el) {
         try {
-          const res = await fetch(`https://wttr.in/${loc}?format=j1`);
+          // If we are on file://, fetch might be blocked. Try to handle it.
+          const res = await fetch(`https://wttr.in/${loc}?format=j1`).catch(e => {
+            throw new Error("Network blocked or CORS issue");
+          });
+          
+          if (!res.ok) throw new Error(`Weather API returned ${res.status}`);
+          
           const data = await res.json();
           const cur = data.current_condition[0];
           const ast = data.weather[0].astronomy[0];
@@ -3141,20 +3263,30 @@
             ...this.env,
             city: data.nearest_area[0].region[0].value || data.nearest_area[0].areaName[0].value,
             temp: cur.temp_C + '°C',
+            weatherDesc: cur.weatherDesc[0].value,
             sun: `↑ ${ast.sunrise} · ↓ ${ast.sunset}`,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           };
 
           if (el) el.innerHTML = `
             <div>Location: ${this.env.city}</div>
-            <div>Weather: ${cur.weatherDesc[0].value}, ${this.env.temp}</div>
+            <div>Weather: ${this.env.weatherDesc}, ${this.env.temp}</div>
             <div>Daylight: ${this.env.sun}</div>
             <div>System Time: ${this.env.time}</div>
           `;
           localStorage.setItem('px_env', JSON.stringify(this.env));
         } catch (err) {
-          console.warn("Weather Fetch Error:", err);
-          if (el) el.textContent = "Environment Data Offline. Using Default.";
+          console.warn("Weather Fetch Handled:", err.message);
+          // Set static defaults to avoid "offline" feel
+          this.env.city = this.env.city === 'Unknown' ? 'Global' : this.env.city;
+          if (el) {
+             el.innerHTML = `
+               <div class="dim">Location: ${this.env.city} (Cached)</div>
+               <div class="dim">Weather: Status Offline</div>
+               <div class="dim">Daylight: Sync Pending</div>
+               <div>System Time: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+             `;
+          }
         }
       }
 
@@ -3169,6 +3301,7 @@
         localStorage.setItem('px_profile', JSON.stringify(this.profile));
         this.syncProfile();
         this.renderUI();
+        this.renderDayDetail(); // Update XP bar in personal tab if needed
         this.triggerToast('Profile Saved', 'Biometrie analysiert und gesichert.', false, null);
         this.generateDirective('PROFILE_UPDATE', 'User hat Metriken aktualisiert. Bereitschaft berechnet.');
       }
@@ -3275,10 +3408,13 @@
           this.totalTime = this.timeLeft;
 
           this.renderResultBlocks();
+          // Persist the profile data captured during onboarding
+          localStorage.setItem('px_profile', JSON.stringify(this.profile));
         } catch (err) {
           console.error("AI Protocol Error:", err);
           this.loadProtocol(this.getTimeAwareTemplate());
           this.renderResultBlocks();
+          localStorage.setItem('px_profile', JSON.stringify(this.profile));
         }
 
         document.getElementById('agent-thinking').style.display = 'none';
@@ -3334,25 +3470,52 @@
             document.getElementById('profile-goals').value = this.profile.goals || '';
             document.getElementById('metric-hrv').value = this.profile.metrics?.hrv || '';
             document.getElementById('metric-sleep').value = this.profile.metrics?.sleep || '';
+            document.getElementById('profile-skill').value = this.profile.skill || '';
+            document.getElementById('profile-skill-level').value = this.profile.skillLevel || 1;
+          }
+
+          // Trigger environment render if we have data
+          if (this.env && this.env.city !== 'Unknown') {
+            const el = document.getElementById('env-context');
+            if (el) el.innerHTML = `
+              <div>Location: ${this.env.city}</div>
+              <div>Weather: ${this.env.weatherDesc || '--'}, ${this.env.temp}</div>
+              <div>Daylight: ${this.env.sun}</div>
+              <div>System Time: ${this.env.time}</div>
+            `;
           }
 
           // Only load protocol if not already loaded
           if (this.blocks.length === 0) {
-            this.loadProtocol(this.getTimeAwareTemplate());
+            const savedBlocks = localStorage.getItem('px_blocks');
+            if (savedBlocks) {
+                this.blocks = JSON.parse(savedBlocks);
+            } else {
+                this.loadProtocol(this.getBioAdaptiveTemplate());
+            }
           }
+          this.calculateReadinessScore();
           this.renderUI();
         }
       }
 
       async generateDirective(type, inputContext = "") {
+        let sourceContext = "";
+        if (this.sources && this.sources.length > 0) {
+          sourceContext = "EXTERNAL DATA SOURCES:\n" + this.sources.map(s => `[FILE: ${s.name}]\n${s.content.substring(0, 1000)}`).join("\n---\n");
+        }
+
         const prompt = `
         Type: ${type}
         Context: ${JSON.stringify(this.obState)}
         Profile: ${JSON.stringify(this.profile)}
         Current Block: ${this.blocks[this.blockIdx]?.title || 'None'}
         User Input: ${inputContext}
+        
+        ${sourceContext}
+        
         Task: Gib eine kurze, vorausschauende Directive (max 15 Wörter). 
-        Sei der Agent, der weiß was der User braucht bevor er es weiß. Nutze die Daten (HRV, Mood, Energy) für präzise Empfehlungen.
+        Sei der Agent, der weiß was der User braucht bevor er es weiß. Nutze die Daten (HRV, Mood, Energy, Externe Quellen) für präzise Empfehlungen.
       `;
         const directive = await MistralService.chat(prompt, "Du bist der Pronoia Intelligence Engine. Deine Directives sind präzise, klinisch und vorausschauend.");
         this.directives.unshift({ text: directive, type: type, ts: new Date().toLocaleTimeString() });
@@ -3534,10 +3697,13 @@
           return block;
         });
         
+        localStorage.setItem('px_blocks', JSON.stringify(this.blocks));
         this.syncTimerToRealTime();
       }
 
       syncTimerToRealTime() {
+        if (!this.blocks || this.blocks.length === 0) return;
+
         const now = new Date();
         const nowSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
         
@@ -3619,6 +3785,12 @@
             this.renderQueue();
             this.notified50 = false;
             this.notified5m = false;
+            
+            // Trigger Skill Lab automatically if it's a skills block
+            const current = this.blocks[this.blockIdx];
+            if (current && current.pillar === 'skills') {
+                this.generateSkillMaterials();
+            }
         }
 
         const current = this.blocks[this.blockIdx];
@@ -3706,6 +3878,7 @@
           this.profile.xp = (this.profile.xp || 0) + totalXP;
           
           this.checkLevelUp();
+          this.renderXP(); // Update UI
           
           // Sync back to calendar
           const dateStr = this.formatDate(new Date());
@@ -3907,7 +4080,18 @@
         this.renderCenter();
         this.renderStack();
         this.renderDirectives();
+        this.renderXP();
         this.updateDisplay();
+      }
+
+      renderXP() {
+        const xp = this.profile.xp || 0;
+        const next = this.profile.nextLevelXp || 1000;
+        const prog = (xp / next) * 100;
+        const bar = document.getElementById('xp-bar-fill');
+        const display = document.getElementById('xp-display');
+        if (bar) bar.style.width = prog + '%';
+        if (display) display.textContent = `${xp} / ${next} XP`;
       }
 
       renderCenter() {
@@ -4126,6 +4310,10 @@
       if (Agent.blocks.length === 0) {
         Agent.loadProtocol(Agent.getBioAdaptiveTemplate());
       }
+      // Explicitly save profile on finish
+      localStorage.setItem('px_profile', JSON.stringify(Agent.profile));
+      localStorage.setItem('px_blocks', JSON.stringify(Agent.blocks));
+      
       document.getElementById('onboarding').style.opacity = '0';
       document.getElementById('onboarding').style.transition = 'opacity .5s';
       setTimeout(() => { document.getElementById('onboarding').style.display = 'none'; }, 500);
@@ -4301,7 +4489,9 @@
         const didOnboarding = !!localStorage.getItem('px_onboarding_done');
 
         if (hadProtocol || didOnboarding) {
-          Agent.loadProtocol(Agent.getBioAdaptiveTemplate());
+          if (!Agent.blocks || Agent.blocks.length === 0) {
+            Agent.loadProtocol(Agent.getBioAdaptiveTemplate());
+          }
           obFinish();
         } else {
           document.getElementById('onboarding').style.display = 'flex';
@@ -4328,16 +4518,7 @@
       }
     }
 
-    PronoiaAgent.prototype.saveProfile = function() {
-      this.profile.goals = document.getElementById('profile-goals').value;
-      this.profile.metrics.hrv = parseInt(document.getElementById('metric-hrv').value) || 0;
-      this.profile.metrics.sleep = parseInt(document.getElementById('metric-sleep').value) || 0;
-      this.profile.skill = document.getElementById('profile-skill').value;
-      this.profile.skillLevel = parseInt(document.getElementById('profile-skill-level').value) || 1;
-      
-      localStorage.setItem('px_profile', JSON.stringify(this.profile));
-      this.triggerToast('Profile', 'Erfolgreich gespeichert.', false, null);
-    };
+    // Removed duplicate saveProfile definition
 
     function openCalendarModal() {
       document.getElementById('calendar-modal-overlay').style.display = 'flex';
