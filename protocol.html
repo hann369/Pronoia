@@ -2136,6 +2136,18 @@
               </div>
             </div>
 
+            <span class="ctx-label">Skill Lab Focus</span>
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: .5rem; margin-bottom: 1.5rem;">
+              <div>
+                <label class="auth-label">Ziel-Skill</label>
+                <input type="text" id="profile-skill" class="auth-input" placeholder="z.B. Zeichnen">
+              </div>
+              <div>
+                <label class="auth-label">Level</label>
+                <input type="number" id="profile-skill-level" class="auth-input" placeholder="1" min="1">
+              </div>
+            </div>
+
             <span class="ctx-label">Environment</span>
             <div id="env-context"
               style="font-family: var(--font-mono); font-size: .65rem; color: var(--text2); background: var(--bg-card); padding: .75rem; border: 1px solid var(--border); margin-bottom: 1.5rem;">
@@ -2313,6 +2325,7 @@
             <div>
               <button class="btn-add-block" style="margin:0; padding:.2rem .5rem;" onclick="Agent.addCalendarBlock()">+ Block</button>
               <button class="btn-add-block" style="margin:0; padding:.2rem .5rem;" onclick="Agent.generateDayAI()">AI Sync</button>
+              <button class="btn-add-block" style="margin:0; padding:.2rem .5rem; background: var(--green); border: none; color: white;" onclick="Agent.syncToActive()">Sync Active</button>
             </div>
           </div>
           <div id="detail-protocol" class="detail-protocol" style="overflow-y: auto; flex:1; max-height: 50vh;">
@@ -2567,7 +2580,7 @@
         this.log = [];
         this.obState = { goals: '', hrv: 0, sleep: 0, energy: 7, mood: 'focused', caffeine: 'none', training: 'none' };
         this.directives = [];
-        this.profile = { goals: '', metrics: { hrv: 0, sleep: 0 }, location: '', energy: 7, mood: 'focused' };
+        this.profile = { goals: '', skill: '', skillLevel: 1, metrics: { hrv: 0, sleep: 0 }, location: '', energy: 7, mood: 'focused' };
         this.env = { city: 'Unknown', temp: '--', sun: '--', time: '--', lat: null, lon: null };
         this.stack = JSON.parse(localStorage.getItem('px_stack')) || this.defaultStack;
 
@@ -2796,6 +2809,69 @@
       nextMonth() {
         this.currentMonth.setMonth(this.currentMonth.getMonth() + 1);
         this.renderCalendar();
+      }
+
+      syncToActive() {
+        const dateStr = this.formatDate(new Date());
+        if (!this.calendar[dateStr]) {
+          this.triggerToast('System', 'Kein Protokoll für heute im Kalender.', false, null);
+          return;
+        }
+        this.blocks = JSON.parse(JSON.stringify(this.calendar[dateStr].blocks)).map((b, i) => ({ ...b, id: i + 1, done: b.done || false }));
+        this.syncTimerToRealTime();
+        this.renderUI();
+        this.triggerToast('Sync', 'Kalender erfolgreich mit aktivem Protokoll synchronisiert.', false, null);
+      }
+
+      async generateSkillMaterials() {
+        const cur = this.blocks[this.blockIdx];
+        if (!cur || cur.pillar !== 'skills') return;
+
+        this.setAgentMsg("Generiere adaptive Lernmaterialien…", true);
+        document.getElementById('agent-thinking').style.display = 'flex';
+
+        const prompt = `
+          Skill: ${this.profile.skill || cur.title}
+          Level: ${this.profile.skillLevel}
+          Task: Erstelle Lernmaterialien für Deliberate Practice.
+          WICHTIG: Das Material muss EXAKT dem Level entsprechen. Level 1 ist für absolute Anfänger, höhere Level für Fortgeschrittene.
+          Struktur: 
+          1. "Objective": Was heute gelernt wird.
+          2. "Drills": 3 konkrete Übungen.
+          3. "Resources": 2 YouTube-Link-Titel (keine echten URLs nötig, nur Beschreibungen).
+          Gib die Antwort als HTML-Snippet zurück.
+        `;
+
+        try {
+          const res = await MistralService.chat(prompt, "Du bist der Skill Lab Coach. Antworte in klarem, motivierendem Deutsch.");
+          this.showSkillModal(res);
+        } catch (e) {
+          console.error("Skill Lab Error", e);
+          this.setAgentMsg("Skill Lab offline. Bitte später versuchen.");
+        } finally {
+          document.getElementById('agent-thinking').style.display = 'none';
+        }
+      }
+
+      showSkillModal(content) {
+        let modal = document.getElementById('skill-lab-modal');
+        if (!modal) {
+          modal = document.createElement('div');
+          modal.id = 'skill-lab-modal';
+          modal.className = 'onboarding-overlay'; // Reuse onboarding styles for glass effect
+          modal.style.display = 'none';
+          modal.innerHTML = `
+            <div class="onboarding-card" style="max-width: 600px;">
+              <div class="ob-label">Agentic Skill Lab — Level ${this.profile.skillLevel}</div>
+              <h1 class="ob-h">Deliberate Practice</h1>
+              <div id="skill-content" class="ob-sub" style="text-align: left; margin-bottom: 2rem;"></div>
+              <button class="ob-next" onclick="document.getElementById('skill-lab-modal').style.display='none'">Lab schließen</button>
+            </div>
+          `;
+          document.body.appendChild(modal);
+        }
+        document.getElementById('skill-content').innerHTML = content;
+        modal.style.display = 'flex';
       }
 
       prevMonth() {
@@ -3229,19 +3305,32 @@
         if (this.calendar[dateStr] && this.calendar[dateStr].blocks && this.calendar[dateStr].blocks.length > 0) {
           sourceBlocks = this.calendar[dateStr].blocks;
         } else {
-          sourceBlocks = PROTOCOL_TEMPLATES[templateKey] || PROTOCOL_TEMPLATES.optimal_deepwork;
+          sourceBlocks = JSON.parse(JSON.stringify(PROTOCOL_TEMPLATES[templateKey] || PROTOCOL_TEMPLATES.optimal_deepwork));
         }
         
-        const saved = parseInt(localStorage.getItem('px_block_idx')) || 0;
-        this.blocks = sourceBlocks.map((b, i) => ({ ...b, id: i + 1, done: false }));
+        // If template blocks lack startTime, assign them starting from the current hour or a default
+        let currentTime = new Date();
+        // If we are loading a template, we might want to start from the beginning of the day or from "now"
+        // Let's start from the beginning of the current hour for better alignment
+        currentTime.setMinutes(0, 0, 0);
+
+        this.blocks = sourceBlocks.map((b, i) => {
+          const block = { ...b, id: i + 1, done: false };
+          if (!block.startTime) {
+            const h = String(currentTime.getHours()).padStart(2, '0');
+            const m = String(currentTime.getMinutes()).padStart(2, '0');
+            block.startTime = `${h}:${m}`;
+            currentTime = new Date(currentTime.getTime() + block.duration * 1000);
+          }
+          return block;
+        });
         
         this.syncTimerToRealTime();
       }
 
       syncTimerToRealTime() {
         const now = new Date();
-        const nowMinutes = now.getHours() * 60 + now.getMinutes();
-        const nowSeconds = nowMinutes * 60 + now.getSeconds();
+        const nowSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
         
         let foundIdx = -1;
         let foundTimeLeft = 0;
@@ -3251,7 +3340,7 @@
           if (!b.startTime) continue;
           
           const [h, m] = b.startTime.split(':').map(Number);
-          const startSeconds = (h * 60 + m) * 60;
+          const startSeconds = h * 3600 + m * 60;
           const endSeconds = startSeconds + b.duration;
           
           if (nowSeconds >= startSeconds && nowSeconds < endSeconds) {
@@ -3259,10 +3348,10 @@
             foundTimeLeft = endSeconds - nowSeconds;
             break;
           } else if (nowSeconds < startSeconds) {
-            // We haven't reached this block yet, but it's the next upcoming one
+            // This is the first upcoming block
             if (foundIdx === -1) {
               foundIdx = i;
-              foundTimeLeft = b.duration; // Wait for it to start
+              foundTimeLeft = b.duration; // It hasn't started yet
             }
           }
         }
@@ -3277,10 +3366,11 @@
             this.blocks[i].done = true;
           }
         } else {
-          // All blocks done or none found, fallback
+          // If past all blocks, show the last one as finished
           this.blockIdx = this.blocks.length > 0 ? this.blocks.length - 1 : 0;
           this.timeLeft = 0;
           this.totalTime = this.blocks.length > 0 ? this.blocks[this.blockIdx].duration : 0;
+          if (this.blocks.length > 0) this.blocks.forEach(b => b.done = true);
         }
       }
 
@@ -3397,7 +3487,16 @@
       completeBlock(manual = false) {
         this.pause();
         const current = this.blocks[this.blockIdx];
-        if (current) current.done = true;
+        if (current) {
+          current.done = true;
+          // Sync back to calendar
+          const dateStr = this.formatDate(new Date());
+          if (this.calendar[dateStr]) {
+            const calBlock = this.calendar[dateStr].blocks.find(b => b.startTime === current.startTime && b.title === current.title);
+            if (calBlock) calBlock.done = true;
+            localStorage.setItem('px_calendar', JSON.stringify(this.calendar));
+          }
+        }
         if (!manual) logFriction('ok', true);
 
         this.playTransitionCue();
@@ -3586,7 +3685,16 @@
           `;
         }
         
-        document.getElementById('agent-insight').innerHTML = (cur.insight || '') + stackActionHTML;
+        let skillActionHTML = '';
+        if (cur.pillar === 'skills') {
+          skillActionHTML = `
+            <div style="margin-top:.75rem; padding-top:.75rem; border-top:1px solid var(--border);">
+              <button class="btn-add-block" style="margin:0; width:auto; padding:.4rem 1rem; background:var(--cobalt-bright); border:none; color:white;" onclick="Agent.generateSkillMaterials()">Open Skill Lab (Level ${this.profile.skillLevel})</button>
+            </div>
+          `;
+        }
+        
+        document.getElementById('agent-insight').innerHTML = (cur.insight || '') + stackActionHTML + skillActionHTML;
         document.getElementById('timer-display').textContent = this.formatTime(this.timeLeft);
         document.getElementById('timer-display').classList.add('paused');
         document.getElementById('timer-sub').textContent = 'Bereit';
@@ -3964,8 +4072,21 @@
         document.getElementById('profile-goals').value = Agent.profile.goals || '';
         document.getElementById('metric-hrv').value = Agent.profile.metrics.hrv || '';
         document.getElementById('metric-sleep').value = Agent.profile.metrics.sleep || '';
+        document.getElementById('profile-skill').value = Agent.profile.skill || '';
+        document.getElementById('profile-skill-level').value = Agent.profile.skillLevel || 1;
       }
     }
+
+    PronoiaAgent.prototype.saveProfile = function() {
+      this.profile.goals = document.getElementById('profile-goals').value;
+      this.profile.metrics.hrv = parseInt(document.getElementById('metric-hrv').value) || 0;
+      this.profile.metrics.sleep = parseInt(document.getElementById('metric-sleep').value) || 0;
+      this.profile.skill = document.getElementById('profile-skill').value;
+      this.profile.skillLevel = parseInt(document.getElementById('profile-skill-level').value) || 1;
+      
+      localStorage.setItem('px_profile', JSON.stringify(this.profile));
+      this.triggerToast('Profile', 'Erfolgreich gespeichert.', false, null);
+    };
 
     function openCalendarModal() {
       document.getElementById('calendar-modal-overlay').style.display = 'flex';
