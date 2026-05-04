@@ -23,105 +23,79 @@
       --font-accent: 'Cormorant Garamond', serif;
       --font-mono: 'JetBrains Mono', monospace;
 
-      /* Dark Theme Tokens */
-      --bg: #080C12;
-      --bg-panel: #0D1219;
-      --bg-card: #111820;
-      --bg-elevated: #161E28;
-      --text: #E8EDF5;
-      --text2: #5A7090;
-      --text3: #3A5070;
-      --border: rgba(255, 255, 255, 0.06);
-      --border-s: rgba(255, 255, 255, 0.1);
+      --bg: #0F1318;
+      --bg-panel: #171C24;
+      --bg-card: #1E2530;
+      --bg-elevated: #262E3A;
+      --text: #F0F2F5;
+      --text2: #8A9BB5;
+      --text3: #5A6E88;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-s: rgba(255, 255, 255, 0.14);
 
-      /* Accents */
       --cobalt: #0047AB;
-      --cobalt-bright: #1A6AFF;
-      --cobalt-dim: rgba(0, 71, 171, 0.12);
+      --cobalt-bright: #3B82F6;
+      --cobalt-dim: rgba(59, 130, 246, 0.12);
       --tan: #d5b893;
+      --tan-dim: rgba(213, 184, 147, 0.1);
+      --green: #34D399;
+      --red: #F87171;
     }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       font-family: var(--font-body);
       background: var(--bg);
       color: var(--text);
-      line-height: 1.5;
+      line-height: 1.6;
       min-height: 100vh;
-      display: flex;
-      flex-direction: column;
     }
 
     /* ═══ HEADER ════════════════════════════════════ */
     #header {
-      height: 52px;
+      height: 56px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0 1.5rem;
+      padding: 0 2rem;
       border-bottom: 1px solid var(--border);
-      background: var(--bg);
+      background: rgba(15, 19, 24, 0.95);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
       z-index: 50;
     }
 
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 1.5rem;
-    }
+    .header-left { display: flex; align-items: center; gap: 1.5rem; }
 
     .brand-link {
-      font-weight: 700;
-      font-size: .9rem;
-      color: var(--text);
-      text-decoration: none;
-      letter-spacing: -.02em;
+      font-weight: 700; font-size: .95rem; color: var(--text);
+      text-decoration: none; letter-spacing: -.02em;
     }
-
-    .brand-link span {
-      color: var(--cobalt-bright);
-    }
-
-    .header-nav a {
-      font-family: var(--font-mono);
-      font-size: .65rem;
-      text-transform: uppercase;
-      letter-spacing: .15em;
-      color: var(--text2);
-      text-decoration: none;
-      transition: color .2s;
-      margin-left: 1.2rem;
-    }
-
-    .header-nav a:hover,
-    .header-nav a.active {
-      color: var(--text);
-    }
+    .brand-link span { color: var(--cobalt-bright); }
 
     .stage-badge {
-      font-family: var(--font-mono);
-      font-size: .6rem;
-      letter-spacing: .2em;
-      text-transform: uppercase;
-      padding: .18rem .6rem;
-      border: 1px solid var(--tan);
-      color: var(--tan);
-      background: rgba(213, 184, 147, 0.05);
+      font-family: var(--font-mono); font-size: .6rem; letter-spacing: .2em;
+      text-transform: uppercase; padding: .2rem .7rem;
+      border: 1px solid var(--tan); color: var(--tan);
+      background: var(--tan-dim); border-radius: 3px;
     }
 
-    /* ═══ MAIN LAYOUT ═══════════════════════════════ */
+    .header-nav { display: flex; align-items: center; gap: 0; }
+    .header-nav a {
+      font-family: var(--font-mono); font-size: .65rem; text-transform: uppercase;
+      letter-spacing: .15em; color: var(--text2); text-decoration: none;
+      transition: color .2s; padding: .5rem 1rem; border-radius: 4px;
+    }
+    .header-nav a:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .header-nav a.active { color: var(--cobalt-bright); background: var(--cobalt-dim); }
+
+    /* ═══ MAIN ═══════════════════════════════════════ */
     #main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      padding: 3rem 6rem;
-      max-width: 1600px;
+      max-width: 1400px;
       margin: 0 auto;
+      padding: 3rem 3rem 6rem;
       width: 100%;
     }
 
@@ -130,28 +104,54 @@
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
+      gap: 2rem;
     }
 
     .vault-title h1 {
       font-family: var(--font-display);
-      font-size: 4rem;
+      font-size: 3.5rem;
       font-weight: 400;
-      line-height: 1;
-      margin-bottom: 0.5rem;
+      line-height: 1.1;
+      margin-bottom: 0.75rem;
+      color: #fff;
     }
 
     .vault-title p {
       color: var(--text2);
-      font-size: 1rem;
-      max-width: 500px;
+      font-size: 1.05rem;
+      max-width: 550px;
+      line-height: 1.7;
+    }
+
+    .vault-stats {
+      display: flex; gap: 2rem; flex-shrink: 0;
+    }
+
+    .stat-box {
+      text-align: center;
+      background: var(--bg-card);
+      border: 1px solid var(--border-s);
+      padding: 1.2rem 1.5rem;
+      border-radius: 8px;
+    }
+
+    .stat-num {
+      font-family: var(--font-mono); font-size: 1.8rem;
+      font-weight: 700; color: var(--cobalt-bright);
+    }
+
+    .stat-label {
+      font-family: var(--font-mono); font-size: .55rem;
+      color: var(--text3); text-transform: uppercase; letter-spacing: .15em;
+      margin-top: .25rem;
     }
 
     /* ═══ INGESTION ZONE ════════════════════════════ */
     #ingest-zone {
       background: var(--bg-panel);
-      border: 1px dashed var(--border-s);
+      border: 2px dashed var(--border-s);
       padding: 3rem;
-      border-radius: 8px;
+      border-radius: 12px;
       text-align: center;
       transition: all 0.3s ease;
       margin-bottom: 3rem;
@@ -162,35 +162,26 @@
     #ingest-zone:hover, #ingest-zone.dragover {
       border-color: var(--cobalt-bright);
       background: var(--cobalt-dim);
+      box-shadow: 0 0 40px rgba(59,130,246,0.08);
     }
 
-    .ingest-icon {
-      font-size: 2rem;
-      color: var(--text3);
-      margin-bottom: 1rem;
-    }
+    .ingest-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.8; }
 
     .ingest-text {
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-      color: var(--text);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 0.5rem;
+      font-family: var(--font-mono); font-size: 0.85rem;
+      color: var(--text); text-transform: uppercase;
+      letter-spacing: 0.12em; margin-bottom: 0.5rem; font-weight: 500;
     }
 
-    .ingest-subtext {
-      font-size: 0.85rem;
-      color: var(--text2);
-    }
+    .ingest-subtext { font-size: 0.9rem; color: var(--text2); }
 
-    /* ═══ INPUT FORM (Hidden initially) ═════════════ */
+    /* ═══ INPUT FORM ════════════════════════════════ */
     #ingest-form {
       display: none;
       background: var(--bg-card);
       padding: 2rem;
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      border: 1px solid var(--border-s);
+      border-radius: 12px;
       margin-bottom: 3rem;
       animation: fadeIn 0.3s ease;
     }
@@ -200,88 +191,74 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    .form-group {
-      margin-bottom: 1.5rem;
-    }
+    .form-group { margin-bottom: 1.5rem; }
 
     .form-label {
-      font-family: var(--font-mono);
-      font-size: 0.65rem;
-      color: var(--text2);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      display: block;
-      margin-bottom: 0.5rem;
+      font-family: var(--font-mono); font-size: .7rem;
+      color: var(--text2); text-transform: uppercase;
+      letter-spacing: 0.1em; display: block; margin-bottom: 0.5rem;
     }
 
     .form-input {
-      width: 100%;
-      background: var(--bg-panel);
-      border: 1px solid var(--border-s);
-      color: var(--text);
-      padding: 0.8rem 1rem;
-      font-family: var(--font-body);
-      font-size: 0.95rem;
-      border-radius: 4px;
-      outline: none;
+      width: 100%; background: var(--bg-panel);
+      border: 1px solid var(--border-s); color: var(--text);
+      padding: 0.9rem 1rem; font-family: var(--font-body);
+      font-size: 1rem; border-radius: 6px; outline: none;
       transition: border-color 0.3s;
     }
 
-    .form-input:focus {
-      border-color: var(--cobalt-bright);
+    .form-input:focus { border-color: var(--cobalt-bright); box-shadow: 0 0 0 3px var(--cobalt-dim); }
+
+    textarea.form-input { resize: vertical; min-height: 120px; }
+
+    select.form-input {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238A9BB5' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 1rem center;
+      padding-right: 2.5rem;
     }
 
-    textarea.form-input {
-      resize: vertical;
-      min-height: 100px;
-    }
-
-    .btn {
-      background: var(--tan);
-      color: #000;
-      border: none;
-      padding: 0.8rem 2rem;
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.15em;
-      cursor: pointer;
-      border-radius: 4px;
+    .btn-primary {
+      background: var(--cobalt-bright); color: #fff; border: none;
+      padding: 0.9rem 2.5rem; font-family: var(--font-mono);
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.15em; cursor: pointer; border-radius: 6px;
       transition: all 0.3s;
     }
+    .btn-primary:hover { background: #2563EB; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
 
-    .btn:hover {
-      background: #fff;
+    .btn-ghost {
+      background: transparent; border: 1px solid var(--border-s);
+      color: var(--text2); padding: 0.9rem 2rem;
+      font-family: var(--font-mono); font-size: 0.75rem;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      cursor: pointer; border-radius: 6px; transition: all 0.3s;
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+
+    .form-actions { display: flex; gap: 1rem; }
+
+    /* ═══ VAULT GRID ═══════════════════════════════ */
+    .vault-section-label {
+      font-family: var(--font-mono); font-size: .7rem; color: var(--text3);
+      text-transform: uppercase; letter-spacing: .2em; margin-bottom: 1.5rem;
+      display: flex; align-items: center; gap: 1rem;
+    }
+    .vault-section-label::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
     }
 
-    .btn-secondary {
-      background: transparent;
-      border: 1px solid var(--border-s);
-      color: var(--text);
-    }
-
-    .btn-secondary:hover {
-      background: var(--border-s);
-      color: #fff;
-    }
-
-    .form-actions {
-      display: flex;
-      gap: 1rem;
-    }
-
-    /* ═══ CANVAS GRID ═══════════════════════════════ */
     .vault-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 2rem;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
     }
 
     .vault-item {
       background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      border: 1px solid var(--border-s);
+      border-radius: 10px;
       padding: 1.5rem;
       transition: all 0.3s ease;
       display: flex;
@@ -290,59 +267,96 @@
       overflow: hidden;
     }
 
-    .vault-item:hover {
-      transform: translateY(-5px);
-      border-color: var(--border-s);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    .vault-item::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 3px;
+      background: linear-gradient(90deg, var(--cobalt-bright), var(--tan));
+      opacity: 0;
+      transition: opacity 0.3s;
     }
 
-    .item-type {
-      font-family: var(--font-mono);
-      font-size: 0.55rem;
-      color: var(--tan);
-      text-transform: uppercase;
-      letter-spacing: 0.2em;
-      margin-bottom: 1rem;
+    .vault-item:hover {
+      transform: translateY(-4px);
+      border-color: rgba(255,255,255,0.18);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.3);
     }
+    .vault-item:hover::before { opacity: 1; }
+
+    .item-type-badge {
+      font-family: var(--font-mono); font-size: .6rem;
+      color: var(--cobalt-bright); text-transform: uppercase;
+      letter-spacing: 0.2em; margin-bottom: 1rem;
+      background: var(--cobalt-dim);
+      padding: .2rem .6rem;
+      border-radius: 3px;
+      display: inline-block;
+      width: fit-content;
+    }
+
+    .item-type-badge.type-link { color: var(--green); background: rgba(52,211,153,0.1); }
+    .item-type-badge.type-youtube { color: var(--red); background: rgba(248,113,113,0.1); }
 
     .item-title {
-      font-size: 1.1rem;
-      font-weight: 500;
-      color: var(--text);
-      margin-bottom: 0.75rem;
-      line-height: 1.3;
+      font-size: 1.1rem; font-weight: 600; color: #fff;
+      margin-bottom: 0.75rem; line-height: 1.35;
     }
 
     .item-content {
-      font-size: 0.85rem;
-      color: var(--text2);
-      flex: 1;
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
+      font-size: 0.9rem; color: var(--text2); flex: 1;
+      display: -webkit-box; -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical; overflow: hidden;
+      line-height: 1.6;
     }
 
     .item-meta {
-      margin-top: 1.5rem;
-      padding-top: 1rem;
+      margin-top: 1.25rem; padding-top: 1rem;
       border-top: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-family: var(--font-mono);
-      font-size: 0.6rem;
-      color: var(--text3);
+      display: flex; justify-content: space-between; align-items: center;
+      font-family: var(--font-mono); font-size: .6rem; color: var(--text3);
     }
+
+    .item-delete {
+      background: none; border: none; color: var(--text3);
+      cursor: pointer; font-size: .7rem; padding: .2rem .4rem;
+      border-radius: 3px; transition: all .2s;
+    }
+    .item-delete:hover { color: var(--red); background: rgba(248,113,113,0.1); }
 
     /* ═══ EMPTY STATE ═══════════════════════════════ */
     .empty-state {
-      text-align: center;
-      padding: 4rem 2rem;
-      color: var(--text3);
-      grid-column: 1 / -1;
+      text-align: center; padding: 5rem 2rem;
+      color: var(--text3); grid-column: 1 / -1;
+      font-size: 1rem;
+    }
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.4; }
+    .empty-state p { max-width: 400px; margin: 0 auto; line-height: 1.7; }
+
+    /* ═══ TOAST ═════════════════════════════════════ */
+    .toast {
+      position: fixed; bottom: 2rem; right: 2rem;
+      background: var(--bg-elevated); border: 1px solid var(--border-s);
+      color: var(--text); padding: 1rem 1.5rem; border-radius: 8px;
+      font-size: .85rem; z-index: 999;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      animation: slideUp 0.3s ease;
+    }
+    .toast.success { border-left: 3px solid var(--green); }
+    .toast.error { border-left: 3px solid var(--red); }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
+    /* ═══ RESPONSIVE ════════════════════════════════ */
+    @media (max-width: 768px) {
+      #main { padding: 2rem 1.5rem; }
+      .vault-title h1 { font-size: 2.5rem; }
+      .vault-header { flex-direction: column; align-items: flex-start; }
+      .vault-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 
@@ -353,9 +367,12 @@
       <a href="index.html" class="brand-link">PRONOIA<span>.</span></a>
       <div class="stage-badge">KNOWLEDGE VAULT</div>
     </div>
-    <div class="header-right header-nav">
-      <a href="protocol.html">Protocol</a>
+    <div class="header-nav">
+      <a href="index.html">Home</a>
+      <a href="labs.html">Labs</a>
+      <a href="health.html">Health</a>
       <a href="vault.html" class="active">Vault</a>
+      <a href="protocol.html">System</a>
     </div>
   </header>
 
@@ -363,12 +380,22 @@
     <div class="vault-header">
       <div class="vault-title">
         <h1>Context Canvas</h1>
-        <p>The intelligent spatial storage for your ideas, research, and media. The Pronoia Agent references this vault to optimize your workflows.</p>
+        <p>Your intelligent spatial storage for ideas, research, and media. The Pronoia Agent references this vault to optimize your protocols.</p>
+      </div>
+      <div class="vault-stats">
+        <div class="stat-box">
+          <div class="stat-num" id="stat-total">—</div>
+          <div class="stat-label">Items</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" id="stat-recent">—</div>
+          <div class="stat-label">This Week</div>
+        </div>
       </div>
     </div>
 
     <div id="ingest-zone">
-      <div class="ingest-icon">✧</div>
+      <div class="ingest-icon">✦</div>
       <div class="ingest-text">Drop links, notes, or research here</div>
       <div class="ingest-subtext">or click to manually ingest into the vault</div>
     </div>
@@ -376,7 +403,7 @@
     <div id="ingest-form">
       <div class="form-group">
         <label class="form-label">Type</label>
-        <select id="itemType" class="form-input" style="appearance: none;">
+        <select id="itemType" class="form-input">
           <option value="note">Text / Note</option>
           <option value="link">Web Link</option>
           <option value="youtube">YouTube Video</option>
@@ -390,37 +417,66 @@
         <label class="form-label">Content / URL</label>
         <textarea id="itemContent" class="form-input" placeholder="Paste your link, thoughts, or raw text..."></textarea>
       </div>
+      <div class="form-group">
+        <label class="form-label">Tags (comma separated)</label>
+        <input type="text" id="itemTags" class="form-input" placeholder="e.g. research, neuroscience, protocol">
+      </div>
       <div class="form-actions">
-        <button id="saveItemBtn" class="btn">Ingest into Vault</button>
-        <button id="cancelItemBtn" class="btn btn-secondary">Cancel</button>
+        <button id="saveItemBtn" class="btn-primary">Ingest into Vault</button>
+        <button id="cancelItemBtn" class="btn-ghost">Cancel</button>
       </div>
     </div>
 
-    <div class="vault-grid" id="vault-grid">
-      <!-- Items will be loaded here -->
-    </div>
+    <div class="vault-section-label" id="grid-label">Stored Context</div>
+    <div class="vault-grid" id="vault-grid"></div>
   </main>
 
   <script>
-    // Supabase Configuration
+    // ═══ SUPABASE CONFIG ═══
     const supabaseUrl = 'https://mbtjwtrlfapievmfrisu.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1idGp3dHJsZmFwaWV2bWZyaXN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODg5NjIsImV4cCI6MjA5MDI2NDk2Mn0.mIKwAP4CRzrT4cjjkwOOfzke7nY4MddxOzDI_thNUqE';
-    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+    const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    // Default user ID for demonstration (since Firebase Auth handles actual auth in the app)
     const MOCK_USER_ID = 'local-user-123';
 
-    // UI Elements
+    // ═══ UI ELEMENTS ═══
     const ingestZone = document.getElementById('ingest-zone');
     const ingestForm = document.getElementById('ingest-form');
     const saveItemBtn = document.getElementById('saveItemBtn');
     const cancelItemBtn = document.getElementById('cancelItemBtn');
     const vaultGrid = document.getElementById('vault-grid');
 
-    // UI Interactions
+    // ═══ TOAST NOTIFICATION ═══
+    function showToast(msg, type = 'success') {
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(20px)'; setTimeout(() => t.remove(), 300); }, 3000);
+    }
+
+    // ═══ FORM INTERACTIONS ═══
     ingestZone.addEventListener('click', () => {
       ingestZone.style.display = 'none';
       ingestForm.style.display = 'block';
+      document.getElementById('itemTitle').focus();
+    });
+
+    // Drag and drop
+    ingestZone.addEventListener('dragover', (e) => { e.preventDefault(); ingestZone.classList.add('dragover'); });
+    ingestZone.addEventListener('dragleave', () => ingestZone.classList.remove('dragover'));
+    ingestZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      ingestZone.classList.remove('dragover');
+      const text = e.dataTransfer.getData('text/plain');
+      if (text) {
+        ingestZone.style.display = 'none';
+        ingestForm.style.display = 'block';
+        document.getElementById('itemContent').value = text;
+        if (text.startsWith('http')) {
+          document.getElementById('itemType').value = text.includes('youtube.com') || text.includes('youtu.be') ? 'youtube' : 'link';
+        }
+      }
     });
 
     cancelItemBtn.addEventListener('click', () => {
@@ -431,89 +487,118 @@
 
     saveItemBtn.addEventListener('click', async () => {
       const type = document.getElementById('itemType').value;
-      const title = document.getElementById('itemTitle').value;
-      const content = document.getElementById('itemContent').value;
+      const title = document.getElementById('itemTitle').value.trim();
+      const content = document.getElementById('itemContent').value.trim();
+      const tagsRaw = document.getElementById('itemTags').value.trim();
+      const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
 
-      if (!title || !content) return alert('Please provide a title and content.');
+      if (!title || !content) { showToast('Please provide a title and content.', 'error'); return; }
 
       saveItemBtn.textContent = 'Ingesting...';
-      
-      const { data, error } = await supabase
+      saveItemBtn.disabled = true;
+
+      const url = (type === 'link' || type === 'youtube') ? content : null;
+
+      const { data, error } = await sb
         .from('vault_items')
-        .insert([
-          { user_id: MOCK_USER_ID, type, title, content }
-        ]);
+        .insert([{ user_id: MOCK_USER_ID, type, title, content, url, tags }])
+        .select();
 
       if (error) {
-        console.error('Error inserting item:', error);
-        alert('Failed to ingest item.');
+        console.error('Supabase error:', error);
+        showToast('Failed to ingest: ' + error.message, 'error');
       } else {
+        showToast('Context ingested successfully.');
         clearForm();
         ingestForm.style.display = 'none';
         ingestZone.style.display = 'block';
         fetchVaultItems();
       }
-      
+
       saveItemBtn.textContent = 'Ingest into Vault';
+      saveItemBtn.disabled = false;
     });
 
     function clearForm() {
       document.getElementById('itemTitle').value = '';
       document.getElementById('itemContent').value = '';
+      document.getElementById('itemTags').value = '';
+      document.getElementById('itemType').value = 'note';
     }
 
-    // Fetch and Display Items
+    // ═══ FETCH & RENDER ═══
     async function fetchVaultItems() {
-      vaultGrid.innerHTML = '<div class="empty-state">Syncing with spatial database...</div>';
-      
-      const { data, error } = await supabase
+      vaultGrid.innerHTML = '<div class="empty-state"><div class="empty-icon">◎</div><p>Syncing with spatial database...</p></div>';
+
+      const { data, error } = await sb
         .from('vault_items')
         .select('*')
         .eq('user_id', MOCK_USER_ID)
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching vault items:', error);
-        vaultGrid.innerHTML = '<div class="empty-state">Error loading context.</div>';
+        console.error('Fetch error:', error);
+        vaultGrid.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠</div><p>Connection error: ${error.message}</p></div>`;
         return;
       }
 
+      // Update stats
+      document.getElementById('stat-total').textContent = data.length;
+      const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+      document.getElementById('stat-recent').textContent = data.filter(i => new Date(i.created_at) > weekAgo).length;
+
       if (data.length === 0) {
-        vaultGrid.innerHTML = '<div class="empty-state">Your vault is empty. Drop some context above to begin.</div>';
+        vaultGrid.innerHTML = '<div class="empty-state"><div class="empty-icon">✦</div><p>Your vault is empty. Click the ingestion zone above to add your first piece of context.</p></div>';
         return;
       }
 
       vaultGrid.innerHTML = '';
       data.forEach(item => {
-        const date = new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        
+        const date = new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const typeClass = item.type === 'link' ? 'type-link' : item.type === 'youtube' ? 'type-youtube' : '';
+
         const card = document.createElement('div');
         card.className = 'vault-item';
         card.innerHTML = `
-          <div class="item-type">${item.type}</div>
-          <div class="item-title">${item.title}</div>
-          <div class="item-content">${item.content}</div>
+          <div class="item-type-badge ${typeClass}">${item.type}</div>
+          <div class="item-title">${escapeHtml(item.title)}</div>
+          <div class="item-content">${escapeHtml(item.content)}</div>
           <div class="item-meta">
-            <span>Ingested</span>
             <span>${date}</span>
+            <button class="item-delete" onclick="deleteItem('${item.id}')" title="Remove">✕ Remove</button>
           </div>
         `;
         vaultGrid.appendChild(card);
       });
 
-      // Animate entry
       gsap.from('.vault-item', {
-        y: 20,
-        opacity: 0,
-        duration: 0.6,
-        stagger: 0.05,
-        ease: 'power2.out'
+        y: 20, opacity: 0, duration: 0.5,
+        stagger: 0.06, ease: 'power2.out'
       });
     }
 
-    // Init
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    async function deleteItem(id) {
+      if (!confirm('Remove this item from the vault?')) return;
+      const { error } = await sb.from('vault_items').delete().eq('id', id);
+      if (error) { showToast('Failed to delete.', 'error'); return; }
+      showToast('Item removed.');
+      fetchVaultItems();
+    }
+
+    // ═══ INIT ═══
     fetchVaultItems();
 
+    // Page load animation
+    gsap.from('.vault-title h1', { y: 30, opacity: 0, duration: 0.8, ease: 'power3.out' });
+    gsap.from('.vault-title p', { y: 20, opacity: 0, duration: 0.8, delay: 0.1, ease: 'power3.out' });
+    gsap.from('.stat-box', { y: 20, opacity: 0, duration: 0.6, delay: 0.2, stagger: 0.1, ease: 'power2.out' });
+    gsap.from('#ingest-zone', { y: 20, opacity: 0, duration: 0.6, delay: 0.35, ease: 'power2.out' });
   </script>
 </body>
 </html>
