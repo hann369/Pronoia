@@ -46,11 +46,6 @@
         }
 
         :root {
-            --bg: #fdfbf9;
-            --bg2: #f7f3ef;
-            --bg3: #eeeae4;
-            --text: #25344f;
-            --text2: #617891;
             --tan: #d5b893;
             --coffee: #6f4d38;
             --caput: #632024;
@@ -59,15 +54,59 @@
             --cobalt-dim: rgba(0, 71, 171, 0.12);
             --white: #ffffff;
             --ink: #0d1117;
-            --card-bg: rgba(255, 255, 255, 0.85);
-            --border: rgba(213, 184, 147, 0.18);
-            --border-strong: rgba(213, 184, 147, 0.35);
-
+            
             --font-body: 'DM Sans', sans-serif;
             --font-display: 'DM Serif Display', serif;
             --font-accent: 'Cormorant Garamond', serif;
 
             --lab-blue: #007aff;
+            
+            /* Theme Variables - Default Light */
+            --bg: #fdfbf9;
+            --bg2: #f7f3ef;
+            --bg3: #eeeae4;
+            --text: #25344f;
+            --text2: #617891;
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --border: rgba(213, 184, 147, 0.18);
+            --border-strong: rgba(213, 184, 147, 0.35);
+            --nav-bg: rgba(253, 251, 249, 0.9);
+            --nav-text: #25344f;
+        }
+
+        body.dark-theme {
+            --bg: #0a0a0a;
+            --bg2: #141414;
+            --bg3: #1a1a1a;
+            --text: #fdfbf9;
+            --text2: #a0a0a0;
+            --card-bg: rgba(20, 20, 20, 0.9);
+            --border: rgba(213, 184, 147, 0.1);
+            --border-strong: rgba(213, 184, 147, 0.2);
+            --nav-bg: rgba(10, 10, 10, 0.9);
+            --nav-text: #fdfbf9;
+        }
+
+        .theme-toggle {
+            background: transparent;
+            border: 1px solid var(--border-strong);
+            color: var(--text);
+            padding: 0.5rem 1rem;
+            border-radius: 100px;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .theme-toggle:hover {
+            background: var(--text);
+            color: var(--bg);
         }
 
         * {
@@ -143,78 +182,85 @@
             object-fit: cover;
         }
 
-        /* NAV — always transparent floating bar */
-        nav {
+        #header {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            padding: 1.6rem 5rem;
+            top: 0; left: 0; width: 100%;
+            height: 70px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            z-index: 100;
-            opacity: 0;
-            background: transparent;
-            transition: background 0.5s, backdrop-filter 0.5s, padding 0.3s;
+            padding: 0 5%;
+            z-index: 1000;
+            opacity: 0; /* Handled by GSAP/Loader */
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        /* Scrolled: very subtle glass — barely there */
-        nav.scrolled {
-            background: rgba(8, 14, 22, 0.45);
-            backdrop-filter: blur(24px) saturate(1.2);
-            -webkit-backdrop-filter: blur(24px) saturate(1.2);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-            padding: 1.1rem 5rem;
+        #header.scrolled {
+            height: 60px;
+            background: var(--nav-bg);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
         }
 
-        /* Links always white */
-        nav .nav-links a {
-            color: rgba(255, 255, 255, 0.65);
+        .header-left, .header-right {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
         }
 
-        nav .nav-links a:hover {
-            color: #fff;
+        .header-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--border);
+            opacity: 0.5;
         }
 
-        nav.scrolled .nav-links a {
-            color: rgba(255, 255, 255, 0.70);
-        }
-
-        nav.scrolled .nav-links a:hover {
-            color: #fff;
-        }
-
-        .btn-ghost {
-            border-color: rgba(255, 255, 255, 0.3) !important;
-            color: rgba(255, 255, 255, 0.7) !important;
-        }
-
-        .btn-ghost:hover {
-            background: rgba(255, 255, 255, 0.08);
+        .session-badge {
+            font-family: var(--font-mono);
+            font-size: .6rem;
+            color: var(--text2);
+            letter-spacing: .15em;
+            text-transform: uppercase;
+            opacity: 0.7;
         }
 
         .nav-logo {
-            width: 120px;
-            filter: invert(1);
+            width: 110px;
+            transition: filter 0.5s, transform 0.3s;
         }
+        .nav-logo:hover { transform: scale(1.02); }
+        body.dark-theme .nav-logo { filter: invert(1); }
 
         .nav-links {
             list-style: none;
             display: flex;
-            gap: 3rem;
+            gap: 2rem;
             align-items: center;
         }
 
         .nav-links a {
-            position: relative;
-            font-size: 0.8rem;
-            letter-spacing: 0.2em;
+            font-family: var(--font-mono);
+            font-size: .65rem;
             text-transform: uppercase;
-            color: var(--text2);
+            letter-spacing: .15em;
+            color: var(--text);
             text-decoration: none;
-            transition: color 0.3s;
-            font-weight: 500;
+            opacity: 0.6;
+            transition: all 0.3s;
+        }
+
+        .nav-links a:hover { opacity: 1; }
+
+        .btn-ghost {
+            border: 1px solid var(--border) !important;
+            padding: 0.5rem 1.2rem !important;
+            border-radius: 100px !important;
+            opacity: 0.7;
+        }
+
+        .btn-ghost:hover {
+            background: rgba(255, 255, 255, 0.08);
+            opacity: 1;
         }
 
         .nav-links a::after {
@@ -1596,19 +1642,7 @@
         </video>
     </div>
 
-    <nav id="nav" class="dark-mode">
-        <img class="nav-logo" src="graphic assets/pronoia_logo.png" alt="Pronoia Logo">
-        <ul class="nav-links">
-            <li><a href="labs.html" data-de="Labs" data-en="Labs">Labs</a></li>
-            <li><a href="health.html" data-de="Health" data-en="Health">Health</a></li>
-            <li><a href="vault.html" data-de="Vault" data-en="Vault">Vault</a></li>
-            <li><a href="protocol.html" id="nav-system" class="system-locked" data-de="System"
-                    data-en="System">System</a>
-            </li>
-            <li><a href="#diagnosis" class="btn-ghost" data-de="Identifikation &rarr;"
-                    data-en="Identify &rarr;">Identifikation &rarr;</a></li>
-        </ul>
-    </nav>
+    <div id="pronoia-nav-container"></div>
 
     <!-- LANGUAGE TOGGLE -->
     <div class="lang-toggle" id="langToggle">
@@ -2848,7 +2882,10 @@ void main(){
                 }, 1500);
             }
         };
-
+    </script>
+    <script src="core.js"></script>
+    <script>
+        // Init Pronoia Ecosystem
         PxAuth.init();
     </script>
 </body>

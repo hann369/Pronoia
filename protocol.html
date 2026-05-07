@@ -20,6 +20,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     /* ═══════════════════════════════════════════════
        DESIGN TOKENS — consistent with index.html
@@ -30,23 +32,31 @@
       --font-accent: 'Cormorant Garamond', serif;
       --font-mono: 'JetBrains Mono', monospace;
 
-      /* Protocol Dark Theme (Default) */
-      --bg: #080C12;
-      --bg-panel: #0D1219;
-      --bg-card: #111820;
-      --bg-elevated: #161E28;
-      --text: #E8EDF5;
-      --text2: #5A7090;
-      --text3: #3A5070;
-      --border: rgba(255, 255, 255, 0.06);
-      --border-s: rgba(255, 255, 255, 0.1);
-
-      /* Accents */
+      --tan: #d5b893;
+      --coffee: #6f4d38;
+      --caput: #632024;
+      --gold: #d4a574;
       --cobalt: #0047AB;
       --cobalt-bright: #1A6AFF;
       --cobalt-dim: rgba(0, 71, 171, 0.12);
+      
+      /* Theme Variables - Default Light */
+      --bg: #fdfbf9;
+      --bg2: #f7f3ef;
+      --bg3: #eeeae4;
+      --bg-panel: #f7f3ef;
+      --bg-card: #ffffff;
+      --card-bg: rgba(255, 255, 255, 0.85);
+      --bg-elevated: #eeeae4;
+      --text: #25344f;
+      --text2: #617891;
+      --text3: #94A3B8;
+      --border: rgba(213, 184, 147, 0.18);
+      --border-strong: rgba(213, 184, 147, 0.35);
+      --border-s: var(--border-strong);
+
+      /* Accents */
       --cobalt-glow: rgba(26, 106, 255, 0.18);
-      --tan: #d5b893;
       --tan-dim: rgba(213, 184, 147, 0.12);
       --green: #00C48C;
       --green-dim: rgba(0, 196, 140, 0.1);
@@ -63,21 +73,29 @@
       --p-recovery: #00A3FF;
 
       --transition-theme: background 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+      --nav-bg: rgba(253, 251, 249, 0.9);
+      --nav-text: #25344f;
     }
 
-    body.light-theme {
-      --bg: #F8FAFC;
-      --bg-panel: #FFFFFF;
-      --bg-card: #F1F5F9;
-      --bg-elevated: #E2E8F0;
-      --text: #0F172A;
-      --text2: #475569;
-      --text3: #94A3B8;
-      --border: rgba(0, 0, 0, 0.06);
-      --border-s: rgba(0, 0, 0, 0.1);
+    body.dark-theme {
+      --bg: #0a0a0a;
+      --bg2: #141414;
+      --bg3: #1a1a1a;
+      --bg-panel: #0D1219;
+      --bg-card: #111820;
+      --card-bg: rgba(20, 20, 20, 0.9);
+      --bg-elevated: #161E28;
+      --text: #fdfbf9;
+      --text2: #a0a0a0;
+      --text3: #3A5070;
+      --border: rgba(213, 184, 147, 0.1);
+      --border-strong: rgba(213, 184, 147, 0.2);
+      --border-s: var(--border-strong);
 
-      --cobalt-dim: rgba(0, 71, 171, 0.06);
-      --cobalt-glow: rgba(26, 106, 255, 0.1);
+      --cobalt-dim: rgba(0, 71, 171, 0.12);
+      --cobalt-glow: rgba(26, 106, 255, 0.18);
+      --nav-bg: rgba(10, 10, 10, 0.9);
+      --nav-text: #fdfbf9;
     }
 
     * {
@@ -103,6 +121,61 @@
       transition: var(--transition-theme);
       height: 100vh;
       width: 100vw;
+      position: relative;
+    }
+
+    /* GRAIN (Subtle) */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      pointer-events: none;
+      opacity: 0.04;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    .sky-background {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: -2;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .orb {
+      position: absolute;
+      width: 60vw; height: 60vw;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.15;
+      animation: orb-float 20s infinite alternate;
+    }
+
+    .orb-1 {
+      background: var(--tan);
+      top: -10%; right: -10%;
+    }
+
+    .orb-2 {
+      background: var(--cobalt);
+      bottom: -10%; left: -10%;
+      animation-delay: -5s;
+    }
+
+    .orb-3 {
+      background: var(--tan);
+      top: 40%; left: 30%;
+      width: 30vw; height: 30vw;
+      opacity: 0.05;
+      animation-duration: 30s;
+    }
+
+    @keyframes orb-float {
+      0% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(10vw, 15vh) scale(1.1); }
+      100% { transform: translate(-5vw, -10vh) scale(0.9); }
     }
 
     .mono {
@@ -148,67 +221,65 @@
       object-fit: cover;
     }
 
-    /* ═══ HEADER ════════════════════════════════════ */
+    /* ═══ NAV / HEADER ══════════════════════════════ */
     #header {
-      height: 52px;
+      height: 70px;
       flex-shrink: 0;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0 1.5rem;
-      border-bottom: 1px solid var(--border);
+      padding: 0 5%;
       background: var(--bg);
-      z-index: 50;
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      z-index: 1000;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #header.scrolled {
+      height: 60px;
+      background: var(--nav-bg);
+      border-bottom: 1px solid var(--border-s);
     }
 
     .header-left {
       display: flex;
       align-items: center;
-      gap: 1.5rem;
+      gap: 2rem;
     }
 
-    .brand-link {
-      font-family: var(--font-body);
-      font-weight: 700;
-      font-size: .9rem;
-      color: var(--text);
-      text-decoration: none;
-      letter-spacing: -.02em;
+    .nav-logo {
+      width: 110px;
+      transition: filter 0.5s, transform 0.3s;
     }
-
-    .brand-link span {
-      color: var(--cobalt-bright);
-    }
+    .nav-logo:hover { transform: scale(1.02); }
+    body.dark-theme .nav-logo { filter: invert(1); }
 
     .header-divider {
       width: 1px;
-      height: 16px;
+      height: 24px;
       background: var(--border-s);
     }
 
     .session-badge {
       font-family: var(--font-mono);
-      font-size: .62rem;
+      font-size: .6rem;
       color: var(--text3);
       letter-spacing: .15em;
       text-transform: uppercase;
     }
 
-    .stage-badge {
-      font-family: var(--font-mono);
-      font-size: .6rem;
-      letter-spacing: .2em;
-      text-transform: uppercase;
-      padding: .18rem .6rem;
-      border: 1px solid var(--cobalt-dim);
-      color: var(--cobalt-bright);
-      background: var(--cobalt-dim);
-    }
-
     .header-right {
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: 2.5rem;
+    }
+
+    .header-nav {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+      align-items: center;
     }
 
     .header-nav a {
@@ -218,69 +289,62 @@
       letter-spacing: .15em;
       color: var(--text2);
       text-decoration: none;
-      transition: color .2s;
-      margin-left: 1.2rem;
+      transition: color .3s, transform 0.2s;
+      position: relative;
     }
 
     .header-nav a:hover {
       color: var(--text);
     }
 
+    .header-nav a.active {
+      color: var(--tan);
+    }
+
+    .header-nav a.active::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 100%;
+      height: 1px;
+      background: var(--tan);
+    }
+
     .status-dot {
-      width: 6px;
-      height: 6px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       background: var(--green);
-      box-shadow: 0 0 6px var(--green);
+      box-shadow: 0 0 10px var(--green);
       animation: pulse 2.4s ease-in-out infinite;
     }
 
-    @keyframes pulse {
-
-      0%,
-      100% {
-        opacity: 1;
-      }
-
-      50% {
-        opacity: .4;
-      }
-    }
-
-    /* Theme Toggle */
+    /* Standardized Theme Toggle */
     .theme-toggle {
-      background: none;
+      background: transparent;
       border: 1px solid var(--border-s);
-      color: var(--text3);
+      color: var(--text2);
       cursor: pointer;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
+      padding: 0.5rem 1.2rem;
+      border-radius: 100px;
       display: flex;
       align-items: center;
-      justify-content: center;
-      transition: all 0.3s;
+      gap: 0.6rem;
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .theme-toggle:hover {
-      border-color: var(--text2);
+      border-color: var(--tan);
       color: var(--text);
+      background: var(--bg2);
     }
 
-    .theme-toggle svg {
-      width: 14px;
-      height: 14px;
-      stroke-width: 2;
-      fill: none;
-      stroke: currentColor;
-    }
-
-    body.light-theme .sun-icon {
-      display: none;
-    }
-
-    body:not(.light-theme) .moon-icon {
-      display: none;
+    body.dark-theme .theme-toggle:hover {
+      background: var(--bg3);
     }
 
     /* ═══ MAIN LAYOUT — 3 COLUMNS ═══════════════════ */
@@ -2145,48 +2209,14 @@
     </div>
   </div>
 
-  <!-- ═══ HEADER ════════════════════════════════════ -->
-  <header id="header">
-    <div class="header-left">
-      <a href="index.html" class="brand-link">Pronoia<span> System</span></a>
-      <div class="header-divider"></div>
-      <span class="session-badge" id="session-id">SESSION: —</span>
-      <span class="stage-badge" id="stage-badge">Stage 01</span>
-      <div id="header-clock" class="mono" style="font-size: .75rem; color: var(--text2); margin-left: 1rem;">--:--:--</div>
-      
-      <!-- READINESS GAUGE -->
-      <div style="margin-left: 2rem; display: flex; align-items: center; gap: .5rem;">
-        <span class="mono" style="font-size: .55rem; color: var(--text3); text-transform: uppercase; letter-spacing: .1em;">Readiness:</span>
-        <span id="readiness-gauge" class="mono" style="font-size: .7rem; font-weight: 700; color: var(--green);">--%</span>
-      </div>
-    </div>
-    <div class="header-right">
-      <button class="theme-toggle" id="theme-toggle" title="Toggle Theme">
-        <svg class="sun-icon" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="5"></circle>
-          <line x1="12" y1="1" x2="12" y2="3"></line>
-          <line x1="12" y1="21" x2="12" y2="23"></line>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-          <line x1="1" y1="12" x2="3" y2="12"></line>
-          <line x1="21" y1="12" x2="23" y2="12"></line>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-        </svg>
-        <svg class="moon-icon" viewBox="0 0 24 24">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-        </svg>
-      </button>
-      <div class="status-dot" id="status-dot"></div>
-      <nav class="header-nav">
-        <a href="labs.html">Labs</a>
-        <a href="health.html">Health</a>
-        <a href="vault.html">Vault</a>
-        <a href="#" onclick="openCalendarModal()">Calendar</a>
-        <a href="#" id="btn-logout" style="color: var(--red);">Logout</a>
-      </nav>
-    </div>
-  </header>
+  <!-- ═══ NAVIGATION ══════════════════════════════ -->
+  <div id="pronoia-nav-container"></div>
+
+  <div class="sky-background">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
 
   <!-- ═══ MAIN DASHBOARD ═══════════════════════════ -->
   <div id="main">
@@ -2356,6 +2386,7 @@
         <!-- Main Controls -->
         <div class="controls-row">
           <button class="btn btn-primary" id="btn-toggle">Start</button>
+          <button class="btn btn-ghost" id="btn-stop" style="font-size:0.6rem; padding:0 0.5rem; height:32px; margin-left:0.5rem; border:1px solid var(--border-s);">Reset Sync</button>
           <button class="btn btn-success" id="btn-complete">Block abschließen</button>
           <button class="btn btn-danger" id="btn-skip">Überspringen</button>
           <button class="btn btn-icon" id="btn-focus" title="Focus Mode">
@@ -2401,7 +2432,10 @@
           <div class="telem-bar">
             <div class="telem-fill" id="bar-hyd" style="width:100%;background:var(--green)"></div>
           </div>
-          <span class="telem-val" id="val-hyd">100%</span>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:.2rem;">
+            <span class="telem-val" id="val-hyd">100%</span>
+            <button class="btn-add-block" style="margin:0; padding:0 .4rem; font-size:.5rem; height:14px; background:rgba(0,196,140,0.1); border-color:var(--green); color:var(--green);" onclick="Agent.simulateDrink()">+ SIPS</button>
+          </div>
         </div>
         <div class="telem-cell">
           <span class="telem-label">SNS Aktivierung</span>
@@ -2442,6 +2476,31 @@
 
         <!-- Stack items -->
         <div id="stack-list"></div>
+
+        <!-- Neuro-Cognitive Status -->
+        <div class="panel-section" style="margin-top:1.5rem; border-top:1px solid var(--border); padding-top:1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+            <span class="panel-title" style="font-size:0.6rem; opacity:0.8;">NEURO-STATES</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:0.6rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="mono" style="font-size:.6rem; color:var(--text3);">Priming Status</span>
+              <span class="mono" style="font-size:.6rem; color:var(--cobalt-bright);" id="stat-priming">Stabil</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="mono" style="font-size:.6rem; color:var(--text3);">LTP Potential</span>
+              <span class="mono" style="font-size:.6rem; color:var(--green);" id="stat-ltp">Optimal</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="mono" style="font-size:.6rem; color:var(--text3);">Neuroplasticity</span>
+              <span class="mono" style="font-size:.6rem; color:var(--amber);" id="stat-plasticity">High</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="mono" style="font-size:.6rem; color:var(--text3);">Neurogenesis</span>
+              <span class="mono" style="font-size:.6rem; color:var(--cobalt-dim);" id="stat-genesis">Active</span>
+            </div>
+          </div>
+        </div>
 
         <!-- Agent Recommendation -->
         <div class="rec-card" style="margin-top:1rem;">
@@ -2566,6 +2625,11 @@
 
     // Initialize Firebase (Compat)
     firebase.initializeApp(FIREBASE_CONFIG);
+
+    // ── SUPABASE CONFIG ──
+    const supabaseUrl = 'https://mbtjwtrlfapievmfrisu.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1idGp3dHJsZmFwaWV2bWZyaXN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODg5NjIsImV4cCI6MjA5MDI2NDk2Mn0.mIKwAP4CRzrT4cjjkwOOfzke7nY4MddxOzDI_thNUqE';
+    const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
 
     /* ── SYSTEM STABILIZER ──────────────────────────── */
     window.addEventListener('error', function(e) {
@@ -2839,15 +2903,18 @@
         setInterval(() => {
           // Natürlicher Hydrationsverlust über Zeit (simuliert)
           if (this.isRunning) {
-            this.hydrationLevel = Math.max(0, this.hydrationLevel - 0.02);
+            this.hydrationLevel = Math.max(0, this.hydrationLevel - 0.05); // Faster decay for simulation
             
             if (this.hydrationLevel < 40 && !this._hydWarned) {
               this._hydWarned = true;
-              this.setAgentMsg("Hydration kritisch (< 40%). Bitte 250ml Wasser trinken für kognitive Stabilität.");
-              this.triggerToast("IoT Bottle Event", "Hydration sinkt unter Schwellenwert.", false, null);
+              this.setAgentMsg("HYDRATION KRITISCH (< 40%). IoT-Bottle meldet Gewichtsunterschied. Bitte 250ml trinken.");
+              this.triggerToast("IoT Bottle Event", "Geringe Hydration erkannt. Leistungsabfall droht.", true, null);
+              // Haptic/Sound simulation placeholder
+              if (window.navigator.vibrate) window.navigator.vibrate([100, 50, 100]);
             }
           }
-        }, 3000);
+          this.updateDisplay();
+        }, 5000);
       }
 
       simulateDrink() {
@@ -2884,33 +2951,37 @@
 
       syncTimerToRealTime() {
         // If paused, we don't sync to the moving clock, we stay at the paused time
-        if (this.pauseStartTime) {
+        if (this.pauseStartTime || this.isRunning) {
             return;
         }
 
+        // Adjust "now" by the accumulated offset
         const now = new Date(Date.now() - (this.timeOffset * 1000));
         const nowSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
         
         let foundIdx = -1;
         let foundTimeLeft = 0;
         
-        for (let i = 0; i < this.blocks.length; i++) {
-          const b = this.blocks[i];
-          if (!b.startTime) continue;
-          
+        // Sort blocks by start time to ensure correct sequence
+        const sortedBlocks = [...this.blocks].filter(b => b.startTime).sort((a,b) => a.startTime.localeCompare(b.startTime));
+
+        for (let i = 0; i < sortedBlocks.length; i++) {
+          const b = sortedBlocks[i];
           const [h, m] = b.startTime.split(':').map(Number);
           const startSeconds = h * 3600 + m * 60;
           const endSeconds = startSeconds + b.duration;
           
           if (nowSeconds >= startSeconds && nowSeconds < endSeconds) {
-            foundIdx = i;
+            // We are inside this block
+            foundIdx = this.blocks.indexOf(b);
             foundTimeLeft = endSeconds - nowSeconds;
             break;
           } else if (nowSeconds < startSeconds) {
-            if (foundIdx === -1) {
-              foundIdx = i;
-              foundTimeLeft = b.duration;
-            }
+            // We are before this block
+            foundIdx = this.blocks.indexOf(b);
+            foundTimeLeft = b.duration; // Show full duration until it starts? Or show time until start?
+            // Actually, if we are before a block, we should probably stay at that block but not "running"
+            break;
           }
         }
         
@@ -2919,14 +2990,27 @@
           this.timeLeft = Math.max(0, foundTimeLeft);
           this.totalTime = this.blocks[this.blockIdx].duration;
           
-          for (let i = 0; i < foundIdx; i++) {
-            this.blocks[i].done = true;
+          // Mark previous blocks as done
+          for (let i = 0; i < this.blocks.length; i++) {
+            const b = this.blocks[i];
+            const [bh, bm] = (b.startTime || "00:00").split(':').map(Number);
+            if (bh * 3600 + bm * 60 + b.duration <= nowSeconds) {
+              b.done = true;
+            } else {
+              b.done = false;
+            }
           }
-        } else {
-          this.blockIdx = this.blocks.length > 0 ? this.blocks.length - 1 : 0;
-          this.timeLeft = 0;
-          this.totalTime = this.blocks.length > 0 ? this.blocks[this.blockIdx].duration : 0;
-          if (this.blocks.length > 0) this.blocks.forEach(b => b.done = true);
+        } else if (this.blocks.length > 0) {
+          // If past all blocks
+          const lastBlock = this.blocks[this.blocks.length - 1];
+          const [lh, lm] = (lastBlock.startTime || "23:59").split(':').map(Number);
+          const lastEnd = lh * 3600 + lm * 60 + lastBlock.duration;
+          
+          if (nowSeconds >= lastEnd) {
+             this.blockIdx = this.blocks.length - 1;
+             this.timeLeft = 0;
+             this.blocks.forEach(b => b.done = true);
+          }
         }
       }
 
@@ -2957,31 +3041,39 @@
       }
 
       // ── DATA INGESTION ─────────────────────────────
-      ingestFiles(files) {
+      async ingestFiles(files) {
         if (!files || files.length === 0) return;
         
-        Array.from(files).forEach(file => {
+        for (const file of Array.from(files)) {
+          const isText = file.type.startsWith('text/') || file.name.endsWith('.md') || file.name.endsWith('.js') || file.name.endsWith('.html');
           const reader = new FileReader();
-          reader.onload = (e) => {
-            const content = e.target.result;
-            this.sources.push({
-              id: Math.random().toString(36).substr(2, 9),
-              name: file.name,
-              type: file.type || 'text/plain',
-              size: file.size,
-              content: content
-            });
-            this.renderSources();
-            this.setAgentMsg(`QUELLE INHALIERT: ${file.name.toUpperCase()}`);
-            this.generateDirective(`Neuer Kontext durch Datei: ${file.name}. Analysiere Auswirkungen auf das Protokoll.`);
-          };
           
-          if (file.type.match('image.*')) {
-            this.setAgentMsg(`BILD-DATEN ERKANNT. OCR-MODUL NOCH NICHT AKTIV.`);
+          const content = await new Promise((resolve) => {
+            reader.onload = (e) => resolve(e.target.result);
+            if (isText) reader.readAsText(file);
+            else reader.readAsDataURL(file);
+          });
+
+          let finalContent = content;
+          if (finalContent.length > 50000) finalContent = finalContent.substring(0, 50000);
+
+          const { error } = await sb.from('vault_items').insert([{
+            user_id: 'local-user-123',
+            type: 'file',
+            title: file.name,
+            content: finalContent,
+            tags: ['ingested', 'protocol'],
+            created_at: new Date().toISOString()
+          }]);
+
+          if (!error) {
+            this.setAgentMsg(`QUELLE INHALIERT & SYNCHRONISIERT: ${file.name.toUpperCase()}`);
+            this.fetchSources();
           } else {
-            reader.readAsText(file);
+            console.error("Supabase ingest error:", error);
+            this.triggerToast('Ingest Fehler', 'Fehler beim Hochladen in den Vault.', true, null);
           }
-        });
+        }
       }
 
       renderSources() {
@@ -3882,6 +3974,18 @@
         this.isRunning ? this.pause() : this.start();
       }
 
+      resetSync() {
+        this.isRunning = false;
+        this.pauseStartTime = null;
+        this.timeOffset = 0;
+        localStorage.removeItem('px_time_offset');
+        localStorage.removeItem('px_pause_start_time');
+        clearInterval(this.interval);
+        this.syncTimerToRealTime();
+        this.renderUI();
+        this.setAgentMsg('Real-Time Synchronisation wiederhergestellt.');
+      }
+
       tick() {
         const oldBlockIdx = this.blockIdx;
         this.syncTimerToRealTime();
@@ -4177,7 +4281,35 @@
         document.getElementById('ring-fill').style.strokeDashoffset = circumf * (1 - prog);
 
         const current = this.blocks[this.blockIdx];
-        if (current) this.updateTelemetry(current);
+        if (current) {
+          this.updateTelemetry(current);
+          this.updateNeuroMetrics(current);
+        }
+      }
+
+      updateNeuroMetrics(current) {
+        const hour = new Date().getHours();
+        const elPriming = document.getElementById('stat-priming');
+        const elLtp = document.getElementById('stat-ltp');
+        const elPlasticity = document.getElementById('stat-plasticity');
+        const elGenesis = document.getElementById('stat-genesis');
+
+        if (current.pillar === 'focus') {
+          if (elPriming) elPriming.textContent = hour < 11 ? 'Primed' : 'Stable';
+          if (elLtp) elLtp.textContent = 'Inducing';
+          if (elPlasticity) elPlasticity.textContent = 'Maximum';
+          if (elGenesis) elGenesis.textContent = 'Baseline';
+        } else if (current.pillar === 'recovery') {
+          if (elPriming) elPriming.textContent = 'Cooling';
+          if (elLtp) elLtp.textContent = 'Consolidating';
+          if (elPlasticity) elPlasticity.textContent = 'High';
+          if (elGenesis) elGenesis.textContent = 'Elevated';
+        } else {
+          if (elPriming) elPriming.textContent = 'Stable';
+          if (elLtp) elLtp.textContent = 'Stable';
+          if (elPlasticity) elPlasticity.textContent = 'Normal';
+          if (elGenesis) elGenesis.textContent = 'Active';
+        }
       }
 
       renderUI() {
@@ -4241,20 +4373,29 @@
         
         if (cur.pillar === 'focus') {
             if (hour < 11) {
-                neuroInsight = `<div class="neuro-note" style="color:var(--cobalt-bright); font-size:.7rem; margin-top:.5rem; border-left:2px solid var(--cobalt-bright); padding-left:.5rem;"><b>Priming:</b> Dopamin-Baseline durch helles Licht und Intent-Setting stabilisieren.</div>`;
+                neuroInsight = `<div class="neuro-note" style="color:var(--cobalt-bright); font-size:.7rem; margin-top:.5rem; border-left:2px solid var(--cobalt-bright); padding-left:.5rem;"><b>Priming:</b> Dopamin-Baseline durch helles Licht und Intent-Setting stabilisieren. Erhöht die kognitive Bereitschaft für LTP.</div>`;
             } else {
-                neuroInsight = `<div class="neuro-note" style="color:var(--cobalt-bright); font-size:.7rem; margin-top:.5rem; border-left:2px solid var(--cobalt-bright); padding-left:.5rem;"><b>Synaptische Plastizität:</b> Nutze 90m Zyklen für maximale LTP (Long-Term Potentiation).</div>`;
+                neuroInsight = `<div class="neuro-note" style="color:var(--cobalt-bright); font-size:.7rem; margin-top:.5rem; border-left:2px solid var(--cobalt-bright); padding-left:.5rem;"><b>Synaptische Plastizität:</b> Nutze 90m Zyklen für maximale LTP (Long-Term Potentiation). Vermeide Multitasking für stabilere Engramme.</div>`;
             }
         } else if (cur.pillar === 'recovery') {
-            neuroInsight = `<div class="neuro-note" style="color:var(--green); font-size:.7rem; margin-top:.5rem; border-left:2px solid var(--green); padding-left:.5rem;"><b>Neurogenese:</b> Aktive Erholung und NSDR fördern die Konsolidierung des Gelernten.</div>`;
+            neuroInsight = `<div class="neuro-note" style="color:var(--green); font-size:.7rem; margin-top:.5rem; border-left:2px solid var(--green); padding-left:.5rem;"><b>Neurogenese:</b> Aktive Erholung und NSDR fördern die Konsolidierung. Neuroplasticity ist ein metabolischer Prozess - Ruhe ist Pflicht.</div>`;
         } else if (cur.pillar === 'skills') {
-            neuroInsight = `<div class="neuro-note" style="color:var(--tan); font-size:.7rem; margin-top:.5rem; border-left:2px solid var(--tan); padding-left:.5rem;"><b>Konditionierung:</b> Variable Belohnungsstrukturen (XP) nutzen, um Habituation zu vermeiden.</div>`;
+            neuroInsight = `<div class="neuro-note" style="color:var(--tan); font-size:.7rem; margin-top:.5rem; border-left:2px solid var(--tan); padding-left:.5rem;"><b>Konditionierung:</b> Variable Belohnungsstrukturen (XP) nutzen, um Habituation zu vermeiden. Myelinisierung durch bewusste Wiederholung.</div>`;
         }
 
         document.getElementById('agent-insight').innerHTML = (cur.insight || '') + stackActionHTML + skillActionHTML + neuroInsight;
         document.getElementById('timer-display').textContent = this.formatTime(this.timeLeft);
-        document.getElementById('timer-display').classList.add('paused');
-        document.getElementById('timer-sub').textContent = 'Bereit';
+        
+        if (!this.isRunning && !this.pauseStartTime) {
+            document.getElementById('timer-display').classList.add('paused');
+            document.getElementById('timer-sub').textContent = 'Synchronisiert';
+        } else if (this.pauseStartTime) {
+            document.getElementById('timer-display').classList.add('paused');
+            document.getElementById('timer-sub').textContent = 'Pausiert';
+        } else {
+            document.getElementById('timer-display').classList.remove('paused');
+            document.getElementById('timer-sub').textContent = this.timeOffset > 60 ? 'Offset Aktiv' : 'Läuft';
+        }
 
         // Pillar tag
         const color = this.pillarColors[cur.pillar] || 'var(--text2)';
@@ -4351,17 +4492,26 @@
           const file = fileList[i];
           const reader = new FileReader();
           
-          reader.onload = (e) => {
+          reader.onload = async (e) => {
             const content = e.target.result;
-            this.sources.push({
-              id: Date.now() + i,
-              name: file.name,
-              type: file.type,
-              content: content.substring(0, 5000) // Limit context size
-            });
-            this.renderSources();
-            this.syncState();
-            this.triggerToast('Source Added', `${file.name} wurde in den Kontext geladen.`, false, null);
+            const item = {
+              title: file.name,
+              type: file.type || 'text/plain',
+              content: content,
+              user_id: MOCK_USER_ID,
+              created_at: new Date().toISOString()
+            };
+
+            // Sync to Supabase
+            const { error } = await sb.from('vault_items').insert([item]);
+            
+            if (error) {
+              console.error('Supabase Sync Error:', error);
+              this.triggerToast('Sync Failed', 'Fehler beim Hochladen in den Vault.', true, null);
+            } else {
+              await this.fetchSources();
+              this.triggerToast('Vault Updated', `${file.name} wurde synchronisiert.`, false, null);
+            }
           };
           
           if (file.type.startsWith('text/') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.csv') || file.name.endsWith('.js') || file.name.endsWith('.html')) {
@@ -4387,8 +4537,11 @@
       async deleteSource(id) {
         const { error } = await sb.from('vault_items').delete().eq('id', id);
         if (!error) {
-          this.fetchSources();
+          await this.fetchSources();
           this.triggerToast('Source Removed', 'Item aus dem Vault gelöscht.', false, null);
+        } else {
+          console.error('Delete Error:', error);
+          this.triggerToast('Delete Failed', 'Fehler beim Löschen.', true, null);
         }
       }
 
@@ -4409,24 +4562,16 @@
           <div style="display:flex; flex-direction:column; gap:.5rem;">
             ${this.sources.map(s => `
               <div class="source-item" style="background:rgba(255,255,255,0.03); border:1px solid var(--border); padding:.5rem; border-radius:4px; display:flex; justify-content:space-between; align-items:center;">
-                <div style="overflow:hidden;">
-                  <div style="font-size:.7rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.title}</div>
-                  <div style="font-size:.55rem; color:var(--text3); font-family:var(--font-mono); text-transform:uppercase;">${s.type}</div>
+                <div style="overflow:hidden; flex:1; margin-right:.5rem;">
+                  <div style="font-size:.7rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${s.title || 'Untitled'}">${s.title || 'Untitled'}</div>
+                  <div style="font-size:.55rem; color:var(--text3); font-family:var(--font-mono); text-transform:uppercase;">${s.type || 'UNKNOWN'}</div>
                 </div>
-                <button onclick="Agent.deleteSource('${s.id}')" style="background:none; border:none; color:var(--text3); cursor:pointer; font-size:.8rem;">×</button>
+                <button onclick="Agent.deleteSource('${s.id}')" style="background:none; border:none; color:var(--text3); cursor:pointer; font-size:.8rem; padding:0 .2rem;">×</button>
               </div>
             `).join('')}
             <a href="vault.html" class="btn-add-block" style="text-align:center; margin-top:.5rem; text-decoration:none; font-size:.6rem;">Vault Verwalten</a>
           </div>
         `;
-      }
-        `).join('');
-      }
-
-      removeSource(id) {
-          this.sources = this.sources.filter(s => s.id !== id);
-          this.renderSources();
-          this.syncState();
       }
     }
 
@@ -4740,16 +4885,7 @@
     // Now safe to init Auth (Agent exists)
     Auth.init();
 
-    // Theme
-    const toggleTheme = () => {
-      document.body.classList.toggle('light-theme');
-      const isLight = document.body.classList.contains('light-theme');
-      localStorage.setItem('px_theme', isLight ? 'light' : 'dark');
-    };
-    if (localStorage.getItem('px_theme') === 'light') {
-      document.body.classList.add('light-theme');
-    }
-    document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+    // Removed ThemeEngine (now in core.js)
 
     // Session ID
     if (!Agent.sessionID) {
@@ -4763,6 +4899,7 @@
 
     // ── EVENT LISTENERS ──────────────────────────────
     document.getElementById('btn-toggle').addEventListener('click', () => Agent.toggleTimer());
+    document.getElementById('btn-stop').addEventListener('click', () => Agent.resetSync());
     document.getElementById('btn-complete').addEventListener('click', () => Agent.completeBlock(true));
     document.getElementById('btn-skip').addEventListener('click', () => Agent.skipBlock());
     document.getElementById('btn-focus').addEventListener('click', () => Agent.setFocusMode());
@@ -4795,6 +4932,7 @@
     document.getElementById('stage-badge').textContent = `Stage 0${stage}`;
 
   </script>
+  <script src="core.js"></script>
 </body>
 
 </html>

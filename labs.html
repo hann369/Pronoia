@@ -1,283 +1,416 @@
 <!DOCTYPE html>
 <html lang="de">
-<!-- PRONOIA_AGENT: READY -->
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pronoia Labs | PX-V1</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pronoia Labs | Molecular Architecture</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <style>
     :root {
-      --font-ui: 'DM Sans', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+      --font-display: 'DM Serif Display', serif;
+      --font-accent: 'Cormorant Garamond', serif;
       --font-mono: 'JetBrains Mono', monospace;
+
+      --tan: #d5b893;
+      --coffee: #6f4d38;
+      --caput: #632024;
+      --gold: #d4a574;
+      --cobalt: #0047AB;
+      --cobalt-bright: #1A6AFF;
+      --cobalt-dim: rgba(0, 71, 171, 0.12);
       
-      /* Labs Theme */
-      --labs-bg: #FFFFFF;
-      --labs-text: #0A0A0A;
-      --labs-accent: #0047FF;
-      --labs-border: #E5E5E5;
-      --labs-subtle: #F8F8F8;
-      --labs-grid: rgba(0,0,0,0.03);
+      /* Theme Variables - Default Light */
+      --bg: #fdfbf9;
+      --bg2: #f7f3ef;
+      --bg3: #eeeae4;
+      --bg-panel: #f7f3ef;
+      --bg-card: #ffffff;
+      --card-bg: rgba(255, 255, 255, 0.85);
+      --bg-elevated: #eeeae4;
+      --text: #25344f;
+      --text2: #617891;
+      --text3: #94A3B8;
+      --border: rgba(213, 184, 147, 0.18);
+      --border-strong: rgba(213, 184, 147, 0.35);
+      --border-s: var(--border-strong);
+
+      /* Accents */
+      --cobalt-glow: rgba(26, 106, 255, 0.18);
+      --tan-dim: rgba(213, 184, 147, 0.12);
+      --green: #00C48C;
+      --green-dim: rgba(0, 196, 140, 0.1);
+      --amber: #F5A623;
+      --amber-dim: rgba(245, 166, 35, 0.1);
+      --red: #FF4D4D;
+      --red-dim: rgba(255, 77, 77, 0.1);
+
+      --transition-theme: background 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+      --nav-bg: rgba(253, 251, 249, 0.9);
+      --nav-text: #25344f;
+      --accent: var(--cobalt);
+    }
+
+    body.dark-theme {
+      --bg: #0a0a0a;
+      --bg2: #141414;
+      --bg3: #1a1a1a;
+      --bg-panel: #0D1219;
+      --bg-card: #111820;
+      --card-bg: rgba(20, 20, 20, 0.9);
+      --bg-elevated: #161E28;
+      --text: #fdfbf9;
+      --text2: #a0a0a0;
+      --text3: #3A5070;
+      --border: rgba(213, 184, 147, 0.1);
+      --border-strong: rgba(213, 184, 147, 0.2);
+      --border-s: var(--border-strong);
+
+      --cobalt-dim: rgba(0, 71, 171, 0.12);
+      --cobalt-glow: rgba(26, 106, 255, 0.18);
+      --nav-bg: rgba(10, 10, 10, 0.9);
+      --nav-text: #fdfbf9;
+      --accent: var(--tan);
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
     body {
-      background-color: var(--labs-bg);
-      color: var(--labs-text);
-      font-family: var(--font-ui);
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
       line-height: 1.5;
-      background-image: 
-        linear-gradient(var(--labs-grid) 1px, transparent 1px),
-        linear-gradient(90deg, var(--labs-grid) 1px, transparent 1px);
-      background-size: 40px 40px;
+      overflow-x: hidden;
+      transition: var(--transition-theme);
+      position: relative;
     }
 
-    .mono { font-family: var(--font-mono); }
-    .muted { opacity: 0.6; }
-    .accent { color: var(--labs-accent); }
-
-    .container { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
-    section { padding: 6rem 0; border-bottom: 1px solid var(--labs-border); }
-    
-    /* Navigation */
-    nav {
-      position: fixed; top: 0; left: 0; right: 0;
-      padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center;
-      background: rgba(255,255,255,0.9); backdrop-filter: blur(10px);
-      border-bottom: 1px solid var(--labs-border); z-index: 100;
+    /* GRAIN (Subtle) */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      pointer-events: none;
+      opacity: 0.04;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     }
-    nav a { color: var(--labs-text); text-decoration: none; font-family: var(--font-mono); font-size: 0.85rem; text-transform: uppercase; margin-left: 2rem; transition: color 0.3s; }
-    nav a:hover { color: var(--labs-accent); }
-    .brand { font-family: var(--font-ui); font-weight: 700; margin-left: 0; letter-spacing: -0.02em; }
 
-    /* Hero */
-    .hero {
-      min-height: 90vh; display: flex; flex-direction: column; justify-content: center; align-items: center;
-      text-align: center; padding-top: 8rem; position: relative;
+    .sky-background {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: -2;
+      overflow: hidden;
+      pointer-events: none;
     }
-    .hero-model-container {
-      width: 100%; max-width: 600px; height: 400px; margin: 0 auto 2rem;
-      display: flex; justify-content: center; align-items: center;
-      background: radial-gradient(circle, rgba(0,71,255,0.05) 0%, transparent 70%);
-    }
-    .hero h1 { font-family: var(--font-mono); font-size: clamp(3rem, 6vw, 5rem); letter-spacing: -0.05em; line-height: 1; margin-bottom: 1rem; }
-    .hero p { font-size: 1.25rem; max-width: 600px; margin: 0 auto 3rem; color: #4A4A4A; }
-    
-    .cta-group { display: flex; gap: 1rem; justify-content: center; }
-    .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
-      padding: 1rem 2rem; font-family: var(--font-mono); font-size: 0.85rem; text-transform: uppercase;
-      text-decoration: none; border: 1px solid var(--labs-text); color: var(--labs-text);
-      transition: all 0.3s ease; cursor: pointer; background: transparent;
-    }
-    .btn-primary { background: var(--labs-accent); color: #fff; border-color: var(--labs-accent); }
-    .btn-primary:hover { background: #0036CC; border-color: #0036CC; }
-    .btn:hover:not(.btn-primary) { background: var(--labs-subtle); color: var(--labs-accent); border-color: var(--labs-accent); }
 
-    /* Dashboard */
-    .dashboard { padding: 4rem 0; background: #fff; }
-    .dash-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--labs-border); border: 1px solid var(--labs-border); }
-    .dash-item { background: #fff; padding: 2rem; display: flex; flex-direction: column; justify-content: center; }
-    .dash-label { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; color: #666; margin-bottom: 0.5rem; }
-    .dash-value { font-family: var(--font-mono); font-size: 2rem; letter-spacing: -0.03em; }
-
-    /* Architecture Table */
-    .architecture h2 { font-family: var(--font-mono); font-size: 1.5rem; margin-bottom: 2rem; text-transform: uppercase; }
-    .arch-table { width: 100%; border-collapse: collapse; border: 1px solid var(--labs-border); }
-    .arch-table th, .arch-table td { padding: 1.5rem; text-align: left; border-bottom: 1px solid var(--labs-border); font-size: 0.95rem; }
-    .arch-table th { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; color: #666; font-weight: normal; }
-    .arch-table tr:last-child td { border-bottom: none; }
-    
-    .row-hover { position: relative; transition: background 0.3s; }
-    .row-hover:hover { background: var(--labs-subtle); cursor: crosshair; }
-    .row-hover:hover .compound-id { color: var(--labs-accent); }
-    
-    .compound-id { font-family: var(--font-mono); font-size: 0.85rem; color: #888; transition: color 0.3s; }
-    .compound-name { font-weight: 500; }
-    .compound-dose { font-family: var(--font-mono); }
-    
-    .biochem-detail {
-      font-size: 0.85rem; color: #666; line-height: 1.4;
-      max-height: 0; overflow: hidden; opacity: 0; transition: all 0.3s;
+    .orb {
+      position: absolute;
+      width: 60vw; height: 60vw;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.15;
+      animation: orb-float 20s infinite alternate;
     }
-    .row-hover:hover .biochem-detail { max-height: 100px; opacity: 1; margin-top: 0.5rem; }
 
-    /* Safety */
-    .safety { background: var(--labs-text); color: #fff; border: none; }
-    .safety-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
-    .safety h2 { font-size: 3rem; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 2rem; }
-    .safety p { font-size: 1.1rem; color: #A0A0A0; margin-bottom: 2rem; }
-    .coa-card { background: #111; border: 1px solid #333; padding: 2rem; }
-    .coa-header { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 1rem; margin-bottom: 1rem; color: #888; }
-
-    footer { padding: 4rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.75rem; color: #666; }
-    footer a { color: var(--labs-text); margin: 0 1rem; text-decoration: none; }
-    footer a:hover { color: var(--labs-accent); }
-
-    @media (max-width: 900px) {
-      .dash-grid { grid-template-columns: repeat(2, 1fr); }
-      .safety-grid { grid-template-columns: 1fr; }
+    .orb-1 {
+      background: var(--tan);
+      top: -10%; right: -10%;
     }
-    @media (max-width: 600px) {
-      .dash-grid { grid-template-columns: 1fr; }
-      nav div { display: none; }
-      .arch-table th, .arch-table td { padding: 1rem; }
-      .arch-table th:nth-child(4), .arch-table td:nth-child(4) { display: none; }
+
+    .orb-2 {
+      background: var(--cobalt);
+      bottom: -10%; left: -10%;
+      animation-delay: -5s;
     }
-  </style>
+
+    @keyframes orb-float {
+      0% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(10vw, 15vh) scale(1.1); }
+      100% { transform: translate(-5vw, -10vh) scale(0.9); }
+    }
+
+    /* ═══════════════════════════════════════════════
+       UNIFIED HEADER
+    ═══════════════════════════════════════════════ */
+    #header {
+      position: fixed;
+      top: 0; left: 0; width: 100%;
+      height: 70px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 5%;
+      z-index: 1000;
+      background: transparent;
+      border-bottom: 1px solid transparent;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #header.scrolled {
+      height: 60px;
+      background: var(--nav-bg);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-left, .header-right {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    .header-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+      opacity: 0.5;
+    }
+
+    .session-badge {
+      font-family: var(--font-mono);
+      font-size: .6rem;
+      color: var(--text2);
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+
+    .nav-logo {
+      width: 110px;
+      transition: filter 0.5s, transform 0.3s;
+    }
+    .nav-logo:hover { transform: scale(1.02); }
+    body.dark-theme .nav-logo { filter: invert(1); }
+
+    .nav-links {
+      list-style: none;
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
+
+    .nav-links a {
+      font-family: var(--font-mono);
+      font-size: .65rem;
+      text-transform: uppercase;
+      letter-spacing: .15em;
+      color: var(--text);
+      text-decoration: none;
+      opacity: 0.6;
+      transition: all 0.3s;
+    }
+
+    .nav-links a:hover { opacity: 1; }
+    .nav-links a.active { opacity: 1; color: var(--accent); }
+
+    .theme-toggle {
+      background: transparent; border: 1px solid var(--border); color: var(--text);
+      padding: 0.5rem 1.2rem; border-radius: 100px; cursor: pointer;
+      font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em;
+      transition: all 0.3s;
+    }
+    .theme-toggle:hover { border-color: var(--text); background: rgba(0,0,0,0.05); }
+
+        /* Hero */
+        .hero {
+            min-height: 90vh; display: grid; grid-template-columns: 1.2fr 0.8fr; align-items: center;
+            padding: 10vh 10%; border-bottom: 1px solid var(--border);
+        }
+        .hero-title { font-family: var(--font-mono); font-size: clamp(3rem, 7vw, 5.5rem); letter-spacing: -0.05em; line-height: 0.9; margin-bottom: 2rem; }
+        .hero-text { font-size: 1.2rem; color: var(--text-sub); max-width: 600px; margin-bottom: 3rem; }
+        .hero-img { width: 100%; transform: scale(1.2); }
+
+        /* Dashboard */
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--border); }
+        .stat-item { padding: 3rem; border-right: 1px solid var(--border); }
+        .stat-item:last-child { border-right: none; }
+        .stat-label { font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; color: var(--text-sub); margin-bottom: 1rem; }
+        .stat-value { font-family: var(--font-mono); font-size: 2.2rem; font-weight: 700; color: var(--accent); }
+
+        /* Compounds Section */
+        .compounds { padding: 10vh 10%; }
+        .section-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 5vh; border-bottom: 1px solid var(--border); padding-bottom: 2rem; }
+        .section-title { font-family: var(--font-display); font-size: 3rem; }
+        
+        .comp-table { width: 100%; border-collapse: collapse; }
+        .comp-row { border-bottom: 1px solid var(--border); transition: background 0.3s; cursor: pointer; }
+        .comp-row:hover { background: var(--bg2); }
+        .comp-cell { padding: 2.5rem 1.5rem; }
+        .comp-id { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-sub); }
+        .comp-name { font-size: 1.4rem; font-weight: 600; }
+        .comp-dose { font-family: var(--font-mono); color: var(--accent); font-weight: 700; }
+        
+        .comp-desc { max-height: 0; overflow: hidden; transition: all 0.5s ease; font-size: 0.95rem; color: var(--text-sub); }
+        .comp-row:hover .comp-desc { max-height: 100px; padding-top: 1rem; }
+
+        /* Safety */
+        .safety { background: var(--text); color: var(--bg); padding: 10vh 10%; display: grid; grid-template-columns: 1fr 1fr; gap: 5vw; align-items: center; }
+        .safety-title { font-family: var(--font-display); font-size: 3.5rem; line-height: 1; margin-bottom: 2rem; }
+        .coa-box { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 3rem; font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.8; }
+
+        footer { padding: 5rem 10%; border-top: 1px solid var(--border); text-align: center; }
+        .footer-links { display: flex; justify-content: center; gap: 3rem; margin-bottom: 2rem; }
+        .footer-links a { font-family: var(--font-mono); color: var(--text); text-decoration: none; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.6; }
+
+        @media (max-width: 900px) {
+            .hero, .stats, .safety { grid-template-columns: 1fr; }
+            .stat-item { border-right: none; border-bottom: 1px solid var(--border); }
+            nav { padding: 1.5rem 2rem; }
+        }
+    </style>
 </head>
 <body>
 
-  <nav>
-    <a href="index.html" class="brand">Pronoia Labs</a>
-    <div>
-      <a href="#dashboard">Data</a>
-      <a href="#architecture">Architecture</a>
-      <a href="#safety">Safety</a>
-      <a href="protocol.html">Protocol</a>
+    <div class="sky-background">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
     </div>
-  </nav>
 
-  <section class="hero">
-    <div class="container">
-      <div class="hero-model-container">
-        <!-- ASSET: PX-V1_3D.glb (3D pill bottle, frosted glass, slow rotate) -->
-        <div class="mono muted" style="font-size: 0.85rem;">[ 3D MODEL PLACEHOLDER: PX-V1.GLB ]</div>
-      </div>
-      <h1>PX-V1</h1>
-      <p>Synergetische Matrix aus Bromantane, Creatin, Taurin und Magnesiumglycinat. Verstärker. Keine Krücke.</p>
-      <div class="cta-group">
-        <a href="protocol.html" class="btn btn-primary">Protokoll Starten</a>
-        <a href="#" class="btn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
-          Batch #001 PDF
-        </a>
-      </div>
-    </div>
-  </section>
+    <div id="pronoia-nav-container"></div>
 
-  <section id="dashboard" class="dashboard">
-    <div class="container">
-      <div class="dash-grid">
-        <div class="dash-item">
-          <div class="dash-label">Batch ID</div>
-          <div class="dash-value">#001</div>
+    <section class="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">PX-V1<br>ARCHITECTURE</h1>
+            <p class="hero-text">Synergetische Matrix aus Bromantane, Creatin, Taurin und Magnesiumglycinat. Ein biologisches Upgrade, keine Krücke.</p>
+            <a href="protocol.html" style="font-family: var(--font-mono); text-decoration:none; color:var(--accent); font-weight:700; letter-spacing:0.1em;">INITIATE PROTOCOL _</a>
         </div>
-        <div class="dash-item">
-          <div class="dash-label">Available Units</div>
-          <div class="dash-value">47<span style="color:#A0A0A0">/100</span></div>
+        <div class="hero-visual">
+            <img src="labs_molecular_architecture_1778170550836.png" alt="Molecular Architecture" class="hero-img">
         </div>
-        <div class="dash-item">
-          <div class="dash-label">Purity (CoA)</div>
-          <div class="dash-value accent">99.8%</div>
-        </div>
-        <div class="dash-item">
-          <div class="dash-label">Latency Gain</div>
-          <div class="dash-value">2.8ms</div>
-        </div>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <section id="architecture" class="architecture">
-    <div class="container">
-      <h2>Molecular Architecture</h2>
-      <table class="arch-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Compound</th>
-            <th>Dose</th>
-            <th>Function / Protocol Focus</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr class="row-hover">
-            <td class="compound-id">C01</td>
-            <td class="compound-name">Creatin Monohydrat</td>
-            <td class="compound-dose">5.00g</td>
-            <td>
-              Zelluläre ATP-Regeneration
-              <div class="biochem-detail">Erhöht den zellulären Energie-Output und reduziert mentale Erschöpfung während tiefen Fokus-Blöcken.</div>
-            </td>
-          </tr>
-          <tr class="row-hover">
-            <td class="compound-id">C02</td>
-            <td class="compound-name">Taurin</td>
-            <td class="compound-dose">2.00g</td>
-            <td>
-              Zellvoluminisierung & ZNS-Beruhigung
-              <div class="biochem-detail">Wirkt osmoregulatorisch und moduliert GABA-Rezeptoren, verhindert Überreizung.</div>
-            </td>
-          </tr>
-          <tr class="row-hover">
-            <td class="compound-id">C03</td>
-            <td class="compound-name">Glycin</td>
-            <td class="compound-dose">3.00g</td>
-            <td>
-              Neuro-Inhibitorische Balance
-              <div class="biochem-detail">Senkt die Körperkerntemperatur und unterstützt tiefe Schlafphasen nach intensiven Stimulationen.</div>
-            </td>
-          </tr>
-          <tr class="row-hover">
-            <td class="compound-id">C04</td>
-            <td class="compound-name">Magnesiumglycinat</td>
-            <td class="compound-dose">400mg</td>
-            <td>
-              Muskuläre Relaxation
-              <div class="biochem-detail">Höchste Bioverfügbarkeit zur Regulation des Cortisolspiegels und zellulären Enzymaktivität.</div>
-            </td>
-          </tr>
-          <tr class="row-hover">
-            <td class="compound-id">C05</td>
-            <td class="compound-name">Bromantane</td>
-            <td class="compound-dose">50mg</td>
-            <td>
-              Dopamin-Synthese-Upregulation
-              <div class="biochem-detail">Steigert die Tyrosinhydroxylase, erhöht die intrinsische Motivation ohne adrenergen Crash.</div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section id="safety" class="safety">
-    <div class="container safety-grid">
-      <div>
-        <h2>The grey market doesn't have to be grey.</h2>
-        <p>Bromantane works. The problem is you never know what you're actually getting. Pronoia Labs publishes the Certificate of Analysis for every batch, before you order. If it's not tested, it's not in our protocol.</p>
-        <a href="#" class="btn btn-primary" style="background:#fff; color:#000; border-color:#fff;">View Certificates</a>
-      </div>
-      <div class="coa-card">
-        <div class="coa-header">
-          <span>REPORT: 2026-B001</span>
-          <span class="accent">VERIFIED</span>
+    <section class="stats">
+        <div class="stat-item">
+            <div class="stat-label">Batch ID</div>
+            <div class="stat-value">#001</div>
         </div>
-        <div class="mono" style="font-size:0.85rem; color:#A0A0A0; line-height:1.6;">
-          > Spectrometry Analysis: COMPLETE<br>
-          > Heavy Metals: UNDETECTED<br>
-          > Target Compound (Bromantane): 99.82%<br>
-          <br>
-          <span style="color:#fff;">STATUS: CLEARED FOR PROTOCOL INTEGRATION.</span>
+        <div class="stat-item">
+            <div class="stat-label">Purity Index</div>
+            <div class="stat-value">99.8%</div>
         </div>
-      </div>
-    </div>
-  </section>
+        <div class="stat-item">
+            <div class="stat-label">Neuro-Latency</div>
+            <div class="stat-value">-2.8ms</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">Stock Status</div>
+            <div class="stat-value">ACTIVE</div>
+        </div>
+    </section>
 
-  <footer>
-    <div class="container">
-      <div style="margin-bottom:1rem;">
-        <a href="index.html">Core</a>
-        <a href="health.html">Health</a>
-        <a href="protocol.html">Protocol</a>
-      </div>
-      &copy; 2026 Pronoia Labs. Built for execution.
-    </div>
-  </footer>
+    <section class="compounds">
+        <div class="section-header">
+            <h2 class="section-title">Molecular Matrix</h2>
+            <span style="font-family: var(--font-mono); font-size:0.7rem; opacity:0.4;">PX-V1_COMPOUND_LIST.PDF</span>
+        </div>
+        <div class="comp-table">
+            <div class="comp-row">
+                <div class="comp-cell">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="comp-id">C01</span>
+                        <span class="comp-name">Creatin Monohydrat</span>
+                        <span class="comp-dose">5.00g</span>
+                    </div>
+                    <div class="comp-desc">Zelluläre ATP-Regeneration. Erhöht den zellulären Energie-Output während tiefen Fokus-Blöcken.</div>
+                </div>
+            </div>
+            <div class="comp-row">
+                <div class="comp-cell">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="comp-id">C02</span>
+                        <span class="comp-name">Taurin</span>
+                        <span class="comp-dose">2.00g</span>
+                    </div>
+                    <div class="comp-desc">ZNS-Beruhigung. Moduliert GABA-Rezeptoren und verhindert Überreizung durch Stimulation.</div>
+                </div>
+            </div>
+            <div class="comp-row">
+                <div class="comp-cell">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="comp-id">C03</span>
+                        <span class="comp-name">Bromantane</span>
+                        <span class="comp-dose">50mg</span>
+                    </div>
+                    <div class="comp-desc">Dopamin-Synthese-Upregulation. Steigert die intrinsische Motivation ohne adrenergen Crash.</div>
+                </div>
+            </div>
+            <div class="comp-row">
+                <div class="comp-cell">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="comp-id">C04</span>
+                        <span class="comp-name">Magnesiumglycinat</span>
+                        <span class="comp-dose">400mg</span>
+                    </div>
+                    <div class="comp-desc">Regulation des Cortisolspiegels und Unterstützung der muskulären Relaxation.</div>
+                </div>
+            </div>
+        </div>
+    </section>
 
+    <section class="safety">
+        <div>
+            <h2 class="safety-title">The grey market doesn't have to be grey.</h2>
+            <p style="opacity:0.6; margin-bottom:2rem; font-size:1.1rem;">Wir veröffentlichen das Certificate of Analysis für jede Charge. Wenn es nicht getestet ist, ist es nicht in unserem System.</p>
+            <button class="theme-toggle" style="border-color:rgba(255,255,255,0.3); color:#fff;">View Certificates</button>
+        </div>
+        <div class="coa-box">
+            <span style="color:var(--accent)">> REPORT: 2026-B001</span><br>
+            > SPECTROMETRY: COMPLETE<br>
+            > HEAVY METALS: UNDETECTED<br>
+            > PURITY: 99.82%<br><br>
+            <span style="background:var(--accent); color:#fff; padding:0.2rem 0.5rem;">STATUS: VERIFIED</span>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-links">
+            <a href="index.html">Core</a>
+            <a href="health.html">Health</a>
+            <a href="protocol.html">Protocol</a>
+            <a href="vault.html">Vault</a>
+        </div>
+        <div style="font-family:var(--font-mono); font-size:0.7rem; opacity:0.4;">&copy; 2026 PRONOIA LABS. BUILT FOR EXECUTION.</div>
+    </footer>
+
+    <script>
+        gsap.registerPlugin(ScrollTrigger);
+
+
+
+        // Reveal Animations
+        gsap.from(".hero-title", { duration: 1.5, y: 50, opacity: 0, ease: "power4.out" });
+        gsap.from(".hero-text", { duration: 1.5, y: 30, opacity: 0, delay: 0.3, ease: "power4.out" });
+        gsap.from(".hero-visual", { duration: 2, scale: 0.95, opacity: 0, delay: 0.5, ease: "power4.out" });
+
+        gsap.from(".stat-item", {
+            scrollTrigger: {
+              trigger: ".stats",
+              start: "top 80%"
+            },
+            duration: 1,
+            y: 30,
+            opacity: 0,
+            stagger: 0.2,
+            ease: "power2.out"
+        });
+
+        gsap.from(".comp-row", {
+            scrollTrigger: {
+              trigger: ".compounds",
+              start: "top 80%"
+            },
+            duration: 0.8,
+            opacity: 0,
+            x: -20,
+            stagger: 0.1,
+            ease: "power2.out"
+        });
+    </script>
+    <script src="core.js"></script>
 </body>
 </html>
