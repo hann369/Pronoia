@@ -407,13 +407,18 @@
           <option value="note">Text / Note</option>
           <option value="link">Web Link</option>
           <option value="youtube">YouTube Video</option>
+          <option value="file">Local File</option>
         </select>
+      </div>
+      <div id="file-input-group" class="form-group" style="display: none;">
+        <label class="form-label">Upload File</label>
+        <input type="file" id="itemFile" class="form-input">
       </div>
       <div class="form-group">
         <label class="form-label">Title</label>
         <input type="text" id="itemTitle" class="form-input" placeholder="Give this context a name">
       </div>
-      <div class="form-group">
+      <div id="content-input-group" class="form-group">
         <label class="form-label">Content / URL</label>
         <textarea id="itemContent" class="form-input" placeholder="Paste your link, thoughts, or raw text..."></textarea>
       </div>
@@ -462,6 +467,25 @@
       document.getElementById('itemTitle').focus();
     });
 
+    document.getElementById('itemType').addEventListener('change', (e) => {
+      const isFile = e.target.value === 'file';
+      document.getElementById('file-input-group').style.display = isFile ? 'block' : 'none';
+      document.getElementById('content-input-group').style.display = isFile ? 'none' : 'block';
+      
+      if (isFile) {
+        document.getElementById('itemTitle').placeholder = 'Filename (Auto-filled)';
+      } else {
+        document.getElementById('itemTitle').placeholder = 'Give this context a name';
+      }
+    });
+
+    document.getElementById('itemFile').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        document.getElementById('itemTitle').value = file.name;
+      }
+    });
+
     // Drag and drop
     ingestZone.addEventListener('dragover', (e) => { e.preventDefault(); ingestZone.classList.add('dragover'); });
     ingestZone.addEventListener('dragleave', () => ingestZone.classList.remove('dragover'));
@@ -488,20 +512,44 @@
     saveItemBtn.addEventListener('click', async () => {
       const type = document.getElementById('itemType').value;
       const title = document.getElementById('itemTitle').value.trim();
-      const content = document.getElementById('itemContent').value.trim();
+      const contentInput = document.getElementById('itemContent').value.trim();
       const tagsRaw = document.getElementById('itemTags').value.trim();
       const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+      const fileInput = document.getElementById('itemFile');
 
-      if (!title || !content) { showToast('Please provide a title and content.', 'error'); return; }
+      if (!title || (type !== 'file' && !contentInput)) { 
+        showToast('Please provide a title and content.', 'error'); 
+        return; 
+      }
 
       saveItemBtn.textContent = 'Ingesting...';
       saveItemBtn.disabled = true;
 
-      const url = (type === 'link' || type === 'youtube') ? content : null;
+      let finalContent = contentInput;
+      let url = (type === 'link' || type === 'youtube') ? contentInput : null;
+
+      if (type === 'file' && fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        // Read file as text if it's a text file, else as data URL
+        const isText = file.type.startsWith('text/') || file.name.endsWith('.md') || file.name.endsWith('.js') || file.name.endsWith('.html');
+        
+        const fileContent = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          if (isText) reader.readAsText(file);
+          else reader.readAsDataURL(file);
+        });
+        
+        finalContent = fileContent;
+        if (finalContent.length > 50000) {
+          showToast('File too large. Truncating to 50KB.', 'error');
+          finalContent = finalContent.substring(0, 50000);
+        }
+      }
 
       const { data, error } = await sb
         .from('vault_items')
-        .insert([{ user_id: MOCK_USER_ID, type, title, content, url, tags }])
+        .insert([{ user_id: MOCK_USER_ID, type, title, content: finalContent, url, tags }])
         .select();
 
       if (error) {

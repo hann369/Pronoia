@@ -2319,6 +2319,8 @@
             <div style="display: flex; flex-direction: column; gap: .75rem;">
               <button class="auth-btn" style="width: 100%; padding: .8rem; background: var(--bg-card); border: 1px solid var(--border); color: var(--text2); font-size: .65rem;"
                 onclick="Agent.openStackEditor()">Manage Bio-Stack</button>
+              <button class="auth-btn" style="width: 100%; padding: .8rem; background: rgba(0,196,140,0.1); border: 1px solid var(--green); color: var(--green); font-size: .65rem;"
+                onclick="Agent.simulateDrink()">Simulate IoT Bottle Sip</button>
               <button class="auth-btn" style="width: 100%; padding: 1rem; background: var(--cobalt-bright); border: none; color: white; font-weight: 600;"
                 onclick="Agent.saveProfile()">Update Profile & Sync</button>
             </div>
@@ -2771,6 +2773,17 @@
     // ── AGENT CORE ────────────────────────────────────
     class PronoiaAgent {
       constructor() {
+        this.isRunning = false;
+        this.blockIdx = 0;
+        this.timeLeft = 0;
+        this.totalTime = 0;
+        this.interval = null;
+        this.notified50 = false;
+        this.notified5m = false;
+        this.focusMode = false;
+        this.timeOffset = parseFloat(localStorage.getItem('px_time_offset') || '0');
+        this.pauseStartTime = localStorage.getItem('px_pause_start_time') ? parseInt(localStorage.getItem('px_pause_start_time')) : null;
+
         this.pillarColors = {
           focus: '#1A6AFF',
           health: '#00C48C',
@@ -2784,18 +2797,11 @@
           { name: 'Magnesium Glycinate', dose: '400mg', timing: 'evening', supply: 100 },
         ];
         
-        this.timeLeft = 0;
-        this.totalTime = 0;
-        this.isRunning = false;
-        this.focusMode = false;
-        this.interval = null;
-        this.notified50 = false;
-        this.notified5m = false;
-        this.sessionID = '';
         this.log = [];
         this.obState = { goals: '', hrv: 0, sleep: 0, energy: 7, mood: 'focused', caffeine: 'none', training: 'none' };
         this.directives = [];
-        this.profile = { 
+        this.profile = JSON.parse(localStorage.getItem('px_profile')) || { 
+          name: 'Explorer',
           goals: '', 
           skill: '', 
           skillLevel: 1, 
@@ -2815,13 +2821,41 @@
         this.calendar = JSON.parse(localStorage.getItem('px_calendar')) || {}; // { "YYYY-MM-DD": { blocks: [...] } }
 
         this.sessionID = localStorage.getItem('px_session') || '';
-        this.profile = JSON.parse(localStorage.getItem('px_profile')) || this.profile;
         this.env = JSON.parse(localStorage.getItem('px_env')) || this.env;
         this.sources = [];
-        this.blocks = []; // Initialize blocks to prevent undefined errors in syncTimerToRealTime
+        this.blocks = []; 
+
+        this.hydrationLevel = 100;
+        this._hydWarned = false;
 
         this.startClock();
-        this.getEnvironment(); // Fetch weather on init
+        this.getEnvironment(); 
+        this.fetchSources(); // Unify with Vault
+        this.initIoT();
+      }
+
+      initIoT() {
+        // Simuliert einen Hintergrund-Listener für die physische Pronoia Wasserflasche
+        setInterval(() => {
+          // Natürlicher Hydrationsverlust über Zeit (simuliert)
+          if (this.isRunning) {
+            this.hydrationLevel = Math.max(0, this.hydrationLevel - 0.02);
+            
+            if (this.hydrationLevel < 40 && !this._hydWarned) {
+              this._hydWarned = true;
+              this.setAgentMsg("Hydration kritisch (< 40%). Bitte 250ml Wasser trinken für kognitive Stabilität.");
+              this.triggerToast("IoT Bottle Event", "Hydration sinkt unter Schwellenwert.", false, null);
+            }
+          }
+        }, 3000);
+      }
+
+      simulateDrink() {
+        this.hydrationLevel = Math.min(100, this.hydrationLevel + 20);
+        this._hydWarned = false;
+        this.setAgentMsg("IoT Bottle: Flüssigkeitsaufnahme erkannt (+200ml). Baseline korrigiert.");
+        this.triggerToast("IoT Sync", "Flaschengewicht reduziert (-200g). Hydration steigt.", false, null);
+        this.updateDisplay();
       }
 
       startClock() {
@@ -2837,11 +2871,9 @@
             envTimeEl.textContent = `System Time: ${timeStr}`;
           }
 
-          // Sync work blocks with real-time clock even if timer is paused
           if (!this.isRunning) {
             this.syncTimerToRealTime();
             this.updateDisplay();
-            // Only re-render if block changed to avoid flicker
             if (this._lastSyncedIdx !== this.blockIdx) {
               this._lastSyncedIdx = this.blockIdx;
               this.renderUI();
@@ -2850,12 +2882,59 @@
         }, 1000);
       }
 
+      syncTimerToRealTime() {
+        // If paused, we don't sync to the moving clock, we stay at the paused time
+        if (this.pauseStartTime) {
+            return;
+        }
+
+        const now = new Date(Date.now() - (this.timeOffset * 1000));
+        const nowSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+        
+        let foundIdx = -1;
+        let foundTimeLeft = 0;
+        
+        for (let i = 0; i < this.blocks.length; i++) {
+          const b = this.blocks[i];
+          if (!b.startTime) continue;
+          
+          const [h, m] = b.startTime.split(':').map(Number);
+          const startSeconds = h * 3600 + m * 60;
+          const endSeconds = startSeconds + b.duration;
+          
+          if (nowSeconds >= startSeconds && nowSeconds < endSeconds) {
+            foundIdx = i;
+            foundTimeLeft = endSeconds - nowSeconds;
+            break;
+          } else if (nowSeconds < startSeconds) {
+            if (foundIdx === -1) {
+              foundIdx = i;
+              foundTimeLeft = b.duration;
+            }
+          }
+        }
+        
+        if (foundIdx !== -1) {
+          this.blockIdx = foundIdx;
+          this.timeLeft = Math.max(0, foundTimeLeft);
+          this.totalTime = this.blocks[this.blockIdx].duration;
+          
+          for (let i = 0; i < foundIdx; i++) {
+            this.blocks[i].done = true;
+          }
+        } else {
+          this.blockIdx = this.blocks.length > 0 ? this.blocks.length - 1 : 0;
+          this.timeLeft = 0;
+          this.totalTime = this.blocks.length > 0 ? this.blocks[this.blockIdx].duration : 0;
+          if (this.blocks.length > 0) this.blocks.forEach(b => b.done = true);
+        }
+      }
+
       // ── UTILITIES ────────────────────────────────────
       repairAndParseJSON(str) {
         let cleaned = str.replace(/```json|```/g, '').trim();
         try { return JSON.parse(cleaned); } catch(e) {}
         
-        // Try common trailing truncations
         const closures = [
           '"]}', '"}', ']', '}', 
           '""}]}}', '""}]}', '"]}}', '"}}', '}}',
@@ -2866,12 +2945,11 @@
           try { return JSON.parse(cleaned + c); } catch(e) {}
         }
         
-        // If it still fails, try to strip everything after the last valid "}" and close the array/object
         try {
           const lastValidBrace = cleaned.lastIndexOf('}');
           if (lastValidBrace > 0) {
              const stripped = cleaned.substring(0, lastValidBrace + 1);
-             return JSON.parse(stripped + ']}'); // For DayAI structure
+             return JSON.parse(stripped + ']}'); 
           }
         } catch(e) {}
         
@@ -2899,7 +2977,6 @@
           };
           
           if (file.type.match('image.*')) {
-            // Future: Image analysis
             this.setAgentMsg(`BILD-DATEN ERKANNT. OCR-MODUL NOCH NICHT AKTIV.`);
           } else {
             reader.readAsText(file);
@@ -2944,10 +3021,8 @@
         const firstDay = new Date(year, month, 1);
         const lastDay = new Date(year, month + 1, 0);
         
-        // Adjust for Monday start (JS 0=Sun, 1=Mon)
         let startIdx = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
         
-        // Previous month padding
         const prevLastDay = new Date(year, month, 0).getDate();
         for (let i = startIdx - 1; i >= 0; i--) {
           const div = document.createElement('div');
@@ -2959,7 +3034,6 @@
         const today = new Date();
         const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-        // Current month days
         for (let d = 1; d <= lastDay.getDate(); d++) {
           const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
           const div = document.createElement('div');
@@ -2969,7 +3043,6 @@
           if (dateStr === this.formatDate(this.selectedDate)) div.classList.add('active');
           
           div.textContent = d;
-          // Show summary if blocks exist
           if (this.calendar[dateStr] && this.calendar[dateStr].blocks) {
             const sum = document.createElement('div');
             sum.className = 'dim';
@@ -2983,7 +3056,6 @@
           grid.appendChild(div);
         }
 
-        // Next month padding
         const totalCells = grid.children.length;
         const nextPadding = 42 - totalCells;
         for (let i = 1; i <= nextPadding; i++) {
@@ -3136,7 +3208,6 @@
         
         let modal = document.getElementById('skill-lab-modal');
         if (!modal) {
-          // Fallback if modal isn't in DOM
           this.triggerToast('System Fehler', 'Skill Lab UI nicht gefunden.', true, null);
           return;
         }
@@ -3169,7 +3240,6 @@
         try {
           const res = await MistralService.chat(prompt, "Du bist der Skill Lab Coach. Antworte in klarem, motivierendem Deutsch. Gib nur valides HTML zurück, keine Markdown Blocks.");
           
-          // Clean the response if it has markdown formatting
           const cleanHtml = res.replace(/```html|```/g, '').trim();
           if (contentEl) contentEl.innerHTML = cleanHtml;
         } catch (e) {
@@ -3228,7 +3298,6 @@
         for (let i = 1; i <= daysInMonth; i++) {
           const d = new Date(year, month, i);
           const dateStr = this.formatDate(d);
-          // don't generate for past days if we don't want to, but for now just missing days
           if (!this.calendar[dateStr]) {
             missingDays.push(dateStr);
           }
@@ -3240,7 +3309,7 @@
           return;
         }
 
-        const chunk = missingDays.slice(0, 2); // generate 2 days at a time to prevent token limits
+        const chunk = missingDays.slice(0, 2);
         const prompt = `
           Dates to generate: ${chunk.join(', ')}
           Goals: ${this.profile.goals || 'Maximale Produktivität und Gesundheit'}
@@ -3253,13 +3322,10 @@
         try {
           const res = await MistralService.chat(prompt, "Du bist der Pronoia Engine. Gib NUR valides JSON zurück.");
           
-          // Use repair JSON logic, but since it's a map of dates, the stripping might fail or we might just use the native object
-          // Since generateMonthAI maps { "DATE": { ... } }, if it truncates, repairAndParseJSON might just close it like }}}}
           let data;
           try {
              data = this.repairAndParseJSON(res);
           } catch(e) {
-             // For MonthAI, we can try to find valid date objects manually if standard repair fails
              console.warn("Month AI fallback repair");
              data = {};
           }
@@ -3290,7 +3356,6 @@
           console.warn("[Pronoia] Environment Fetch: Detected file:// protocol. Weather/GPS might be restricted.");
         }
 
-        // Try GPS first
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             async (pos) => {
@@ -3299,11 +3364,10 @@
               await this.fetchWeather(`${this.env.lat},${this.env.lon}`, el);
             },
             async (err) => {
-              // Silence timeout warnings as they are common in local dev
               if (err.code !== 3) console.warn("GPS Access Denied/Error:", err.message);
-              await this.fetchWeather("", el); // Fallback to IP
+              await this.fetchWeather("", el);
             },
-            { timeout: 8000, enableHighAccuracy: false } // Longer timeout, less aggressive accuracy
+            { timeout: 8000, enableHighAccuracy: false }
           );
         } else {
           await this.fetchWeather("", el);
@@ -3312,7 +3376,6 @@
 
       async fetchWeather(loc, el) {
         try {
-          // If we are on file://, fetch might be blocked. Try to handle it.
           const res = await fetch(`https://wttr.in/${loc}?format=j1`).catch(e => {
             throw new Error("Network blocked or CORS issue");
           });
@@ -3341,7 +3404,6 @@
           localStorage.setItem('px_env', JSON.stringify(this.env));
         } catch (err) {
           console.warn("Weather Fetch Handled:", err.message);
-          // Set static defaults to avoid "offline" feel
           this.env.city = this.env.city === 'Unknown' ? 'Global' : this.env.city;
           if (el) {
              el.innerHTML = `
@@ -3365,7 +3427,7 @@
         localStorage.setItem('px_profile', JSON.stringify(this.profile));
         this.syncProfile();
         this.renderUI();
-        this.renderDayDetail(); // Update XP bar in personal tab if needed
+        this.renderDayDetail(); 
         this.triggerToast('Profile Saved', 'Biometrie analysiert und gesichert.', false, null);
         this.generateDirective('PROFILE_UPDATE', 'User hat Metriken aktualisiert. Bereitschaft berechnet.');
       }
@@ -3375,7 +3437,6 @@
         const sleep = this.profile.metrics.sleep || 75;
         const energy = this.profile.energy || 7;
         
-        // Simple weighted score
         let score = (hrv * 0.4) + (sleep * 0.4) + (energy * 2);
         this.readiness = Math.min(100, Math.round(score));
         
@@ -3393,7 +3454,7 @@
         
         if (score < 45) {
           this.triggerToast('Bio-Alert', 'Niedrige Bereitschaft erkannt. Recovery-Protokoll empfohlen.', true, null);
-          return 'evening_wind_down'; // Use a lighter template
+          return 'evening_wind_down';
         }
         
         if (score > 85 && (hour >= 6 && hour < 12)) {
@@ -3426,7 +3487,6 @@
         }, 1500);
       }
 
-      // ── AGENT MESSAGING ────────────────────────────
       setAgentMsg(msg, isThinking = false) {
         const el = document.getElementById('agent-msg');
         if (el) el.textContent = msg;
@@ -3477,7 +3537,6 @@
           this.totalTime = this.timeLeft;
 
           this.renderResultBlocks();
-          // Persist the profile data captured during onboarding
           localStorage.setItem('px_profile', JSON.stringify(this.profile));
         } catch (err) {
           console.error("AI Protocol Error:", err);
@@ -3525,7 +3584,6 @@
       async loadState() {
         if (typeof firebase === 'undefined' || !firebase.auth().currentUser) return;
         const uid = firebase.auth().currentUser.uid;
-        console.log("[Pronoia] Loading User Data...");
         const doc = await firebase.firestore().collection('users').doc(uid).get();
         if (doc.exists) {
           const data = doc.data();
@@ -3535,7 +3593,6 @@
           this.profile = data.profile || this.profile;
           this.stack = data.stack || this.stack;
           
-          // Sync UI fields
           if (document.getElementById('profile-goals')) {
             document.getElementById('profile-goals').value = this.profile.goals || '';
             document.getElementById('metric-hrv').value = this.profile.metrics?.hrv || '';
@@ -3544,7 +3601,6 @@
             document.getElementById('profile-skill-level').value = this.profile.skillLevel || 1;
           }
 
-          // Trigger environment render if we have data
           if (this.env && this.env.city !== 'Unknown') {
             const el = document.getElementById('env-context');
             if (el) el.innerHTML = `
@@ -3555,7 +3611,6 @@
             `;
           }
 
-          // Only load protocol if not already loaded
           if (this.blocks.length === 0) {
             const savedBlocks = localStorage.getItem('px_blocks');
             if (savedBlocks) {
@@ -3649,7 +3704,6 @@
         });
       }
 
-      // ── STACK EDITOR LOGIC ────────────────────────
       openStackEditor() {
         const modal = document.getElementById('stack-editor');
         if (modal) {
@@ -3719,10 +3773,7 @@
           sourceBlocks = JSON.parse(JSON.stringify(PROTOCOL_TEMPLATES[templateKey] || PROTOCOL_TEMPLATES.optimal_deepwork));
         }
         
-        // If template blocks lack startTime, assign them starting from the current hour or a default
         let currentTime = new Date();
-        // If we are loading a template, we might want to start from the beginning of the day or from "now"
-        // Let's start from the beginning of the current hour for better alignment
         currentTime.setMinutes(0, 0, 0);
 
         this.blocks = sourceBlocks.map((b, i) => {
@@ -3790,25 +3841,41 @@
 
       start() {
         if (this.blockIdx >= this.blocks.length) return;
+        
+        // Resume from pause if needed
+        if (this.pauseStartTime) {
+            const pausedDuration = (Date.now() - this.pauseStartTime) / 1000;
+            this.timeOffset += pausedDuration;
+            this.pauseStartTime = null;
+            localStorage.setItem('px_time_offset', this.timeOffset);
+            localStorage.removeItem('px_pause_start_time');
+        }
+
         this.isRunning = true;
         document.getElementById('btn-toggle').textContent = 'Pause';
         document.getElementById('btn-toggle').classList.remove('btn-primary');
         document.getElementById('timer-display').classList.remove('paused');
-        document.getElementById('timer-sub').textContent = 'Läuft';
+        document.getElementById('timer-sub').textContent = this.timeOffset > 60 ? 'Offset Aktiv' : 'Läuft';
         document.getElementById('agent-thinking').style.display = 'flex';
+        
+        if (this.interval) clearInterval(this.interval);
         this.interval = setInterval(() => this.tick(), 1000);
       }
 
       pause() {
         this.isRunning = false;
         clearInterval(this.interval);
+        
+        this.pauseStartTime = Date.now();
+        localStorage.setItem('px_pause_start_time', this.pauseStartTime);
+
         document.getElementById('btn-toggle').textContent = 'Fortsetzen';
         document.getElementById('btn-toggle').classList.add('btn-primary');
         document.getElementById('timer-display').classList.add('paused');
         document.getElementById('timer-sub').textContent = 'Pausiert';
         document.getElementById('agent-thinking').style.display = 'none';
         localStorage.setItem('px_time_left', this.timeLeft);
-        this.setAgentMsg('Block pausiert. Tippe "weiter" oder klicke Fortsetzen.');
+        this.setAgentMsg('Protokoll angehalten. Zeit-Offset wird akkumuliert.');
       }
 
       toggleTimer() {
@@ -3863,16 +3930,15 @@
         const prog = 1 - (this.timeLeft / this.totalTime);
         const pillar = current.pillar || current.type?.toLowerCase() || 'focus';
         
-        let targetCog = 20, targetHyd = 100, targetSns = 30, rhythmLabel = 'Peak';
+        let targetCog = 20, targetSns = 30, rhythmLabel = 'Peak';
+        let targetHyd = this.hydrationLevel;
         
         if (pillar === 'focus' || pillar === 'skills') {
           targetCog = 40 + (prog * 50); // cognitive load increases
-          targetHyd = 100 - (prog * 15); // hydration decreases slightly
           targetSns = 60 + (prog * 20); // SNS goes up
           rhythmLabel = 'Peak (90m)';
         } else if (pillar === 'recovery' || pillar === 'health') {
           targetCog = Math.max(10, 80 - (prog * 60)); // load decreases
-          targetHyd = 100; // hydrate
           targetSns = Math.max(10, 50 - (prog * 40)); // SNS relaxes
           rhythmLabel = 'Rest (20m)';
         } else if (pillar === 'social') {
@@ -4169,7 +4235,23 @@
           `;
         }
         
-        document.getElementById('agent-insight').innerHTML = (cur.insight || '') + stackActionHTML + skillActionHTML;
+        // Neuro-Optimized Insight Injection
+        let neuroInsight = '';
+        const hour = new Date().getHours();
+        
+        if (cur.pillar === 'focus') {
+            if (hour < 11) {
+                neuroInsight = `<div class="neuro-note" style="color:var(--cobalt-bright); font-size:.7rem; margin-top:.5rem; border-left:2px solid var(--cobalt-bright); padding-left:.5rem;"><b>Priming:</b> Dopamin-Baseline durch helles Licht und Intent-Setting stabilisieren.</div>`;
+            } else {
+                neuroInsight = `<div class="neuro-note" style="color:var(--cobalt-bright); font-size:.7rem; margin-top:.5rem; border-left:2px solid var(--cobalt-bright); padding-left:.5rem;"><b>Synaptische Plastizität:</b> Nutze 90m Zyklen für maximale LTP (Long-Term Potentiation).</div>`;
+            }
+        } else if (cur.pillar === 'recovery') {
+            neuroInsight = `<div class="neuro-note" style="color:var(--green); font-size:.7rem; margin-top:.5rem; border-left:2px solid var(--green); padding-left:.5rem;"><b>Neurogenese:</b> Aktive Erholung und NSDR fördern die Konsolidierung des Gelernten.</div>`;
+        } else if (cur.pillar === 'skills') {
+            neuroInsight = `<div class="neuro-note" style="color:var(--tan); font-size:.7rem; margin-top:.5rem; border-left:2px solid var(--tan); padding-left:.5rem;"><b>Konditionierung:</b> Variable Belohnungsstrukturen (XP) nutzen, um Habituation zu vermeiden.</div>`;
+        }
+
+        document.getElementById('agent-insight').innerHTML = (cur.insight || '') + stackActionHTML + skillActionHTML + neuroInsight;
         document.getElementById('timer-display').textContent = this.formatTime(this.timeLeft);
         document.getElementById('timer-display').classList.add('paused');
         document.getElementById('timer-sub').textContent = 'Bereit';
@@ -4290,18 +4372,54 @@
         }
       }
 
+      async fetchSources() {
+        const { data, error } = await sb
+          .from('vault_items')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          this.sources = data;
+          this.renderSources();
+        }
+      }
+
+      async deleteSource(id) {
+        const { error } = await sb.from('vault_items').delete().eq('id', id);
+        if (!error) {
+          this.fetchSources();
+          this.triggerToast('Source Removed', 'Item aus dem Vault gelöscht.', false, null);
+        }
+      }
+
       renderSources() {
         const el = document.getElementById('sources-list');
         if (!el) return;
         if (!this.sources || this.sources.length === 0) {
-            el.innerHTML = '<span class="mono dim" style="font-size:.6rem; padding: 0.5rem 0;">Keine externen Datenquellen.</span>';
+            el.innerHTML = `
+              <div style="text-align:center; padding:1rem; opacity:0.5;">
+                <span class="mono" style="font-size:.6rem;">Keine Quellen gefunden.</span>
+                <br>
+                <a href="vault.html" style="color:var(--cobalt-bright); font-size:.6rem; text-decoration:none;">Vault öffnen →</a>
+              </div>
+            `;
             return;
         }
-        el.innerHTML = this.sources.map(s => `
-            <div class="ctx-chip" style="background:var(--bg-elevated); border:1px solid var(--border-s); color:var(--text); justify-content:space-between; display:flex; width:100%; align-items:center; padding-right: 0.5rem;">
-                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:85%; font-size: 0.65rem;">${s.name}</span>
-                <span style="color:var(--text3); cursor:pointer; font-weight:bold; padding:0 .2rem; font-size: 1rem; line-height: 1;" onclick="Agent.removeSource(${s.id})" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</span>
-            </div>
+        el.innerHTML = `
+          <div style="display:flex; flex-direction:column; gap:.5rem;">
+            ${this.sources.map(s => `
+              <div class="source-item" style="background:rgba(255,255,255,0.03); border:1px solid var(--border); padding:.5rem; border-radius:4px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="overflow:hidden;">
+                  <div style="font-size:.7rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.title}</div>
+                  <div style="font-size:.55rem; color:var(--text3); font-family:var(--font-mono); text-transform:uppercase;">${s.type}</div>
+                </div>
+                <button onclick="Agent.deleteSource('${s.id}')" style="background:none; border:none; color:var(--text3); cursor:pointer; font-size:.8rem;">×</button>
+              </div>
+            `).join('')}
+            <a href="vault.html" class="btn-add-block" style="text-align:center; margin-top:.5rem; text-decoration:none; font-size:.6rem;">Vault Verwalten</a>
+          </div>
+        `;
+      }
         `).join('');
       }
 
