@@ -1,6 +1,6 @@
 # Secrets
 .env
-config.js
+# config.js
 *.key
 credentials.json
 
