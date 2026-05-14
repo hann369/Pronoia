@@ -23,8 +23,6 @@
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="core.js"></script>
-  <script src="mistral_service.js"></script>
-  <script src="labs.js"></script>
   <style>
     /* ═══════════════════════════════════════════════
        DESIGN TOKENS — consistent with index.html
@@ -2729,8 +2727,8 @@
 
     // --- LOADER & SESSION FLOW ---
     let loaderDone = false;
-    const loader = document.getElementById('system-loader');
-    const loaderVideo = document.getElementById('loader-video');
+    const loader = document.getElementById('loader');
+    const loaderVideo = document.getElementById('loaderVideo');
 
     function dismissLoader() {
       if (loaderDone) return;
