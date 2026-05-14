@@ -2735,6 +2735,12 @@
     function dismissLoader() {
       if (loaderDone) return;
       loaderDone = true;
+      
+      if (!loader) {
+        initSessionFlow();
+        return;
+      }
+
       if (window.gsap) {
         gsap.to(loader, {
           opacity: 0, duration: 1.2, ease: 'power2.inOut',
