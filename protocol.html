@@ -22,6 +22,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="core.js"></script>
   <style>
     /* ═══════════════════════════════════════════════
        DESIGN TOKENS — consistent with index.html
@@ -236,6 +237,11 @@
       transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
+    #pronoia-nav-container {
+      width: 100%;
+      z-index: 1000;
+    }
+
     #header.scrolled {
       height: 60px;
       background: var(--nav-bg);
@@ -245,7 +251,8 @@
     .header-left {
       display: flex;
       align-items: center;
-      gap: 2rem;
+      gap: 1.25rem;
+      white-space: nowrap;
     }
 
     .nav-logo {
@@ -272,17 +279,21 @@
     .header-right {
       display: flex;
       align-items: center;
-      gap: 2.5rem;
+      gap: 1.25rem;
+      justify-content: flex-end;
+      white-space: nowrap;
+      flex-wrap: nowrap;
+      flex-shrink: 0;
     }
 
-    .header-nav {
+    .nav-links {
       display: flex;
-      gap: 2rem;
+      gap: 1.25rem;
       list-style: none;
       align-items: center;
     }
 
-    .header-nav a {
+    .nav-links a {
       font-family: var(--font-mono);
       font-size: .65rem;
       text-transform: uppercase;
@@ -293,15 +304,15 @@
       position: relative;
     }
 
-    .header-nav a:hover {
+    .nav-links a:hover {
       color: var(--text);
     }
 
-    .header-nav a.active {
+    .nav-links a.active {
       color: var(--tan);
     }
 
-    .header-nav a.active::after {
+    .nav-links a.active::after {
       content: '';
       position: absolute;
       bottom: -4px;
@@ -1051,10 +1062,17 @@
       display: flex;
       flex-direction: column;
       gap: .3rem;
+      position: relative;
     }
 
-    .telem-cell:last-child {
-      border-right: none;
+    .telem-sparkline {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 60px;
+      height: 100%;
+      opacity: 0.15;
+      pointer-events: none;
     }
 
     .telem-label {
@@ -2008,6 +2026,21 @@
       backdrop-filter: blur(12px);
     }
 
+    /* ═══ REFLECTION MODAL ══════════════════════════ */
+    #reflection-overlay {
+      position: fixed; inset: 0; z-index: 3000;
+      background: rgba(0,0,0,0.85); backdrop-filter: blur(10px);
+      display: none; align-items: center; justify-content: center;
+    }
+    .reflection-card {
+      background: var(--bg-app); border: 1px solid var(--border);
+      width: 90vw; max-width: 500px; padding: 2rem; border-radius: 4px;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+    }
+    .refl-stars { display: flex; gap: 1rem; justify-content: center; margin: 1.5rem 0; }
+    .refl-star { font-size: 2rem; cursor: pointer; opacity: 0.3; transition: all 0.2s; }
+    .refl-star:hover, .refl-star.active { opacity: 1; transform: scale(1.2); }
+
     /* ═══ RESPONSIVE ════════════════════════════════ */
     @media (max-width: 1100px) {
       #main {
@@ -2210,6 +2243,27 @@
   </div>
 
   <!-- ═══ NAVIGATION ══════════════════════════════ -->
+  <!-- ═══ REFLECTION MODAL ════════════════════════ -->
+  <div id="reflection-overlay">
+    <div class="reflection-card">
+      <div class="ob-label">Block Reflection</div>
+      <h2 class="ob-h" style="font-size: 1.5rem; margin-bottom: 0.5rem;" id="refl-title">Block beendet.</h2>
+      <p class="ob-sub" style="font-size: 0.8rem; margin-bottom: 1rem;">Wie war dein Fokus-Level?</p>
+      
+      <div class="refl-stars">
+        <span class="refl-star" onclick="setRefl(1)">★</span>
+        <span class="refl-star" onclick="setRefl(2)">★</span>
+        <span class="refl-star" onclick="setRefl(3)">★</span>
+        <span class="refl-star" onclick="setRefl(4)">★</span>
+        <span class="refl-star" onclick="setRefl(5)">★</span>
+      </div>
+      
+      <textarea id="refl-notes" class="auth-input" style="height: 80px; margin-bottom: 1rem;" placeholder="Optionale Notiz (z.B. Ablenkung durch E-Mails)"></textarea>
+      
+      <button class="ob-next" onclick="submitReflection()">Submit & Continue</button>
+    </div>
+  </div>
+
   <div id="pronoia-nav-container"></div>
 
   <div class="sky-background">
@@ -2421,6 +2475,7 @@
       <!-- Telemetry Strip -->
       <div class="telem-strip">
         <div class="telem-cell">
+          <canvas id="spark-cog" class="telem-sparkline"></canvas>
           <span class="telem-label">Kognitive Last</span>
           <div class="telem-bar">
             <div class="telem-fill" id="bar-cog" style="width:0%;background:var(--cobalt-bright)"></div>
@@ -2428,7 +2483,8 @@
           <span class="telem-val" id="val-cog">0%</span>
         </div>
         <div class="telem-cell">
-          <span class="telem-label">Hydration</span>
+          <canvas id="spark-hyd" class="telem-sparkline"></canvas>
+          <span class="telem-label">System Stability</span>
           <div class="telem-bar">
             <div class="telem-fill" id="bar-hyd" style="width:100%;background:var(--green)"></div>
           </div>
@@ -2438,12 +2494,19 @@
           </div>
         </div>
         <div class="telem-cell">
+          <canvas id="spark-sns" class="telem-sparkline"></canvas>
           <span class="telem-label">SNS Aktivierung</span>
           <div class="telem-bar">
             <div class="telem-fill" id="bar-sns" style="width:30%;background:var(--amber)"></div>
           </div>
           <span class="telem-val" id="val-sns">30%</span>
         </div>
+      </div>
+      
+      <!-- Neural Trace Visualizer 10x -->
+      <div style="margin-top: 1rem; background: var(--bg-card); border: 1px solid var(--border); padding: 1rem; position: relative; height: 120px; overflow: hidden;">
+        <div class="mono dim" style="position: absolute; top: .5rem; left: .75rem; font-size: .5rem; text-transform: uppercase; letter-spacing: .2em; z-index: 5;">Live Neural Trace</div>
+        <canvas id="neural-trace" style="width: 100%; height: 100%; opacity: 0.8;"></canvas>
       </div>
     </div>
 
@@ -2633,9 +2696,15 @@
 
     /* ── SYSTEM STABILIZER ──────────────────────────── */
     window.addEventListener('error', function(e) {
-      if (e.filename && e.filename.includes('contentscript.js')) return true; // Ignore extensions
-      if (e.message && (e.message.includes('SES_UNCAUGHT_EXCEPTION') || e.message.includes('lockdown-install.js'))) return true;
-      if (e.message && e.message.includes('illegal string') && e.lineno <= 1) return true;
+      if (e.filename && e.filename.includes('contentscript.js')) return true; 
+      if (e.message && (e.message.includes('SES_UNCAUGHT_EXCEPTION') || e.message.includes('lockdown-install.js'))) {
+        e.preventDefault();
+        return true;
+      }
+      if (e.message && e.message.includes('illegal string') && e.lineno <= 1) {
+        e.preventDefault();
+        return true;
+      }
       return false;
     }, true);
 
@@ -2882,7 +2951,7 @@
         // Calendar state
         this.currentMonth = new Date();
         this.selectedDate = new Date();
-        this.calendar = JSON.parse(localStorage.getItem('px_calendar')) || {}; // { "YYYY-MM-DD": { blocks: [...] } }
+        this.calendar = JSON.parse(localStorage.getItem('px_calendar')) || {}; 
 
         this.sessionID = localStorage.getItem('px_session') || '';
         this.env = JSON.parse(localStorage.getItem('px_env')) || this.env;
@@ -2892,9 +2961,13 @@
         this.hydrationLevel = 100;
         this._hydWarned = false;
 
-        this.startClock();
+        this.init();
+        this.startBackgroundSync();
+      }
+
+      init() {
         this.getEnvironment(); 
-        this.fetchSources(); // Unify with Vault
+        this.fetchSources();
         this.initIoT();
       }
 
@@ -2925,7 +2998,7 @@
         this.updateDisplay();
       }
 
-      startClock() {
+      startBackgroundSync() {
         setInterval(() => {
           const now = new Date();
           const timeStr = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -2939,30 +3012,25 @@
           }
 
           if (!this.isRunning) {
-            this.syncTimerToRealTime();
-            this.updateDisplay();
-            if (this._lastSyncedIdx !== this.blockIdx) {
-              this._lastSyncedIdx = this.blockIdx;
-              this.renderUI();
-            }
+            this.syncTimerToRealTime(true);
           }
         }, 1000);
       }
 
-      syncTimerToRealTime() {
-        // If paused, we don't sync to the moving clock, we stay at the paused time
-        if (this.pauseStartTime || this.isRunning) {
-            return;
+      syncTimerToRealTime(background = false) {
+        if (!this.blocks || this.blocks.length === 0) return;
+
+        let effectiveOffset = this.timeOffset;
+        if (this.pauseStartTime) {
+          effectiveOffset += (Date.now() - this.pauseStartTime) / 1000;
         }
 
-        // Adjust "now" by the accumulated offset
-        const now = new Date(Date.now() - (this.timeOffset * 1000));
+        const now = new Date(Date.now() - (effectiveOffset * 1000));
         const nowSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
         
         let foundIdx = -1;
         let foundTimeLeft = 0;
         
-        // Sort blocks by start time to ensure correct sequence
         const sortedBlocks = [...this.blocks].filter(b => b.startTime).sort((a,b) => a.startTime.localeCompare(b.startTime));
 
         for (let i = 0; i < sortedBlocks.length; i++) {
@@ -2972,45 +3040,29 @@
           const endSeconds = startSeconds + b.duration;
           
           if (nowSeconds >= startSeconds && nowSeconds < endSeconds) {
-            // We are inside this block
             foundIdx = this.blocks.indexOf(b);
             foundTimeLeft = endSeconds - nowSeconds;
             break;
           } else if (nowSeconds < startSeconds) {
-            // We are before this block
             foundIdx = this.blocks.indexOf(b);
-            foundTimeLeft = b.duration; // Show full duration until it starts? Or show time until start?
-            // Actually, if we are before a block, we should probably stay at that block but not "running"
+            foundTimeLeft = b.duration;
             break;
           }
         }
         
         if (foundIdx !== -1) {
+          if (background && foundIdx === this.blockIdx) return;
+
           this.blockIdx = foundIdx;
           this.timeLeft = Math.max(0, foundTimeLeft);
           this.totalTime = this.blocks[this.blockIdx].duration;
           
-          // Mark previous blocks as done
           for (let i = 0; i < this.blocks.length; i++) {
             const b = this.blocks[i];
             const [bh, bm] = (b.startTime || "00:00").split(':').map(Number);
-            if (bh * 3600 + bm * 60 + b.duration <= nowSeconds) {
-              b.done = true;
-            } else {
-              b.done = false;
-            }
+            b.done = (bh * 3600 + bm * 60 + b.duration <= nowSeconds);
           }
-        } else if (this.blocks.length > 0) {
-          // If past all blocks
-          const lastBlock = this.blocks[this.blocks.length - 1];
-          const [lh, lm] = (lastBlock.startTime || "23:59").split(':').map(Number);
-          const lastEnd = lh * 3600 + lm * 60 + lastBlock.duration;
-          
-          if (nowSeconds >= lastEnd) {
-             this.blockIdx = this.blocks.length - 1;
-             this.timeLeft = 0;
-             this.blocks.forEach(b => b.done = true);
-          }
+          this.renderUI();
         }
       }
 
@@ -3581,9 +3633,31 @@
 
       setAgentMsg(msg, isThinking = false) {
         const el = document.getElementById('agent-msg');
-        if (el) el.textContent = msg;
+        if (!el) return;
+        
+        // Stop previous typewriter
+        if (this._typeInterval) clearInterval(this._typeInterval);
+        
         const loader = document.getElementById('agent-thinking');
         if (loader) loader.style.display = isThinking ? 'flex' : 'none';
+        
+        if (isThinking) {
+          el.textContent = msg;
+          return;
+        }
+
+        // Typewriter Effect 10x
+        el.textContent = '';
+        let i = 0;
+        this._typeInterval = setInterval(() => {
+          if (i < msg.length) {
+            el.textContent += msg.charAt(i);
+            i++;
+          } else {
+            clearInterval(this._typeInterval);
+            this._typeInterval = null;
+          }
+        }, 15);
       }
 
       async generatePredictiveProtocol() {
@@ -3883,53 +3957,7 @@
         this.syncTimerToRealTime();
       }
 
-      syncTimerToRealTime() {
-        if (!this.blocks || this.blocks.length === 0) return;
-
-        const now = new Date();
-        const nowSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-        
-        let foundIdx = -1;
-        let foundTimeLeft = 0;
-        
-        for (let i = 0; i < this.blocks.length; i++) {
-          const b = this.blocks[i];
-          if (!b.startTime) continue;
-          
-          const [h, m] = b.startTime.split(':').map(Number);
-          const startSeconds = h * 3600 + m * 60;
-          const endSeconds = startSeconds + b.duration;
-          
-          if (nowSeconds >= startSeconds && nowSeconds < endSeconds) {
-            foundIdx = i;
-            foundTimeLeft = endSeconds - nowSeconds;
-            break;
-          } else if (nowSeconds < startSeconds) {
-            // This is the first upcoming block
-            if (foundIdx === -1) {
-              foundIdx = i;
-              foundTimeLeft = b.duration; // It hasn't started yet
-            }
-          }
-        }
-        
-        if (foundIdx !== -1) {
-          this.blockIdx = foundIdx;
-          this.timeLeft = foundTimeLeft;
-          this.totalTime = this.blocks[this.blockIdx].duration;
-          
-          // Mark previous as done
-          for (let i = 0; i < foundIdx; i++) {
-            this.blocks[i].done = true;
-          }
-        } else {
-          // If past all blocks, show the last one as finished
-          this.blockIdx = this.blocks.length > 0 ? this.blocks.length - 1 : 0;
-          this.timeLeft = 0;
-          this.totalTime = this.blocks.length > 0 ? this.blocks[this.blockIdx].duration : 0;
-          if (this.blocks.length > 0) this.blocks.forEach(b => b.done = true);
-        }
-      }
+      // Duplicates removed
 
       start() {
         if (this.blockIdx >= this.blocks.length) return;
@@ -3987,28 +4015,17 @@
       }
 
       tick() {
-        const oldBlockIdx = this.blockIdx;
-        this.syncTimerToRealTime();
+        if (!this.isRunning) return;
         
-        if (this.blockIdx !== oldBlockIdx) {
-            this.renderCenter();
-            this.renderQueue();
-            this.notified50 = false;
-            this.notified5m = false;
-            
-            // Trigger Skill Lab automatically if it's a skills block
-            const current = this.blocks[this.blockIdx];
-            if (current && current.pillar === 'skills') {
-                this.generateSkillMaterials();
-            }
-        }
-
+        this.timeLeft--;
         const current = this.blocks[this.blockIdx];
         if (!current) return;
 
-        if (this.timeLeft <= 0) { this.completeBlock(); return; }
+        if (this.timeLeft <= 0) { 
+          this.completeBlock(); 
+          return; 
+        }
         
-        // Timer display relies on this.timeLeft being updated correctly by syncTimerToRealTime.
         localStorage.setItem('px_time_left', this.timeLeft);
         this.updateDisplay();
         this.updateTelemetry(current);
@@ -4051,27 +4068,101 @@
           rhythmLabel = 'Integration';
         }
         
-        const barCog = document.getElementById('bar-cog');
-        const valCog = document.getElementById('val-cog');
-        if (barCog) barCog.style.width = targetCog + '%';
-        if (valCog) valCog.textContent = Math.round(targetCog) + '%';
-        
-        const barHyd = document.getElementById('bar-hyd');
-        const valHyd = document.getElementById('val-hyd');
-        if (barHyd) barHyd.style.width = targetHyd + '%';
-        if (valHyd) valHyd.textContent = Math.round(targetHyd) + '%';
-        
-        const barSns = document.getElementById('bar-sns');
-        const valSns = document.getElementById('val-sns');
-        if (barSns) barSns.style.width = targetSns + '%';
-        if (valSns) valSns.textContent = Math.round(targetSns) + '%';
-        
         const rhythmPhase = document.getElementById('rhythm-phase');
         const rhythmFill = document.getElementById('rhythm-fill');
         const rhythmCursor = document.getElementById('rhythm-cursor');
         if (rhythmPhase) rhythmPhase.textContent = rhythmLabel;
         if (rhythmFill) rhythmFill.style.width = (prog * 100) + '%';
         if (rhythmCursor) rhythmCursor.style.left = (prog * 100) + '%';
+
+        // 10x Neural & Sparkline Update
+        this.updateIntelligence(targetCog, targetSns, targetHyd);
+      }
+
+      updateIntelligence(cog, sns, hyd) {
+        // Update bars
+        const bc = document.getElementById('bar-cog');
+        const bs = document.getElementById('bar-sns');
+        const bh = document.getElementById('bar-hyd');
+        const vc = document.getElementById('val-cog');
+        const vs = document.getElementById('val-sns');
+        const vh = document.getElementById('val-hyd');
+        if (bc) bc.style.width = cog + '%';
+        if (bs) bs.style.width = sns + '%';
+        if (bh) bh.style.width = hyd + '%';
+        if (vc) vc.textContent = Math.round(cog) + '%';
+        if (vs) vs.textContent = Math.round(sns) + '%';
+        if (vh) vh.textContent = Math.round(hyd) + '%';
+
+        // Update Sparklines & Trace
+        this.updateNeuralTrace(cog, sns);
+        this.updateSparklines(cog, sns, hyd);
+      }
+
+      updateSparklines(cog, sns, hyd) {
+        ['cog', 'sns', 'hyd'].forEach(type => {
+          const canvas = document.getElementById(`spark-${type}`);
+          if (!canvas) return;
+          const ctx = canvas.getContext('2d');
+          const val = type === 'cog' ? cog : (type === 'sns' ? sns : hyd);
+          
+          if (!this[`_spark_${type}`]) this[`_spark_${type}`] = [];
+          this[`_spark_${type}`].push(val);
+          if (this[`_spark_${type}`].length > 30) this[`_spark_${type}`].shift();
+
+          const w = canvas.width = 60;
+          const h = canvas.height = 30;
+          ctx.clearRect(0, 0, w, h);
+          
+          ctx.beginPath();
+          ctx.strokeStyle = type === 'cog' ? '#007aff' : (type === 'sns' ? '#d4a574' : '#00c48c');
+          ctx.lineWidth = 1.5;
+          ctx.lineCap = 'round';
+          this[`_spark_${type}`].forEach((v, i) => {
+            const x = (i / 29) * w;
+            const y = h - (v / 100) * (h - 4) - 2;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          });
+          ctx.stroke();
+        });
+      }
+
+      updateNeuralTrace(cog, sns) {
+        if (!this.neuralPoints) this.neuralPoints = [];
+        this.neuralPoints.push({ cog, sns });
+        if (this.neuralPoints.length > 50) this.neuralPoints.shift();
+
+        const canvas = document.getElementById('neural-trace');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        // Draw Cog Trace
+        ctx.beginPath();
+        ctx.strokeStyle = 'var(--cobalt-bright)';
+        ctx.lineWidth = 1.5;
+        this.neuralPoints.forEach((p, i) => {
+          const x = (i / 49) * w;
+          const y = h - (p.cog / 100) * h;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // Draw SNS Trace
+        ctx.beginPath();
+        ctx.strokeStyle = 'var(--amber)';
+        ctx.setLineDash([2, 2]);
+        ctx.lineWidth = 1;
+        this.neuralPoints.forEach((p, i) => {
+          const x = (i / 49) * w;
+          const y = h - (p.sns / 100) * h;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+        ctx.setLineDash([]);
       }
 
       completeBlock(manual = false) {
@@ -4079,6 +4170,14 @@
         const current = this.blocks[this.blockIdx];
         if (current) {
           current.done = true;
+          
+          // Show Reflection Modal
+          const overlay = document.getElementById('reflection-overlay');
+          const title = document.getElementById('refl-title');
+          if (overlay) {
+            if (title) title.textContent = `Phase: ${current.title}`;
+            overlay.style.display = 'flex';
+          }
           
           // Award XP
           const baseXP = Math.round(current.duration / 60);
@@ -4096,12 +4195,14 @@
             if (calBlock) calBlock.done = true;
             localStorage.setItem('px_calendar', JSON.stringify(this.calendar));
           }
-          this.triggerToast('XP Gained', `+${totalXP} XP für ${current.title}`, false, null);
         }
         if (!manual) logFriction('ok', true);
-
         this.playTransitionCue();
+      }
 
+      finishBlockRefl() {
+        document.getElementById('reflection-overlay').style.display = 'none';
+        
         this.blockIdx++;
         localStorage.setItem('px_block_idx', this.blockIdx);
         localStorage.setItem('px_profile', JSON.stringify(this.profile));
@@ -4882,17 +4983,34 @@
       document.getElementById('calendar-modal-overlay').style.display = 'none';
     }
 
+    // Manually trigger header injection for immediate access
+    if (window.NavigationEngine) NavigationEngine.injectHeader();
+
     // Now safe to init Auth (Agent exists)
-    Auth.init();
+    try {
+      Auth.init();
+    } catch (e) {
+      console.warn("Auth initialization failed (likely security restriction):", e);
+    }
 
-    // Removed ThemeEngine (now in core.js)
-
-    // Session ID
     if (!Agent.sessionID) {
       Agent.sessionID = 'PX-' + Math.random().toString(36).substr(2, 6).toUpperCase();
       localStorage.setItem('px_session', Agent.sessionID);
     }
-    document.getElementById('session-id').textContent = 'SESSION: ' + Agent.sessionID;
+    const sessEl = document.getElementById('session-id');
+    if (sessEl) sessEl.textContent = 'PROTOCOL / ' + Agent.sessionID;
+
+    function switchTab(tab) {
+      const q = document.getElementById('tab-queue-content');
+      const p = document.getElementById('tab-personal-content');
+      if (q) q.style.display = tab === 'queue' ? 'block' : 'none';
+      if (p) p.style.display = tab === 'personal' ? 'block' : 'none';
+      
+      document.querySelectorAll('.panel-tab-btn').forEach(b => {
+        if (b.getAttribute('onclick').includes(tab)) b.classList.add('active');
+        else b.classList.remove('active');
+      });
+    }
 
     // ── RESTORE SESSION (handled by loader dismiss) ──
     // Moved to initSessionFlow()
@@ -4927,12 +5045,33 @@
       });
     });
 
-    // Stage badge
-    const stage = parseInt(localStorage.getItem('px_stage')) || 1;
-    document.getElementById('stage-badge').textContent = `Stage 0${stage}`;
+    // Stage badge update
+    {
+      const activeStage = parseInt(localStorage.getItem('px_stage')) || 1;
+      const stageDisplay = document.getElementById('stage-badge');
+      if (stageDisplay) stageDisplay.textContent = `Stage 0${activeStage}`;
+    }
 
+
+    // Global Helpers for Reflection 10x
+    let currentRating = 0;
+    function setRefl(val) {
+      currentRating = val;
+      const stars = document.querySelectorAll('.refl-star');
+      stars.forEach((s, i) => {
+        s.classList.toggle('active', i < val);
+      });
+    }
+    function submitReflection() {
+      const notes = document.getElementById('refl-notes').value;
+      // Here we could log to Firestore...
+      Agent.finishBlockRefl();
+      // Reset UI
+      currentRating = 0;
+      document.getElementById('refl-notes').value = '';
+      document.querySelectorAll('.refl-star').forEach(s => s.classList.remove('active'));
+    }
   </script>
-  <script src="core.js"></script>
 </body>
 
 </html>

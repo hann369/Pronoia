@@ -54,13 +54,13 @@
             --cobalt-dim: rgba(0, 71, 171, 0.12);
             --white: #ffffff;
             --ink: #0d1117;
-            
+
             --font-body: 'DM Sans', sans-serif;
             --font-display: 'DM Serif Display', serif;
             --font-accent: 'Cormorant Garamond', serif;
 
             --lab-blue: #007aff;
-            
+
             /* Theme Variables - Default Light */
             --bg: #fdfbf9;
             --bg2: #f7f3ef;
@@ -184,14 +184,17 @@
 
         #header {
             position: fixed;
-            top: 0; left: 0; width: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
             height: 70px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 0 5%;
             z-index: 1000;
-            opacity: 0; /* Handled by GSAP/Loader */
+            opacity: 0;
+            /* Handled by GSAP/Loader */
             transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
@@ -202,7 +205,8 @@
             border-bottom: 1px solid var(--border);
         }
 
-        .header-left, .header-right {
+        .header-left,
+        .header-right {
             display: flex;
             align-items: center;
             gap: 2rem;
@@ -228,8 +232,14 @@
             width: 110px;
             transition: filter 0.5s, transform 0.3s;
         }
-        .nav-logo:hover { transform: scale(1.02); }
-        body.dark-theme .nav-logo { filter: invert(1); }
+
+        .nav-logo:hover {
+            transform: scale(1.02);
+        }
+
+        body.dark-theme .nav-logo {
+            filter: invert(1);
+        }
 
         .nav-links {
             list-style: none;
@@ -247,9 +257,12 @@
             text-decoration: none;
             opacity: 0.6;
             transition: all 0.3s;
+            position: relative;
         }
 
-        .nav-links a:hover { opacity: 1; }
+        .nav-links a:hover {
+            opacity: 1;
+        }
 
         .btn-ghost {
             border: 1px solid var(--border) !important;
@@ -377,6 +390,17 @@
             position: relative;
         }
 
+        #hero-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
         .hero-video-box {
             position: relative;
             width: 100%;
@@ -387,7 +411,7 @@
             align-items: center;
             justify-content: center;
             background: #000;
-            box-shadow: 0 40px 100px rgba(0,0,0,0.2);
+            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.2);
         }
 
         #hero-video {
@@ -401,7 +425,7 @@
 
         .hero-content-center {
             position: relative;
-            z-index: 10;
+            z-index: 20;
             text-align: center;
             color: #fff;
             max-width: 900px;
@@ -414,7 +438,7 @@
             line-height: 0.85;
             margin-bottom: 2.5rem;
             color: #fff;
-            text-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            text-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
         }
 
         .hero-p-10x {
@@ -442,7 +466,7 @@
             text-decoration: none;
             transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
             backdrop-filter: blur(15px);
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .btn-10x-solid {
@@ -458,7 +482,7 @@
         }
 
         .btn-10x-outline {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.1);
             color: #fff;
         }
 
@@ -514,7 +538,7 @@
         .ed-image-box {
             border-radius: 40px;
             overflow: hidden;
-            box-shadow: 0 50px 100px rgba(0,0,0,0.08);
+            box-shadow: 0 50px 100px rgba(0, 0, 0, 0.08);
             background: var(--bg2);
         }
 
@@ -527,85 +551,6 @@
 
         .ed-section:hover .ed-img {
             transform: scale(1.04);
-        }
-
-        /* PILLAR CARDS - 10X STABILITY */
-        .p-wrapper {
-            width: 100%;
-            padding: 100px 6rem;
-            overflow: hidden;
-            background: rgba(255, 255, 255, 0.02);
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            min-height: 70vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            position: relative;
-        }
-
-        .p-scroll-container {
-            display: flex;
-            gap: 4rem;
-            overflow-x: auto;
-            padding: 4rem 0;
-            scrollbar-width: none;
-            cursor: grab;
-            scroll-behavior: smooth;
-        }
-
-        .p-scroll-container::-webkit-scrollbar {
-            display: none;
-        }
-
-        .p-card {
-            flex: 0 0 500px;
-            height: 60vh;
-            background: #fff;
-            border-radius: 40px;
-            padding: 4rem;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            box-shadow: 0 30px 80px rgba(0,0,0,0.03);
-            border: 1px solid rgba(0,0,0,0.04);
-            transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .p-card.dark {
-            background: var(--text);
-            color: #fff;
-        }
-
-        .p-card h3 {
-            font-family: var(--font-display);
-            font-size: 2.8rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .p-visual {
-            height: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-
-        .p-visual img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-
-        .p-card.dark {
-            background: var(--text);
-            color: #fff;
-        }
-
-        .p-card h3 {
-            font-family: var(--font-display);
-            font-size: 2.8rem;
-            margin-bottom: 1.5rem;
         }
 
         /* ═══ AUTH OVERLAY ═══════════════════════════════ */
@@ -847,67 +792,115 @@
         }
 
         @keyframes diagScan {
-            0%, 100% { top: 0; }
-            50% { top: 100%; }
+
+            0%,
+            100% {
+                top: 0;
+            }
+
+            50% {
+                top: 100%;
+            }
         }
 
-        /* PILLARS - OPTIMIZED COMPACT */
-        #pillars {
-            padding: 10rem 6rem;
-            background: #fdfbf9;
+        /* PILLARS (Joindawn Style: Horizontal Scroll) */
+        #pillars-scroll-container {
+            position: relative;
+            background: rgba(253, 251, 249, 0.88);
+            overflow: hidden;
         }
 
-        .p-matrix {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 2rem;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .p-module {
-            padding: 3.5rem;
-            background: #fff;
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+        .scroll-wrapper {
             display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            min-height: 400px;
+            height: 100vh;
+            align-items: center;
+            padding-left: 6rem;
+            padding-right: 20rem;
+            will-change: transform;
         }
 
-        .p-module:hover {
-            border-color: var(--tan);
-            transform: translateY(-8px);
-            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.04);
+        .pillars-header {
+            min-width: 500px;
+            padding-right: 10rem;
         }
 
-        .p-module .ed-label {
+        .pillars-header h2 {
             margin-bottom: 1.5rem;
         }
 
-        .p-module h3 {
-            font-family: var(--font-display);
-            font-size: 2.2rem;
-            line-height: 1.1;
-            margin-bottom: 2rem;
+        .pillar-card {
+            min-width: 550px;
+            height: 75vh;
+            background: #fff;
+            border-radius: 40px;
+            margin-right: 4rem;
+            padding: 5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border: 1px solid rgba(213, 184, 147, 0.15);
+            box-shadow: 0 40px 100px rgba(37, 52, 79, 0.04);
+            transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+            position: relative;
+            overflow: hidden;
         }
 
-        .p-module p {
+        .pillar-card:hover {
+            transform: translateY(-10px);
+        }
+
+        .pillar-icon {
             font-size: 1rem;
-            color: var(--text2);
-            line-height: 1.7;
-            margin-top: auto;
+            color: var(--tan);
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            display: block;
         }
 
-        .p-module.dark {
-            background: var(--text);
+        .pillar-title {
+            font-size: 3rem;
+            color: var(--text);
+            margin-bottom: 2rem;
+            line-height: 1.1;
+            text-transform: uppercase;
+        }
+
+        .pillar-content {
+            font-size: 1.1rem;
+            color: var(--text2);
+            line-height: 1.8;
+        }
+
+        .pillar-card.labs {
+            background: #000;
             color: #fff;
             border: none;
         }
 
-        .p-module.dark h3 { color: #fff; }
-        .p-module.dark p { color: rgba(255, 255, 255, 0.6); }
+        .pillar-card.labs .pillar-title { color: #fff; }
+        .pillar-card.labs .pillar-icon { color: var(--lab-blue); }
+        .pillar-card.labs .pillar-content { color: rgba(255, 255, 255, 0.7); }
+
+        .labs-img-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .labs-pill-img {
+            width: 100%;
+            max-width: 320px;
+            transform: rotate(-15deg);
+            filter: drop-shadow(0 30px 60px rgba(0,0,0,0.8));
+        }
+
+        .webgl-canvas, .webgl-canvas-full {
+            width: 100%;
+            height: 300px;
+            margin-top: 2rem;
+        }
 
         /* SUCCESS SYSTEM - PROFESSIONAL FRAMEWORK */
         #success-system {
@@ -1243,7 +1236,7 @@
             width: 100%;
             height: 70%;
             display: block;
-            z-index: 30;
+            z-index: 60;
             pointer-events: none;
         }
 
@@ -1259,7 +1252,7 @@
             padding: 0 5rem;
             color: rgba(255, 255, 255, 0.30);
             font-size: 0.82rem;
-            z-index: 40;
+            z-index: 70;
             pointer-events: all;
         }
 
@@ -1547,7 +1540,10 @@
                 gap: 2rem;
             }
 
-            #diagnosis, #pillars, #success-system, #stages {
+            #diagnosis,
+            #pillars,
+            #success-system,
+            #stages {
                 padding: 8rem 3rem;
             }
 
@@ -1579,7 +1575,12 @@
         }
 
         @media (max-width: 768px) {
-            section, #diagnosis, #pillars, #success-system, #stages {
+
+            section,
+            #diagnosis,
+            #pillars,
+            #success-system,
+            #stages {
                 padding: 6rem 1.5rem;
             }
 
@@ -1642,7 +1643,31 @@
         </video>
     </div>
 
-    <div id="pronoia-nav-container"></div>
+    <div id="pronoia-nav-container">
+        <header id="header">
+            <div class="header-left">
+                <a href="index.html">
+                    <img src="graphic assets/pronoia_logo.png" alt="Pronoia Logo" class="nav-logo">
+                </a>
+                <div class="header-divider"></div>
+                <div class="session-badge">SESSION_2026_ACTIVE</div>
+            </div>
+            <div class="header-right">
+                <nav>
+                    <ul class="nav-links">
+                        <li><a href="protocol.html" id="nav-system" class="system-locked" data-de="SYSTEM" data-en="SYSTEM">SYSTEM</a></li>
+                        <li><a href="vault.html" data-de="VAULT" data-en="VAULT">VAULT</a></li>
+                        <li><a href="labs.html" data-de="LABS" data-en="LABS">LABS</a></li>
+                        <li><a href="health.html" data-de="HEALTH" data-en="HEALTH">HEALTH</a></li>
+                        <li><a href="#diagnosis" class="btn-ghost" data-de="IDENTIFIKATION &rarr;" data-en="IDENTIFY &rarr;">IDENTIFY &rarr;</a></li>
+                    </ul>
+                </nav>
+                <button class="theme-toggle" id="theme-toggle-btn" onclick="ThemeEngine.toggle()">
+                    <span class="theme-label">Dark Mode</span>
+                </button>
+            </div>
+        </header>
+    </div>
 
     <!-- LANGUAGE TOGGLE -->
     <div class="lang-toggle" id="langToggle">
@@ -1653,22 +1678,27 @@
     <!-- ═══ HERO SECTION ═══ -->
     <section id="hero-new">
         <div class="hero-video-box">
-            <video id="hero-video" autoplay muted loop playsinline>
+            <video id="hero-video" autoplay muted loop playsinline style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.65; z-index: 0;">
                 <source src="graphic assets/From KlickPin CF Pin by My Brain on LOVELY _ Nature aesthetic Beautiful view video nature Beautiful scenery nature - Pin-65443000831729610.mp4" type="video/mp4">
             </video>
-            <div class="hero-content-center">
-                <span class="ed-label" style="color:#fff; opacity:0.6" data-de="Human Optimization System" data-en="Human Optimization System">Human Optimization System</span>
+            <canvas id="hero-canvas" style="position: absolute; inset: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; opacity: 0.6;"></canvas>
+            <div class="hero-content-center" style="position: relative; z-index: 20;">
+                <span class="ed-label" style="color:#fff; opacity:0.6" data-de="Human Optimization System"
+                    data-en="Human Optimization System">Human Optimization System</span>
                 <h1 class="hero-h1-10x">
                     <span class="h-line">Silent.</span><br>
                     <span class="h-line">Superior.</span><br>
                     <span class="h-line">Pronoia.</span>
                 </h1>
-                <p class="hero-p-10x" data-de="Die nächste Evolution menschlicher Performance. Ein integriertes System aus Biologie, Psychologie und Technologie." data-en="The next evolution of human performance. An integrated system of biology, psychology, and technology.">
-                    Die nächste Evolution menschlicher Performance. Ein integriertes System aus Biologie, Psychologie und Technologie.
+                <p class="hero-p-10x" data-de="Ein integriertes System für biologisches und kognitives Upgrade."
+                    data-en="An integrated system for biological and cognitive upgrade.">
+                    An integrated system for biological and cognitive upgrade.
                 </p>
                 <div class="hero-btn-group">
-                    <a href="#diagnosis" class="btn-10x btn-10x-solid" data-de="Identifikation starten" data-en="Begin Assessment">Identifikation starten</a>
-                    <a href="#pillars" class="btn-10x btn-10x-outline" data-de="Säulen erkunden" data-en="Explore Pillars">Säulen erkunden</a>
+                    <a href="#diagnosis" class="btn-10x btn-10x-solid" data-de="Identifikation starten"
+                        data-en="Begin Assessment">Identifikation starten</a>
+                    <a href="#pillars" class="btn-10x btn-10x-outline" data-de="Säulen erkunden"
+                        data-en="Explore Pillars">Säulen erkunden</a>
                 </div>
             </div>
         </div>
@@ -1678,35 +1708,42 @@
     <section id="diagnosis">
         <div class="ed-label">System Initialization</div>
         <h2 class="ed-title">Identification <br>& Strategy</h2>
-        
+
         <div class="diag-grid-technical">
             <div class="diag-info">
-                <p class="diag-text" style="color: rgba(255,255,255,0.7); line-height: 1.8; margin-bottom: 2.5rem; font-size: 1.1rem;">
-                    We begin with a comprehensive audit of your current biological and cognitive architecture. 
+                <p class="diag-text"
+                    style="color: rgba(255,255,255,0.7); line-height: 1.8; margin-bottom: 2.5rem; font-size: 1.1rem;">
+                    We begin with a comprehensive audit of your current biological and cognitive architecture.
                     Pronoia isn't about incremental change; it's about total system optimization.
                 </p>
-                <div class="manifesto-quote" style="font-family: var(--font-display); font-size: 1.8rem; line-height: 1.3; color: var(--tan); border-left: 2px solid var(--tan); padding-left: 2rem; margin: 3rem 0; font-style: italic;">
+                <div class="manifesto-quote"
+                    style="font-family: var(--font-display); font-size: 1.8rem; line-height: 1.3; color: var(--tan); border-left: 2px solid var(--tan); padding-left: 2rem; margin: 3rem 0; font-style: italic;">
                     "The human system is the most complex machine in existence. Most are running on legacy firmware."
                 </div>
                 <div class="diag-status-row">
                     <div class="diag-label">BIOMETRIC SYNC</div>
-                    <div class="diag-bar-bg"><div class="diag-bar-fill" style="width: 85%"></div></div>
+                    <div class="diag-bar-bg">
+                        <div class="diag-bar-fill" style="width: 85%"></div>
+                    </div>
                 </div>
 
-                <div class="diag-log-container" style="margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+                <div class="diag-log-container"
+                    style="margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
                     <div class="diag-label" style="margin-bottom: 1rem; opacity: 0.5;">SYSTEM LOG</div>
-                    <div id="diag-log" style="font-family: var(--font-mono); font-size: 0.65rem; color: var(--tan); opacity: 0.8; height: 80px; overflow: hidden; line-height: 1.6;">
+                    <div id="diag-log"
+                        style="font-family: var(--font-mono); font-size: 0.65rem; color: var(--tan); opacity: 0.8; height: 80px; overflow: hidden; line-height: 1.6;">
                         <div>> INITIALIZING NEURAL AUDIT...</div>
                     </div>
                 </div>
             </div>
-            
+
             <div class="diag-data-viz">
                 <div class="diag-scanner-line"></div>
                 <div id="diag-canvas-container" style="height: 400px; background: rgba(0,0,0,0.2);">
                     <!-- Technical visualization injected via JS -->
                 </div>
-                <div class="diag-note" style="margin-top: 2rem; display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.65rem; color: var(--tan); opacity: 0.6;">
+                <div class="diag-note"
+                    style="margin-top: 2rem; display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.65rem; color: var(--tan); opacity: 0.6;">
                     <span>REF: PRN-01-DELTA</span>
                     <span>SECURE PROTOCOL ACTIVE</span>
                 </div>
@@ -1715,45 +1752,100 @@
     </section>
 
     <!-- ═══ PILLARS (HORIZONTAL SCROLL) ═══ -->
-    <section id="pillars">
-        <div class="ed-label" style="text-align: center; margin-bottom: 4rem;">The Performance Matrix</div>
-        <div class="p-matrix">
-            <div class="p-module" data-aos="fade-up">
-                <div>
-                    <div class="ed-label">01</div>
-                    <h3>Environment <br>Control</h3>
-                </div>
-                <p>Architecting spaces that trigger flow state through sensory modulation and rigid boundary setting.</p>
-            </div>
-            
-            <div class="p-module dark" data-aos="fade-up" data-aos-delay="100">
-                <div>
-                    <div class="ed-label" style="color: var(--tan);">02</div>
-                    <h3>Neuro-Linguistic <br>Architecture</h3>
-                </div>
-                <p>Recoding the internal narrative to eliminate friction and install high-velocity decision frameworks.</p>
+    <section id="pillars-scroll-container">
+        <div class="scroll-wrapper">
+            <div class="pillars-header">
+                <span class="section-label" data-de="Pronoia Säulen" data-en="Pronoia Pillars">Pronoia Säulen</span>
+                <h2 class="ed-title">Foundations of <br><span class="accent">Excellence.</span></h2>
+                <p data-de="Fünf Säulen, die dein Potential definieren. Jede Säule ist ein System, jedes System ist eine Entscheidung."
+                    data-en="Five pillars that define your potential. Every pillar is a system, every system is a decision.">
+                    Fünf Säulen, die dein Potential definieren. Jede Säule ist ein System, jedes System ist eine
+                    Entscheidung.</p>
             </div>
 
-            <div class="p-module" data-aos="fade-up" data-aos-delay="200">
+            <!-- HEALTH -->
+            <div class="pillar-card">
                 <div>
-                    <div class="ed-label">03</div>
-                    <h3>Bio-Physical <br>Foundation</h3>
+                    <span class="pillar-icon" data-de="Gesundheit" data-en="Health">Gesundheit</span>
+                    <h3 class="pillar-title" data-de="Umgebungs-<br>Kontrolle." data-en="Environmental<br>Control.">
+                        Umgebungs-<br>Kontrolle.</h3>
+                    <p class="pillar-content"
+                        data-de="Die Luft, die du atmest. Das Wasser, das du trinkst. Die Kleidung, die deine Haut berührt. Absolute Reinheit ist die Basis."
+                        data-en="The air you breathe. The water you drink. The clothing touching your skin. Absolute purity is the foundation.">
+                        Die Luft, die du atmest. Das Wasser, das du trinkst. Die Kleidung, die deine Haut berührt.
+                        Absolute Reinheit ist die Basis.</p>
                 </div>
-                <p>Optimization of sleep cycles, supplement stacks, and metabolic health for sustained peak output.</p>
+            </div>
+
+            <!-- FITNESS -->
+            <div class="pillar-card">
+                <div>
+                    <span class="pillar-icon" data-de="Fitness" data-en="Fitness">Fitness</span>
+                    <h3 class="pillar-title" data-de="Strukturelle<br>Integrität." data-en="Structural<br>Integrity.">
+                        Strukturelle<br>Integrität.</h3>
+                    <p class="pillar-content"
+                        data-de="Kraft, Ausdauer, Mobilität. Es geht nicht um Ästhetik, sondern um die Fähigkeit deines Körpers, Energie effizient zu leiten."
+                        data-en="Strength, endurance, mobility. Not aesthetics — the capacity of your body to channel energy efficiently.">
+                        Kraft, Ausdauer, Mobilität. Es geht nicht um Ästhetik, sondern um die Fähigkeit deines Körpers, Energie effizient zu leiten.</p>
+                </div>
+            </div>
+
+            <!-- PRONOIA LABS -->
+            <div class="pillar-card labs">
+                <div>
+                    <span class="pillar-icon" style="color:var(--lab-blue)">Pronoia Labs</span>
+                    <h3 class="pillar-title">PX-V1 <br>Neuro-Mod.</h3>
+                    <p class="pillar-content"
+                        data-de="Keine Placebos. Nur reine Neuro-Chemie mit optimaler Risk-Reward-Ratio für maximale kognitive Kapazität."
+                        data-en="No placebos. Pure neuro-chemistry with optimal risk-reward ratio for maximum cognitive capacity.">
+                        Keine Placebos. Nur reine Neuro-Chemie mit optimaler Risk-Reward-Ratio für maximale kognitive Kapazität.</p>
+                </div>
+            </div>
+
+            <!-- SOCIAL -->
+            <div class="pillar-card">
+                <div>
+                    <span class="pillar-icon" data-de="Sozial" data-en="Social">Sozial</span>
+                    <h3 class="pillar-title" data-de="Netzwerk-<br>Synergie." data-en="Network<br>Synergy.">
+                        Netzwerk-<br>Synergie.</h3>
+                    <p class="pillar-content"
+                        data-de="Deine Umgebung formt deinen Geist. Wir optimieren soziale Kreise für maximale Synergie."
+                        data-en="Your environment shapes your mind. We optimize social circles for maximum synergy.">
+                        Deine Umgebung formt deinen Geist. Wir optimieren soziale Kreise für maximale Synergie.</p>
+                </div>
+                <canvas id="social-canvas" class="webgl-canvas"></canvas>
+            </div>
+
+            <!-- SKILLS -->
+            <div class="pillar-card">
+                <div>
+                    <span class="pillar-icon" data-de="Skills" data-en="Skills">Skills</span>
+                    <h3 class="pillar-title" data-de="Deliberate<br>Mastery." data-en="Deliberate<br>Mastery.">
+                        Deliberate<br>Mastery.</h3>
+                    <p class="pillar-content"
+                        data-de="Wissen ist nur Macht, wenn es in Myelin codiert ist. Wir optimieren deine Lernkurve."
+                        data-en="Knowledge is only power when encoded in myelin. We optimize your learning curve.">
+                        Wissen ist nur Macht, wenn es in Myelin codiert ist. Wir optimieren deine Lernkurve.</p>
+                </div>
+                <canvas id="myelin-canvas" class="webgl-canvas"></canvas>
             </div>
         </div>
     </section>
 
     <!-- ═══ KNOWLEDGE VAULT (CREATIVE PARTNER) ═══ -->
-    <section id="vault-promo" style="padding: 8rem 0; background: var(--bg); position: relative; overflow: hidden; border-top: 1px solid rgba(255, 255, 255, 0.05);">
-        <div class="section-inner" style="max-width: 1200px; margin: 0 auto; padding: 0 2rem; position: relative; z-index: 2;">
+    <section id="vault-promo"
+        style="padding: 8rem 0; background: var(--bg); position: relative; overflow: hidden; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+        <div class="section-inner"
+            style="max-width: 1200px; margin: 0 auto; padding: 0 2rem; position: relative; z-index: 2;">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center;">
                 <div data-aos="fade-right">
                     <div class="ed-label" style="color: var(--tan);">Context Engine</div>
                     <h2 class="ed-title" style="margin-top: 1rem; margin-bottom: 2rem;">The Knowledge <br>Vault</h2>
                     <p style="color: rgba(255,255,255,0.7); line-height: 1.8; margin-bottom: 2rem; font-size: 1.1rem;">
-                        Pronoia is not just a system of rules; it's your creative partner. 
-                        Feed it with research, links, and ideas. The Knowledge Vault acts as a spatial context engine, organizing your inputs so the agentic workflow can draw upon them when synthesizing your optimized protocols.
+                        Pronoia is not just a system of rules; it's your creative partner.
+                        Feed it with research, links, and ideas. The Knowledge Vault acts as a spatial context engine,
+                        organizing your inputs so the agentic workflow can draw upon them when synthesizing your
+                        optimized protocols.
                     </p>
                     <ul style="list-style: none; padding: 0; margin-bottom: 3rem; color: rgba(255,255,255,0.8);">
                         <li style="margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem;">
@@ -1766,28 +1858,50 @@
                             <span style="color: var(--tan);">✦</span> RAG-Ready Architecture
                         </li>
                     </ul>
-                    <a href="vault.html" class="btn-10x btn-10x-solid" data-de="Zum Vault" data-en="Enter Vault">Enter the Vault</a>
+                    <a href="vault.html" class="btn-10x btn-10x-solid" data-de="Zum Vault" data-en="Enter Vault">Enter
+                        the Vault</a>
                 </div>
                 <div data-aos="fade-left" style="position: relative;">
                     <!-- Visual representation of the vault -->
-                    <div style="background: rgba(10, 10, 10, 0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2rem; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+                    <div
+                        style="background: rgba(10, 10, 10, 0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2rem; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
                         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
-                            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 8px;">
-                                <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--tan); margin-bottom: 0.5rem;">RESOURCE_01</div>
-                                <div style="width: 80%; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; margin-bottom: 0.5rem;"></div>
-                                <div style="width: 60%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px;"></div>
-                            </div>
-                            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 8px;">
-                                <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--tan); margin-bottom: 0.5rem;">RESOURCE_02</div>
-                                <div style="width: 90%; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; margin-bottom: 0.5rem;"></div>
-                                <div style="width: 40%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px;"></div>
-                            </div>
-                            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 8px; grid-column: 1 / -1;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                                    <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--tan);">AGENT_SYNC</div>
-                                    <div style="width: 8px; height: 8px; background: #00ffaa; border-radius: 50%; box-shadow: 0 0 10px #00ffaa;"></div>
+                            <div
+                                style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 8px;">
+                                <div
+                                    style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--tan); margin-bottom: 0.5rem;">
+                                    RESOURCE_01</div>
+                                <div
+                                    style="width: 80%; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; margin-bottom: 0.5rem;">
                                 </div>
-                                <div style="font-family: var(--font-mono); font-size: 0.8rem; color: rgba(255,255,255,0.6); line-height: 1.5;">
+                                <div
+                                    style="width: 60%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px;">
+                                </div>
+                            </div>
+                            <div
+                                style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 8px;">
+                                <div
+                                    style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--tan); margin-bottom: 0.5rem;">
+                                    RESOURCE_02</div>
+                                <div
+                                    style="width: 90%; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; margin-bottom: 0.5rem;">
+                                </div>
+                                <div
+                                    style="width: 40%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px;">
+                                </div>
+                            </div>
+                            <div
+                                style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 8px; grid-column: 1 / -1;">
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                    <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--tan);">
+                                        AGENT_SYNC</div>
+                                    <div
+                                        style="width: 8px; height: 8px; background: #00ffaa; border-radius: 50%; box-shadow: 0 0 10px #00ffaa;">
+                                    </div>
+                                </div>
+                                <div
+                                    style="font-family: var(--font-mono); font-size: 0.8rem; color: rgba(255,255,255,0.6); line-height: 1.5;">
                                     > Ingesting context...<br>
                                     > Aligning variables...<br>
                                     > Optimizing protocol...
@@ -1796,7 +1910,9 @@
                         </div>
                     </div>
                     <!-- Decorative glow -->
-                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 300px; height: 300px; background: radial-gradient(circle, rgba(212,175,55,0.15) 0%, rgba(0,0,0,0) 70%); pointer-events: none; z-index: -1;"></div>
+                    <div
+                        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 300px; height: 300px; background: radial-gradient(circle, rgba(212,175,55,0.15) 0%, rgba(0,0,0,0) 70%); pointer-events: none; z-index: -1;">
+                    </div>
                 </div>
             </div>
         </div>
@@ -1855,13 +1971,14 @@
     <section id="success-system">
         <div class="ed-label">The Success System</div>
         <h2 class="ed-title">Mechanisms of <br>Exponential Growth</h2>
-        
+
         <div class="framework-grid">
             <div class="framework-item" data-aos="fade-right">
                 <span class="framework-num">PHASE_01</span>
                 <div class="framework-content">
                     <h3>Deep Work <br>Protocol</h3>
-                    <p>Rigid time-blocking synchronized with circadian rhythms to ensure high-leverage output without burnout.</p>
+                    <p>Rigid time-blocking synchronized with circadian rhythms to ensure high-leverage output without
+                        burnout.</p>
                 </div>
                 <div class="framework-visual-wrap">
                     <canvas class="success-webgl" id="canvas-deepwork"></canvas>
@@ -1872,7 +1989,8 @@
                 <span class="framework-num">PHASE_02</span>
                 <div class="framework-content">
                     <h3>Decision <br>Matrix</h3>
-                    <p>Mathematical frameworks for evaluating opportunity cost and maximizing expected value in every move.</p>
+                    <p>Mathematical frameworks for evaluating opportunity cost and maximizing expected value in every
+                        move.</p>
                 </div>
                 <div class="framework-visual-wrap">
                     <canvas class="success-webgl" id="canvas-decision"></canvas>
@@ -1883,7 +2001,8 @@
                 <span class="framework-num">PHASE_03</span>
                 <div class="framework-content">
                     <h3>Network <br>Leverage</h3>
-                    <p>Strategic positioning within high-value clusters to accelerate information flow and capital access.</p>
+                    <p>Strategic positioning within high-value clusters to accelerate information flow and capital
+                        access.</p>
                 </div>
                 <div class="framework-visual-wrap">
                     <canvas class="success-webgl" id="canvas-network"></canvas>
@@ -1894,7 +2013,8 @@
                 <span class="framework-num">PHASE_04</span>
                 <div class="framework-content">
                     <h3>Wealth <br>Compounding</h3>
-                    <p>Automated systems for capital allocation and asset protection, ensuring the protocol sustains itself.</p>
+                    <p>Automated systems for capital allocation and asset protection, ensuring the protocol sustains
+                        itself.</p>
                 </div>
                 <div class="framework-visual-wrap">
                     <canvas class="success-webgl" id="canvas-wealth"></canvas>
@@ -2008,6 +2128,9 @@
         <!-- Back grass layer (blades behind text) -->
         <canvas id="grass-canvas-back"></canvas>
 
+        <!-- Front grass layer (blades in front of text) -->
+        <canvas id="grass-canvas-front"></canvas>
+
         <!-- REALISTIC EARTH CROSS-SECTION -->
         <div class="earth-layer"></div>
 
@@ -2053,6 +2176,7 @@
     </div>
 
     <script>
+        window._threeRenderers = [];
         gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
 
         // ── LOADER ──────────────────────────────────────────────────
@@ -2063,14 +2187,14 @@
         function dismissLoader() {
             if (loaderDone) return;
             loaderDone = true;
-            
+
             const tl = gsap.timeline();
-            
+
             tl.to(loader, {
                 opacity: 0, duration: 1.2, ease: 'power2.inOut',
                 onComplete: () => loader.style.display = 'none'
             });
-            
+
             // 10x Entrance Sequence
             tl.from('.hero-video-box', {
                 scale: 0.92,
@@ -2078,7 +2202,7 @@
                 duration: 2.5,
                 ease: 'expo.out'
             }, "-=0.8");
-            
+
             tl.from('.h-line', {
                 y: 80,
                 opacity: 0,
@@ -2086,14 +2210,14 @@
                 stagger: 0.2,
                 ease: 'power4.out'
             }, "-=1.8");
-            
+
             tl.from('.hero-p-10x', {
                 y: 30,
                 opacity: 0,
                 duration: 1.5,
                 ease: 'power3.out'
             }, "-=1.4");
-            
+
             tl.from('.hero-btn-group', {
                 y: 30,
                 opacity: 0,
@@ -2122,11 +2246,91 @@
             heroVideo.play().catch(() => { });
         }
 
+        // ── THREE.JS HERO PARTICLE SPHERE ────────────────────────────
+        const hCanvas = document.getElementById('hero-canvas');
+        if (hCanvas) {
+            const renderer = new THREE.WebGLRenderer({ canvas: hCanvas, antialias: true, alpha: true });
+            renderer.setSize(hCanvas.parentElement.offsetWidth, hCanvas.parentElement.offsetHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(50, hCanvas.parentElement.offsetWidth / hCanvas.parentElement.offsetHeight, 0.1, 100);
+            camera.position.z = 3.5;
+
+            const count = 2000;
+            const pPositions = new Float32Array(count * 3);
+            const pColors = new Float32Array(count * 3);
+
+            for (let i = 0; i < count; i++) {
+                const phi = Math.acos(-1 + (2 * i) / count);
+                const theta = Math.sqrt(count * Math.PI) * phi;
+                const radius = 1.2 + (Math.random() - 0.5) * 0.1;
+
+                const x = radius * Math.sin(phi) * Math.cos(theta);
+                const y = radius * Math.sin(phi) * Math.sin(theta);
+                const z = radius * Math.cos(phi);
+
+                pPositions[i * 3] = x;
+                pPositions[i * 3 + 1] = y;
+                pPositions[i * 3 + 2] = z;
+
+                if (x < 0) {
+                    pColors[i * 3] = 0.388; pColors[i * 3 + 1] = 0.125; pColors[i * 3 + 2] = 0.141; // #632024
+                } else {
+                    pColors[i * 3] = 0.145; pColors[i * 3 + 1] = 0.204; pColors[i * 3 + 2] = 0.31;  // #25344f
+                }
+            }
+
+            const particleGeo = new THREE.BufferGeometry();
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
+            particleGeo.setAttribute('color', new THREE.BufferAttribute(pColors, 3));
+
+            const particleMat = new THREE.PointsMaterial({
+                size: 0.018, vertexColors: true, transparent: true, opacity: 0.85
+            });
+            const particles = new THREE.Points(particleGeo, particleMat);
+            scene.add(particles);
+
+            function animateHero() {
+                requestAnimationFrame(animateHero);
+                particles.rotation.y += 0.0025;
+                particles.rotation.x += 0.0008;
+                renderer.render(scene, camera);
+            }
+            if (window._threeRenderers) window._threeRenderers.push(renderer);
+            animateHero();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = hCanvas.parentElement.offsetWidth / hCanvas.parentElement.offsetHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(hCanvas.parentElement.offsetWidth, hCanvas.parentElement.offsetHeight);
+            });
+        }
+
+        // ── PILLARS HORIZONTAL SCROLL ────────────────────────────────
+        const scrollContainer = document.querySelector('#pillars-scroll-container');
+        const scrollWrapper = document.querySelector('.scroll-wrapper');
+
+        if (scrollContainer && scrollWrapper) {
+            gsap.to(scrollWrapper, {
+                x: () => -(scrollWrapper.scrollWidth - window.innerWidth),
+                ease: "none",
+                scrollTrigger: {
+                    trigger: scrollContainer,
+                    pin: true,
+                    start: "top top",
+                    scrub: 1,
+                    invalidateOnRefresh: true,
+                    end: () => "+=" + (scrollWrapper.scrollWidth - window.innerWidth)
+                }
+            });
+        }
+
         // ── ENTRANCE ANIMATIONS ───────────────────────────────────────
-        gsap.to('#nav', { opacity: 1, duration: 1, delay: 0.4 });
+        gsap.to('#header', { opacity: 1, duration: 1, delay: 0.4 });
 
         // ── SCROLL-BASED ANIMATIONS ───────────────────────────────────
-        
+
         // H2 Letter Reveal Helper
         document.querySelectorAll('section h2').forEach(heading => {
             const text = heading.innerHTML;
@@ -2155,8 +2359,8 @@
             });
         });
 
-        // Staggered reveals for matrix/framework items
-        gsap.utils.toArray('.p-module, .framework-item, .stage-card').forEach((el, i) => {
+        // Staggered reveals for cards
+        gsap.utils.toArray('.pillar-card, .framework-item, .stage-card').forEach((el, i) => {
             gsap.from(el, {
                 opacity: 0,
                 y: 40,
@@ -2175,11 +2379,14 @@
             repeat: -1
         });
 
-        // ── NAV & UTILS ──────────────────────────────────────────────
-        const nav = document.getElementById('nav');
-        window.addEventListener('scroll', () => {
-            nav.classList.toggle('scrolled', window.scrollY > 60);
-        });
+        // Pill Floating Animation
+        if (document.querySelector('.labs-pill-img')) {
+            gsap.to('.labs-pill-img', {
+                y: -15, duration: 3.5, ease: 'sine.inOut', repeat: -1, yoyo: true
+            });
+        }
+
+        // ── UTILS ──────────────────────────────────────────────
 
         // Smooth nav scroll
         document.querySelectorAll('a[href^="#"]').forEach(a => {
@@ -2231,75 +2438,124 @@
 
         // ── SYSTEM UNLOCK LOGIC ──────────────────────────────────────
         const systemLink = document.getElementById('nav-system');
-        if (localStorage.getItem('pronoia_unlocked') === 'true') {
-            systemLink.classList.remove('system-locked');
-            systemLink.classList.add('system-unlocked');
-        }
-        systemLink.addEventListener('click', (e) => {
-            if (!localStorage.getItem('pronoia_unlocked')) {
-                e.preventDefault();
-                alert(currentLang === 'de' ? 'Zugang verweigert. Schließe zuerst die Identifikation ab.' : 'Access Denied. Complete identification first.');
+        if (systemLink) {
+            if (localStorage.getItem('pronoia_unlocked') === 'true') {
+                systemLink.classList.remove('system-locked');
+                systemLink.classList.add('system-unlocked');
             }
-        });
+            systemLink.addEventListener('click', (e) => {
+                if (!localStorage.getItem('pronoia_unlocked')) {
+                    e.preventDefault();
+                    alert(currentLang === 'de' ? 'Zugang verweigert. Schließe zuerst die Identifikation ab.' : 'Access Denied. Complete identification first.');
+                }
+            });
+        }
 
-        // ── TECHNICAL VISUALIZATIONS (THREE.JS) ──────────────────────
-        const _threeRenderers = [];
-        const canvasIds = ['canvas-deepwork', 'canvas-decision', 'canvas-network', 'canvas-wealth'];
-        
-        canvasIds.forEach(id => {
-            const canvas = document.getElementById(id);
-            if (!canvas) return;
-            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-            renderer.setSize(canvas.clientWidth, canvas.clientHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            _threeRenderers.push(renderer);
-            
+        // ── WEBGL PILLAR VISUALS ──────────────────────
+        function makeRenderer(canvasId, alpha) {
+            const c = document.getElementById(canvasId);
+            if (!c) return null;
+            const r = new THREE.WebGLRenderer({ canvas: c, antialias: true, alpha: !!alpha });
+            if (window._threeRenderers) window._threeRenderers.push(r);
+            r.setPixelRatio(window.devicePixelRatio);
+            r.setSize(c.clientWidth, c.clientHeight);
+            return { renderer: r, canvas: c };
+        }
+
+        // SOCIAL NETWORK WebGL
+        (function () {
+            const d = makeRenderer('social-canvas', true);
+            if (!d) return;
+            const { renderer, canvas } = d;
             const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 0.1, 100);
-            camera.position.z = 4;
-            
-            let geometry;
-            if(id === 'canvas-deepwork') geometry = new THREE.TorusKnotGeometry(1, 0.3, 64, 8);
-            else if(id === 'canvas-decision') geometry = new THREE.IcosahedronGeometry(1.2, 0);
-            else if(id === 'canvas-network') geometry = new THREE.OctahedronGeometry(1.2, 1);
-            else geometry = new THREE.TorusGeometry(1, 0.3, 12, 48);
-            
-            const material = new THREE.MeshBasicMaterial({ color: 0xd5b893, wireframe: true, transparent: true, opacity: 0.25 });
-            const mesh = new THREE.Mesh(geometry, material);
-            scene.add(mesh);
-            
+            const cam = new THREE.PerspectiveCamera(60, canvas.clientWidth / canvas.clientHeight, 0.1, 100);
+            cam.position.z = 4;
+
+            const nodes = [
+                { pos: [0, 0, 0], r: 0.18, isCenter: true },
+                { pos: [1.2, 0.8, 0.2], r: 0.1 }, { pos: [-1.1, 0.9, -0.1], r: 0.08 },
+                { pos: [1.3, -0.7, -0.2], r: 0.09 }, { pos: [-1.2, -0.8, 0.3], r: 0.11 },
+                { pos: [0.2, 1.4, 0.1], r: 0.07 }, { pos: [-0.3, -1.5, -0.2], r: 0.08 },
+            ];
+
+            const tanColor = new THREE.Color(0xd5b893);
+            const navyColor = new THREE.Color(0x25344f);
+
+            nodes.forEach((n, i) => {
+                const geo = new THREE.SphereGeometry(n.r, 16, 16);
+                const mat = new THREE.MeshBasicMaterial({ color: n.isCenter ? navyColor : tanColor, transparent: true, opacity: 0.7 });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(...n.pos);
+                scene.add(mesh);
+
+                if (!n.isCenter) {
+                    const pts = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(...n.pos)];
+                    const lGeo = new THREE.BufferGeometry().setFromPoints(pts);
+                    scene.add(new THREE.Line(lGeo, new THREE.LineBasicMaterial({ color: tanColor, transparent: true, opacity: 0.3 })));
+                }
+            });
+
             function animate() {
                 requestAnimationFrame(animate);
-                mesh.rotation.x += 0.003;
-                mesh.rotation.y += 0.005;
-                renderer.render(scene, camera);
+                scene.rotation.y += 0.005;
+                renderer.render(scene, cam);
             }
             animate();
-        });
+        })();
+
+        // MYELIN WebGL
+        (function () {
+            const d = makeRenderer('myelin-canvas', true);
+            if (!d) return;
+            const { renderer, canvas } = d;
+            const scene = new THREE.Scene();
+            const cam = new THREE.PerspectiveCamera(50, canvas.clientWidth / canvas.clientHeight, 0.1, 100);
+            cam.position.set(0, 0, 5);
+
+            const axon = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 6, 16), new THREE.MeshBasicMaterial({ color: 0x25344f, transparent: true, opacity: 0.4 }));
+            axon.rotation.z = Math.PI / 2;
+            scene.add(axon);
+
+            const sheaths = [];
+            for (let i = 0; i < 5; i++) {
+                const s = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.8, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xd5b893, side: THREE.DoubleSide, transparent: true, opacity: 0.6 }));
+                s.rotation.z = Math.PI / 2;
+                s.position.x = -2.4 + i * 1.2;
+                scene.add(s);
+                sheaths.push(s);
+            }
+
+            function animate() {
+                requestAnimationFrame(animate);
+                scene.rotation.y += 0.005;
+                renderer.render(scene, cam);
+            }
+            animate();
+        })();
 
         // Diagnosis Core Visualization
-        (function() {
+        (function () {
             const container = document.getElementById('diag-canvas-container');
-            if(!container) return;
+            if (!container) return;
             const canvas = document.createElement('canvas');
             container.appendChild(canvas);
             const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
             renderer.setSize(container.clientWidth, container.clientHeight);
             _threeRenderers.push(renderer);
-            
+
             const scene = new THREE.Scene();
             const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
             camera.position.z = 5;
-            
+
             const points = [];
-            for(let i = 0; i < 300; i++) {
-                points.push(new THREE.Vector3((Math.random()-0.5)*8, (Math.random()-0.5)*8, (Math.random()-0.5)*8));
+            for (let i = 0; i < 300; i++) {
+                points.push(new THREE.Vector3((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8));
             }
             const geometry = new THREE.BufferGeometry().setFromPoints(points);
             const material = new THREE.PointsMaterial({ color: 0xd5b893, size: 0.04, transparent: true, opacity: 0.6 });
             const cloud = new THREE.Points(geometry, material);
             scene.add(cloud);
-            
+
             function animate() {
                 requestAnimationFrame(animate);
                 cloud.rotation.y += 0.001;
@@ -2309,7 +2565,7 @@
         })();
 
         // System Log Animation
-        (function() {
+        (function () {
             const diagLog = document.getElementById('diag-log');
             if (!diagLog) return;
             const logs = [

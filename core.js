@@ -3,7 +3,7 @@
 const NavigationEngine = {
   injectHeader() {
     const headerContainer = document.getElementById('pronoia-nav-container');
-    if (!headerContainer) return;
+    if (!headerContainer || headerContainer.innerHTML.trim() !== "") return;
 
     const path = window.location.pathname;
     let activePage = '';
@@ -29,6 +29,7 @@ const NavigationEngine = {
             <div id="header-clock" class="mono" style="font-size: .75rem; color: var(--text2); margin-left: 1rem; opacity: 0.6;">--:--:--</div>
         </div>
         <div class="header-right">
+            <div id="stage-badge" class="session-badge" style="color: var(--tan); opacity: 1; margin-right: 1rem;">STAGE 01</div>
             <ul class="nav-links">
                 <li><a href="protocol.html" ${systemAttrs}>SYSTEM</a></li>
                 <li><a href="vault.html" class="${activePage === 'vault' ? 'active' : ''}" ${isIndex ? 'data-de="VAULT" data-en="VAULT"' : ''}>VAULT</a></li>
