@@ -361,7 +361,7 @@ export class PronoiaAgent {
     } catch(e) {
       ProtocolUI.setAgentMsg("Fehler bei AI Generierung.");
     }
-  },
+  }
 
   syncToActive() {
     const dayData = this.calendar[this.selectedDate];
@@ -374,7 +374,7 @@ export class PronoiaAgent {
     this.syncState();
     this.renderUI();
     ProtocolUI.triggerToast('Sync', 'Protokoll vom ' + this.selectedDate + ' aktiviert.', false);
-  },
+  }
 
   saveProfile() {
     this.profile.goals = document.getElementById('profile-goals').value;
@@ -384,7 +384,7 @@ export class PronoiaAgent {
     this.profile.skillLevel = parseInt(document.getElementById('profile-skill-level').value) || 1;
     localStorage.setItem('px_profile', JSON.stringify(this.profile));
     ProtocolUI.triggerToast('Profil', 'Daten synchronisiert.', false);
-  },
+  }
 
   getBioAdaptiveTemplate() {
     const hrv = this.profile.metrics.hrv || 0;
@@ -392,7 +392,7 @@ export class PronoiaAgent {
     if (hrv < 40 || sleep < 6) return PROTOCOL_DATABASE.emergency_recovery;
     if (this.profile.training === 'hit') return PROTOCOL_DATABASE.physical_training;
     return PROTOCOL_DATABASE.focus_optimization;
-  },
+  }
 
   loadProtocol(blocks) {
     this.blocks = JSON.parse(JSON.stringify(blocks));
@@ -401,20 +401,20 @@ export class PronoiaAgent {
     this.totalTime = this.timeLeft;
     localStorage.setItem('px_blocks', JSON.stringify(this.blocks));
     this.renderUI();
-  },
+  }
 
   setFocusMode() {
     this.focusMode = !this.focusMode;
     document.body.classList.toggle('focus-active', this.focusMode);
     ProtocolUI.triggerToast('Focus Mode', this.focusMode ? 'Aktiviert. Alle Ablenkungen blockiert.' : 'Deaktiviert.', false);
-  },
+  }
 
   async getEnvironment() {
     // Placeholder for weather/location logic
     this.env.time = new Date().toLocaleTimeString();
     localStorage.setItem('px_env', JSON.stringify(this.env));
     this.renderUI();
-  },
+  }
 
   // --- UI Bridge ---
   renderUI() { ProtocolUI.renderUI(this); }
