@@ -2090,10 +2090,12 @@
 <body>
 
   <!-- ═══ AUTHENTICATION ══════════════════════════ -->
-  <div id="loader">
-    <video id="loaderVideo" autoplay muted playsinline>
-      <source src="graphic assets/Pronoia Loading Screen.mp4" type="video/mp4">
-    </video>
+  <div id="loader"
+       style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;">
+    <!-- Protocol page: no loading video, just a quick branded fade-in -->
+    <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;letter-spacing:.35em;text-transform:uppercase;color:rgba(213,184,147,0.6);">Pronoia Protocol</div>
+    <div style="width:40px;height:1px;background:rgba(213,184,147,0.4);"></div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:.5rem;letter-spacing:.2em;color:rgba(255,255,255,0.25);">Initialisierung…</div>
   </div>
 
   <div id="auth-overlay">
@@ -2728,51 +2730,66 @@
     // --- LOADER & SESSION FLOW ---
     let loaderDone = false;
     const loader = document.getElementById('loader');
-    const loaderVideo = document.getElementById('loaderVideo');
 
     function dismissLoader() {
       if (loaderDone) return;
       loaderDone = true;
-      
-      if (!loader) {
+
+      function afterFade() {
+        if (loader) loader.style.display = 'none';
         initSessionFlow();
-        return;
       }
 
-      if (window.gsap) {
-        gsap.to(loader, {
-          opacity: 0, duration: 1.2, ease: 'power2.inOut',
-          onComplete: () => {
-            loader.style.display = 'none';
-            initSessionFlow();
-          }
-        });
+      if (loader && window.gsap) {
+        gsap.to(loader, { opacity: 0, duration: 0.8, ease: 'power2.inOut', onComplete: afterFade });
       } else {
-        loader.style.display = 'none';
-        initSessionFlow();
+        afterFade();
       }
     }
 
-    if (loaderVideo) {
-      loaderVideo.addEventListener('ended', dismissLoader);
-      setTimeout(dismissLoader, 8000);
-    } else {
-      setTimeout(dismissLoader, 500);
-    }
+    // Protocol page: dismiss loader quickly — no video dependency
+    setTimeout(dismissLoader, 400);
 
     function initSessionFlow() {
-      if (Auth.isLoggedIn) {
-        document.getElementById('auth-overlay').style.display = 'none';
-        const hadProtocol = !!localStorage.getItem('px_block_idx');
-        const didOnboarding = !!localStorage.getItem('px_onboarding_done');
+      // Check localStorage-based auth first (fast path)
+      const hasToken = !!localStorage.getItem('px_auth_token');
+      const hadProtocol = !!localStorage.getItem('px_block_idx');
+      const didOnboarding = !!localStorage.getItem('px_onboarding_done');
+
+      if (hasToken || Auth.isLoggedIn) {
+        const authOverlay = document.getElementById('auth-overlay');
+        if (authOverlay) authOverlay.style.display = 'none';
+        Auth.isLoggedIn = true;
+
         if (hadProtocol || didOnboarding) {
           if (!Agent.blocks || Agent.blocks.length === 0) {
             Agent.loadProtocol(Agent.getBioAdaptiveTemplate());
           }
           obFinish();
         } else {
-          document.getElementById('onboarding').style.display = 'flex';
+          const ob = document.getElementById('onboarding');
+          if (ob) ob.style.display = 'flex';
         }
+      }
+      // Also listen for Firebase auth state change (async login)
+      if (window.firebase && firebase.auth) {
+        firebase.auth().onAuthStateChanged((user) => {
+          if (user && !Auth.isLoggedIn) {
+            Auth.isLoggedIn = true;
+            localStorage.setItem('px_auth_token', 'px-firebase-' + user.uid);
+            const authOverlay = document.getElementById('auth-overlay');
+            if (authOverlay) authOverlay.style.display = 'none';
+            if (!localStorage.getItem('px_onboarding_done')) {
+              const ob = document.getElementById('onboarding');
+              if (ob) ob.style.display = 'flex';
+            } else {
+              if (!Agent.blocks || Agent.blocks.length === 0) {
+                Agent.loadProtocol(Agent.getBioAdaptiveTemplate());
+              }
+              obFinish();
+            }
+          }
+        });
       }
     }
 
