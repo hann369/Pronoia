@@ -3,6 +3,8 @@
  * Pronoia R&D & Skill Acquisition Module
  * Manages the generation and display of deliberate practice materials.
  */
+import { MistralService } from './mistral_service.js';
+
 export class SkillLab {
   constructor(agent) {
     this.agent = agent;
