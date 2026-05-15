@@ -2683,7 +2683,6 @@
     import { FIREBASE_CONFIG } from './config.js';
     import { PronoiaAgent } from './protocol_engine.js';
     import { AuthService, Onboarding } from './auth_service.js';
-    import { SkillLab } from './labs.js';
 
     // Initialize Firebase (Compat)
     if (window.firebase) {
@@ -2691,8 +2690,8 @@
     }
 
     // Initialize Global Agent Bridge
+    // Note: PronoiaAgent constructor already creates skillLab with correct `this` reference
     window.Agent = new PronoiaAgent();
-    window.Agent.skillLab = new SkillLab();
     window.Auth = AuthService;
     window.Onboarding = Onboarding;
 
