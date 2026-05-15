@@ -52,6 +52,34 @@ export class MistralService {
   }
 
   /**
+   * Chat with tool/function calling support (for ConnectorEngine)
+   * @param {string} prompt
+   * @param {string} systemPrompt
+   * @param {Array}  tools  - Mistral-compatible tools schema array
+   * @param {string} tool_choice - 'auto' | 'none' | { type: 'function', function: { name } }
+   * @returns {Promise<object>} raw API response data
+   */
+  static async callWithTools(prompt, systemPrompt, tools = [], tool_choice = 'auto') {
+    if (location.protocol === 'file:') {
+      console.warn("[MistralService] file:// protocol - tool calls disabled.");
+      return { choices: [] };
+    }
+    try {
+      const response = await fetch('/api/groq', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, systemPrompt, tools, tool_choice })
+      });
+      if (!response.ok) return { choices: [] };
+      return await response.json();
+    } catch (err) {
+      console.warn("[MistralService] callWithTools error:", err.message);
+      return { choices: [] };
+    }
+  }
+
+
+  /**
    * Generate a directive based on context
    * @param {string} prompt 
    * @param {string} context 

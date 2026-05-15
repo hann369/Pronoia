@@ -4,6 +4,7 @@ import { ProtocolUI } from './protocol_ui.js';
 import { Telemetry } from './telemetry.js';
 import { StackManager } from './stack_manager.js';
 import { SkillLab } from './labs.js';
+import { Connectors } from './connector_engine.js';
 
 export class PronoiaAgent {
   constructor() {
@@ -32,6 +33,9 @@ export class PronoiaAgent {
     this.notified50 = false;
     this.notified5m = false;
 
+    // Connector Engine — available as Agent.connectors for external use
+    this.connectors = Connectors;
+
     this.init();
   }
 
@@ -39,6 +43,29 @@ export class PronoiaAgent {
     await this.loadState();
     this.syncTimerToRealTime();
     this.calculateReadinessScore();
+    this.checkStackAlerts();
+  }
+
+  /**
+   * Check stack supplies and emit alerts for low items.
+   * Items below LOW_THRESHOLD trigger a connector-ready notification.
+   * No automatic dispatch — user must confirm.
+   */
+  checkStackAlerts() {
+    const LOW_THRESHOLD = 20; // percent
+    const lowItems = (this.stack || []).filter(s => (s.supply ?? 100) < LOW_THRESHOLD);
+    if (lowItems.length === 0) return;
+
+    lowItems.forEach(item => {
+      const pct = item.supply ?? 0;
+      console.warn(`[Agent] Stack low: ${item.name} at ${pct}%`);
+      this.connectors._emit('stack:low', { item, pct });
+    });
+
+    // Surface in UI if available
+    if (window.__pronoiaConnectorUI) {
+      window.__pronoiaConnectorUI.notifyLowStack(lowItems);
+    }
   }
 
   syncTimerToRealTime() {
