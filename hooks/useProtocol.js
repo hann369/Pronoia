@@ -49,6 +49,7 @@ export function useProtocol() {
 
   // Auth & Load State
   useEffect(() => {
+    if (!auth) return;
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
@@ -112,9 +113,9 @@ export function useProtocol() {
   useEffect(() => {
     const timer = setTimeout(() => {
       const stateObj = { profile, blocks, blockIdx, stack, frictionLogs, directives, dataSources };
-      if (user) {
+      if (user && db) {
         setDoc(doc(db, 'users', user.uid), stateObj, { merge: true });
-      } else {
+      } else if (!user) {
         localStorage.setItem('pronoia_protocol_state', JSON.stringify(stateObj));
       }
     }, 2000);
