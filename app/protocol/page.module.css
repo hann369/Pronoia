@@ -2,7 +2,7 @@
   display: grid;
   grid-template-columns: 350px 1fr 350px;
   height: calc(100vh - 72px);
-  background: radial-gradient(circle at 50% 50%, #0d0f1a, #030408);
+  background: radial-gradient(circle at 50% 50%, var(--bg2), var(--bg));
   overflow: hidden;
   margin-top: 72px;
   color: var(--text);
@@ -25,7 +25,7 @@
 
 /* --- Panel Layouts --- */
 .leftPanel, .rightPanel {
-  background: rgba(8, 10, 20, 0.6);
+  background: var(--panel-bg);
   backdrop-filter: blur(16px);
   border-right: 1px solid var(--border);
   display: flex;
@@ -54,7 +54,7 @@
   height: 100%;
   overflow-y: auto;
   padding: 1.5rem;
-  background: rgba(3, 4, 8, 0.4);
+  background: rgba(var(--bg-rgb), 0.35);
 }
 
 /* --- Tab Swapping (Left Panel) --- */
@@ -97,7 +97,7 @@
 
 /* --- Card Styles --- */
 .card {
-  background: rgba(15, 20, 35, 0.4);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1.25rem;
@@ -224,7 +224,7 @@
 }
 
 .formInput {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(var(--text-rgb), 0.05);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
@@ -326,7 +326,7 @@
 }
 
 .metricInputCard {
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(var(--text-rgb), 0.05);
   border: 1px solid var(--border-s);
   border-radius: 8px;
   padding: 0.75rem;
@@ -474,7 +474,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(var(--bg-rgb), 0.35);
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
@@ -507,7 +507,7 @@
 }
 
 .chatMsgUser {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(var(--text-rgb), 0.04);
   border: 1px solid var(--border-s);
   color: var(--text);
   align-self: flex-end;
@@ -549,7 +549,7 @@
 }
 
 .stackItem {
-  background: rgba(255, 255, 255, 0.01);
+  background: rgba(var(--text-rgb), 0.03);
   border: 1px solid var(--border-s);
   border-radius: 8px;
   padding: 0.75rem;
