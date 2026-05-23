@@ -1,0 +1,129 @@
+/* Hero */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  padding: 9rem 0 5rem;
+}
+.hero .container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6rem;
+  align-items: center;
+}
+.heroContent {}
+.heroTitle {
+  font-family: var(--font-display);
+  font-size: clamp(3.5rem, 6vw, 6rem);
+  font-weight: 400;
+  line-height: 0.93;
+  margin-bottom: 1.8rem;
+  letter-spacing: -0.02em;
+}
+.heroTitle em { font-style: italic; color: var(--tan); }
+.heroSub { font-size: 1.1rem; color: var(--text2); line-height: 1.8; max-width: 520px; margin-bottom: 2.5rem; }
+.heroCtas { display: flex; gap: 1rem; flex-wrap: wrap; }
+
+/* Hero visual */
+.heroVisual { position: relative; display: flex; align-items: center; justify-content: center; }
+.heroOrb {
+  width: 340px; height: 340px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, var(--tan), var(--cobalt) 70%);
+  filter: blur(60px); opacity: 0.25;
+}
+.heroBadge {
+  position: absolute;
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-s);
+  border-radius: 20px;
+  padding: 1.5rem 2rem;
+  text-align: center;
+}
+.heroBadgeNum { display: block; font-family: var(--font-display); font-size: 3rem; color: var(--tan); line-height: 1; }
+.heroBadgeLabel { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text2); margin-top: 0.4rem; display: block; }
+
+/* Strip */
+.strip {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 1.2rem 0;
+  overflow: hidden;
+}
+.stripInner {
+  display: flex; gap: 3rem; align-items: center;
+  animation: stripScroll 25s linear infinite;
+  white-space: nowrap; width: max-content;
+}
+@keyframes stripScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.stripItem {
+  display: flex; align-items: center; gap: 0.6rem;
+  font-family: var(--font-mono); font-size: 0.65rem;
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--text2);
+}
+.stripDot { width: 4px; height: 4px; border-radius: 50%; background: var(--tan); flex-shrink: 0; }
+
+/* Section header */
+.sectionHeader { margin-bottom: 4rem; max-width: 640px; }
+.sectionTitle { font-family: var(--font-display); font-size: clamp(2.5rem, 4vw, 4rem); font-weight: 400; margin-bottom: 1rem; }
+.sectionSub { font-size: 1.05rem; color: var(--text2); line-height: 1.8; }
+
+/* Product grid */
+.productGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 2rem;
+}
+
+.productCard { padding: 2.2rem; display: flex; flex-direction: column; gap: 0; position: relative; }
+
+.cardCategory {
+  font-family: var(--font-mono); font-size: 0.6rem;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 0.8rem;
+}
+.cardBadge {
+  position: absolute; top: 1.5rem; right: 1.5rem;
+  font-family: var(--font-mono); font-size: 0.6rem;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  border: 1px solid; border-radius: 100px;
+  padding: 0.25rem 0.7rem;
+}
+.cardName { font-family: var(--font-display); font-size: 1.6rem; font-weight: 400; line-height: 1.1; margin-bottom: 0.3rem; color: var(--text); }
+.cardTagline { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cobalt-bright); margin-bottom: 1rem; }
+.cardDesc { font-size: 0.88rem; color: var(--text2); line-height: 1.7; flex: 1; margin-bottom: 1.2rem; }
+.cardMeta { display: flex; gap: 0.5rem; align-items: center; font-family: var(--font-mono); font-size: 0.65rem; color: var(--text3); margin-bottom: 1.5rem; }
+.metaDivider { opacity: 0.3; }
+.cardFooter { display: flex; justify-content: space-between; align-items: center; padding-top: 1.2rem; border-top: 1px solid var(--border); }
+.cardPrice { font-family: var(--font-display); font-size: 2rem; font-weight: 400; }
+
+/* Formula section */
+.formulaSection {
+  padding: 10rem 0;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.formulaTitle { font-family: var(--font-display); font-size: clamp(2.5rem, 4vw, 4rem); font-weight: 400; margin-bottom: 1rem; }
+.formulaSub { font-size: 1.1rem; color: var(--text2); margin-bottom: 4rem; }
+.pillarsGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+.pillarCard { padding: 3rem; position: relative; overflow: hidden; }
+.pillarNum { font-family: var(--font-display); font-size: 5rem; opacity: 0.05; position: absolute; top: 0.5rem; right: 1.5rem; line-height: 1; }
+.pillarTitle { font-family: var(--font-display); font-size: 1.8rem; margin-bottom: 1rem; }
+.pillarText { font-size: 0.92rem; color: var(--text2); line-height: 1.7; }
+
+/* CTA band */
+.ctaBand { padding: 10rem 0; text-align: center; }
+.ctaTitle { font-family: var(--font-display); font-size: clamp(2rem, 4vw, 3.5rem); font-weight: 400; line-height: 1.2; margin-bottom: 2.5rem; }
+.ctaBtns { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .hero .container { grid-template-columns: 1fr; gap: 3rem; }
+  .heroVisual { display: none; }
+  .pillarsGrid { grid-template-columns: 1fr; }
+  .productGrid { grid-template-columns: 1fr; }
+}

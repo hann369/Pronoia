@@ -1,0 +1,124 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--bg-card);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--border-s);
+  border-radius: 24px;
+  padding: 3rem 2.5rem;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.08);
+}
+
+.header { margin-bottom: 2.5rem; }
+
+.title {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 400;
+  color: var(--text);
+  margin: 0.6rem 0 0.5rem;
+  line-height: 1.1;
+}
+
+.sub {
+  color: var(--text2);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+/* Google btn */
+.googleBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  background: var(--bg2);
+  border: 1px solid var(--border-s);
+  border-radius: 12px;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.googleBtn:hover {
+  background: var(--bg3);
+  border-color: var(--text3);
+}
+.googleBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Divider */
+.dividerRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.dividerLine { flex: 1; height: 1px; background: var(--border); }
+.dividerText {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  color: var(--text3);
+  text-transform: uppercase;
+}
+
+/* Form */
+.form { display: flex; flex-direction: column; gap: 1.2rem; }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.input {
+  background: var(--bg2);
+  border: 1px solid var(--border-s);
+  color: var(--text);
+  padding: 0.9rem 1.2rem;
+  border-radius: 12px;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.3s ease;
+  width: 100%;
+}
+.input:focus { border-color: var(--cobalt-bright); }
+.input::placeholder { color: var(--text3); }
+
+.error {
+  color: var(--red);
+  font-size: 0.82rem;
+  font-family: var(--font-mono);
+  padding: 0.5rem 0;
+}
+
+/* Toggle */
+.toggle {
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text2);
+}
+.toggleBtn {
+  background: none;
+  border: none;
+  color: var(--cobalt-bright);
+  font-size: 0.85rem;
+  font-family: var(--font-body);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
