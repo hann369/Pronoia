@@ -21,7 +21,15 @@ export function useProtocol() {
       { text: '3x Deep Work Blöcke vollenden', completed: false },
       { text: 'Bio-Stack-Compliance > 90%', completed: false },
       { text: 'SNS Aktivierung unter 65 halten', completed: false }
-    ]
+    ],
+    // New premium User Profile and Tutorial settings for community
+    username: 'BioHacker_Alpha',
+    avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=200',
+    bio: 'System-Optimierung auf zellulärer Ebene. Spezialist für zirkadiane Taktung.',
+    class: 'Flow Architect',
+    systemId: 'PX-2026-88',
+    joinedDate: 'Mai 2026',
+    hasCompletedTutorial: false
   });
 
   const [stack, setStack] = useState([

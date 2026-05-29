@@ -17,6 +17,13 @@ const AGENTS = [
 
 const WEEKDAYS = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
 
+const AVATAR_PRESETS = [
+  { name: 'Cyber-Neophyte', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=200' },
+  { name: 'Flow Master', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200' },
+  { name: 'Circadian Guardian', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200' },
+  { name: 'Metabolic Sage', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200' }
+];
+
 export default function ProtocolPage() {
   const { user } = useAuth();
   const {
@@ -67,7 +74,7 @@ export default function ProtocolPage() {
     uploadDataSource
   } = useProtocol();
 
-  const [leftTab, setLeftTab] = useState('queue'); // 'queue' | 'personal'
+  const [leftTab, setLeftTab] = useState('queue'); // 'queue' | 'personal' | 'identity'
   const [messages, setMessages] = useState([
     { role: 'agent', text: 'System-Performance aktiv. Bereit für kognitives Laden.' }
   ]);
@@ -86,6 +93,9 @@ export default function ProtocolPage() {
   const [skillContent, setSkillContent] = useState('');
   const [isGeneratingSkill, setIsGeneratingSkill] = useState(false);
   const [dayChatInput, setDayChatInput] = useState('');
+
+  // Tutorial / Guided Tour state
+  const [tutorialStep, setTutorialStep] = useState(0); // 0 = inactive
 
   const chatEndRef = useRef(null);
 
@@ -111,6 +121,16 @@ export default function ProtocolPage() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
+
+  // Auto-trigger onboarding system guided tour for new users on first check-in
+  useEffect(() => {
+    if (profile && profile.hasCompletedTutorial === false && tutorialStep === 0) {
+      const t = setTimeout(() => {
+        setTutorialStep(1);
+      }, 1200);
+      return () => clearTimeout(t);
+    }
+  }, [profile, tutorialStep]);
 
   const handleSendChat = async (e) => {
     e.preventDefault();
@@ -246,6 +266,45 @@ export default function ProtocolPage() {
     setShowSkillLabModal(false);
   };
 
+  // --- Onboarding Guided Tour triggers ---
+  const handleNextTourStep = () => {
+    if (tutorialStep < 7) {
+      if (tutorialStep === 2) {
+        setLeftTab('personal');
+      }
+      if (tutorialStep === 3) {
+        setLeftTab('queue');
+      }
+      setTutorialStep(prev => prev + 1);
+    } else {
+      saveProfile({ hasCompletedTutorial: true });
+      setTutorialStep(0);
+    }
+  };
+
+  const handlePrevTourStep = () => {
+    if (tutorialStep > 1) {
+      if (tutorialStep === 4) {
+        setLeftTab('personal');
+      }
+      if (tutorialStep === 3) {
+        setLeftTab('queue');
+      }
+      setTutorialStep(prev => prev - 1);
+    }
+  };
+
+  const handleSkipTour = () => {
+    saveProfile({ hasCompletedTutorial: true });
+    setTutorialStep(0);
+  };
+
+  const getStandingRank = (level) => {
+    if (level >= 8) return 'Bio-Cognitive Pioneer';
+    if (level >= 4) return 'Bio-Cognitive Specialist';
+    return 'Bio-Cognitive Adept';
+  };
+
   // SVG Circular progress computation
   const radius = 88;
   const circumference = 2 * Math.PI * radius; // ~552.92
@@ -335,8 +394,8 @@ export default function ProtocolPage() {
   return (
     <div className={styles.container}>
       {/* ─── LEFT PANEL: SCHEDULE & PROFILE ─── */}
-      <aside className={styles.leftPanel}>
-        <nav className={styles.tabHeader}>
+      <aside className={`${styles.leftPanel} ${(tutorialStep === 1 || tutorialStep === 2 || tutorialStep === 3) ? styles.highlightSpotlight : ''}`}>
+        <nav className={styles.tabHeader} style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
           <button 
             className={`${styles.tabBtn} ${leftTab === 'queue' ? styles.tabBtnActive : ''}`} 
             onClick={() => setLeftTab('queue')}
@@ -349,12 +408,18 @@ export default function ProtocolPage() {
           >
             Biometrie
           </button>
+          <button 
+            className={`${styles.tabBtn} ${leftTab === 'identity' ? styles.tabBtnActive : ''}`} 
+            onClick={() => setLeftTab('identity')}
+          >
+            Identität
+          </button>
         </nav>
 
-        {leftTab === 'queue' ? (
+        {leftTab === 'queue' && (
           <div>
             {/* Interactive Calendar Trigger Card */}
-            <div className={styles.card}>
+            <div className={`${styles.card} ${tutorialStep === 2 ? styles.highlightSpotlight : ''}`}>
               <span className={styles.panelTitle}>
                 <span>📅</span> Zirkadianer Kalender
               </span>
@@ -407,7 +472,7 @@ export default function ProtocolPage() {
             )}
 
             {/* Active protocol block lists */}
-            <div className={styles.card}>
+            <div className={`${styles.card} ${tutorialStep === 1 ? styles.highlightSpotlight : ''}`}>
               <span className={styles.panelTitle}>
                 <span>⏳</span> Aktive Ablauf-Queue
               </span>
@@ -480,8 +545,10 @@ export default function ProtocolPage() {
               </div>
             </div>
           </div>
-        ) : (
-          <div>
+        )}
+
+        {leftTab === 'personal' && (
+          <div className={tutorialStep === 3 ? styles.highlightSpotlight : ''}>
             {/* Weekly goals */}
             <div className={styles.card}>
               <span className={styles.panelTitle}>
@@ -605,6 +672,143 @@ export default function ProtocolPage() {
             </div>
           </div>
         )}
+
+        {leftTab === 'identity' && (
+          <div>
+            {/* Cyberpunk Bio-Identity Card */}
+            <div className={styles.card} style={{ borderLeft: '3px solid var(--tan)', background: 'linear-gradient(135deg, rgba(212,165,116,0.03), rgba(20,24,33,0.95))' }}>
+              <span className={styles.panelTitle} style={{ color: 'var(--tan)' }}>
+                <span>🛡️</span> Identitäts-Freigabe
+              </span>
+              
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <div style={{ position: 'relative' }}>
+                  <img 
+                    src={profile.avatar || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=200'} 
+                    alt="Bio-Avatar" 
+                    style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--tan)', boxShadow: '0 0 10px rgba(212,165,116,0.3)' }}
+                  />
+                  <span className={styles.pulsingDotGreen} style={{ position: 'absolute', bottom: '2px', right: '2px', border: '2px solid var(--bg-card)' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--text)' }}>
+                    {profile.username || 'BioHacker_Alpha'}
+                  </div>
+                  <div className="label-mono" style={{ fontSize: '0.55rem', color: 'var(--tan)', letterSpacing: '0.05em', marginTop: '0.15rem' }}>
+                    RANK: {getStandingRank(profile.skillLevel || 1)}
+                  </div>
+                  <div className="label-mono" style={{ fontSize: '0.55rem', color: 'var(--text3)', letterSpacing: '0.05em' }}>
+                    SYSID: {profile.systemId || 'PX-2026-88'}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem', fontSize: '0.7rem', color: 'var(--text2)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="dim">Systemklasse:</span>
+                  <span style={{ fontWeight: '600', color: 'var(--text)' }}>{profile.class || 'Flow Architect'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="dim">Erstellt am:</span>
+                  <span style={{ fontWeight: '600', color: 'var(--text)' }}>{profile.joinedDate || 'Mai 2026'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Profile configuration parameters */}
+            <div className={styles.card}>
+              <span className={styles.panelTitle}>
+                <span>⚙️</span> Profil anpassen
+              </span>
+              
+              <div className={styles.formGroup}>
+                <label className="label-mono" style={{ fontSize: '0.5rem', color: 'var(--text3)', marginBottom: '0.2rem' }}>Identitäts-Name</label>
+                <input 
+                  type="text" 
+                  className={styles.formInput} 
+                  value={profile.username || ''}
+                  onChange={(e) => saveProfile({ username: e.target.value })}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className="label-mono" style={{ fontSize: '0.5rem', color: 'var(--text3)', marginBottom: '0.2rem' }}>Bio-Leitmotiv</label>
+                <textarea 
+                  className={styles.formInput} 
+                  style={{ height: '60px', resize: 'none', fontSize: '0.75rem', fontFamily: 'sans-serif' }}
+                  value={profile.bio || ''}
+                  onChange={(e) => saveProfile({ bio: e.target.value })}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className="label-mono" style={{ fontSize: '0.5rem', color: 'var(--text3)', marginBottom: '0.2rem' }}>Fokus Systemklasse</label>
+                <select 
+                  className={styles.formInput} 
+                  style={{ background: 'var(--bg-card)', color: 'var(--text)', fontSize: '0.75rem', border: '1px solid var(--border)' }}
+                  value={profile.class || 'Flow Architect'}
+                  onChange={(e) => saveProfile({ class: e.target.value })}
+                >
+                  <option value="Flow Architect">Flow Architect</option>
+                  <option value="Fuel Scheduler">Fuel Scheduler</option>
+                  <option value="Light & Temp">Light & Temperature</option>
+                  <option value="Load Balancer">Load Balancer</option>
+                  <option value="Habit Enforcer">Habit Enforcer</option>
+                  <option value="Meta-Agent Orchestrator">Orchestrator</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Custom Presets Grid */}
+            <div className={styles.card}>
+              <span className={styles.panelTitle}>
+                <span>👤</span> Bio-Avatar wählen
+              </span>
+              <div className={styles.avatarPresetGrid}>
+                {AVATAR_PRESETS.map((p, idx) => (
+                  <button 
+                    key={idx}
+                    type="button"
+                    className={`${styles.avatarPresetBtn} ${profile.avatar === p.url ? styles.avatarPresetBtnActive : ''}`}
+                    onClick={() => saveProfile({ avatar: p.url })}
+                    title={p.name}
+                  >
+                    <img src={p.url} alt={p.name} style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover' }} />
+                  </button>
+                ))}
+              </div>
+
+              <div className={styles.formGroup} style={{ marginTop: '0.8rem' }}>
+                <label className="label-mono" style={{ fontSize: '0.5rem', color: 'var(--text3)', marginBottom: '0.2rem' }}>Avatar Bild-URL</label>
+                <input 
+                  type="text" 
+                  className={styles.formInput} 
+                  placeholder="Eigene Bild-URL einfügen..."
+                  value={profile.avatar || ''}
+                  onChange={(e) => saveProfile({ avatar: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {/* Manual Tour Trigger */}
+            <div className={styles.card}>
+              <span className={styles.panelTitle}>
+                <span>❓</span> Hilfe & Support
+              </span>
+              <button 
+                type="button" 
+                className={styles.formBtn}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: 'var(--cobalt-dim)', borderColor: 'var(--cobalt-bright)', color: 'var(--cobalt-bright)', fontWeight: '700' }}
+                onClick={() => {
+                  setLeftTab('queue');
+                  setTutorialStep(1);
+                }}
+              >
+                🎓 SYSTEM-EINWEISUNG STARTEN
+              </button>
+            </div>
+          </div>
+        )}
       </aside>
 
       {/* ─── CENTER PANEL: RING TIMER & TELEMETRY & CHAT ─── */}
@@ -621,7 +825,7 @@ export default function ProtocolPage() {
         </div>
 
         {/* Circular SVG ring timer */}
-        <div className={styles.timerWrapper}>
+        <div className={`${styles.timerWrapper} ${tutorialStep === 4 ? styles.highlightSpotlight : ''}`}>
           <svg width="220" height="220" className={styles.timerSvg}>
             <circle cx="110" cy="110" r={radius} className={styles.timerTrack} />
             <circle 
@@ -650,7 +854,7 @@ export default function ProtocolPage() {
         </div>
 
         {/* Friction Logger triggers */}
-        <div className={styles.card}>
+        <div className={`${styles.card} ${tutorialStep === 5 ? styles.highlightSpotlight : ''}`}>
           <span className={styles.panelTitle}>
             <span>⚡</span> Fokus-Friction Logger
           </span>
@@ -680,7 +884,7 @@ export default function ProtocolPage() {
         </div>
 
         {/* Live chat command intelligence */}
-        <div className={styles.chatBox}>
+        <div className={`${styles.chatBox} ${tutorialStep === 5 ? styles.highlightSpotlight : ''}`}>
           <div className={styles.messageArea}>
             {messages.map((msg, i) => (
               <div 
@@ -714,9 +918,9 @@ export default function ProtocolPage() {
       </main>
 
       {/* ─── RIGHT PANEL: BIO-STACK & RECOMMENDATIONS ─── */}
-      <aside className={styles.rightPanel}>
+      <aside className={`${styles.rightPanel} ${(tutorialStep === 6 || tutorialStep === 7) ? styles.highlightSpotlight : ''}`}>
         {/* Consumable Bio-Stack replenishment */}
-        <div className={styles.card}>
+        <div className={`${styles.card} ${tutorialStep === 6 ? styles.highlightSpotlight : ''}`}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <span className={styles.panelTitle} style={{ marginBottom: 0 }}>
               <span>💊</span> Bio-Stack
@@ -770,7 +974,7 @@ export default function ProtocolPage() {
         </div>
 
         {/* ═══ AGENTEN-KONSOLE (6 AGENTS HUB) ═══ */}
-        <div className={styles.card} style={{ borderLeft: '3px solid var(--cobalt-bright)' }}>
+        <div className={`${styles.card} ${tutorialStep === 7 ? styles.highlightSpotlight : ''}`} style={{ borderLeft: '3px solid var(--cobalt-bright)' }}>
           <span className={styles.panelTitle}>
             <span>🤖</span> System-Intelligence
           </span>
@@ -1012,6 +1216,50 @@ export default function ProtocolPage() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ INTERACTIVE SYSTEM GUIDED TOUR OVERLAY ═══ */}
+      {tutorialStep > 0 && (
+        <div className={styles.tourOverlay}>
+          <div className={styles.tourCard}>
+            <div className={styles.tourHeader}>
+              <span className={styles.tourStepIndicator}>SYSTEM-EINWEISUNG • SCHRITT {tutorialStep} VON 7</span>
+              <button className={styles.tourCloseBtn} onClick={handleSkipTour}>&times;</button>
+            </div>
+            
+            <h3 className={styles.tourTitle}>
+              {tutorialStep === 1 && "⏳ Die Ablauf-Queue"}
+              {tutorialStep === 2 && "📅 Zirkadianer Kalender"}
+              {tutorialStep === 3 && "🔬 Biometrie & Skill Lab"}
+              {tutorialStep === 4 && "⏱️ Der Bio-Chronometer (Timer)"}
+              {tutorialStep === 5 && "💬 Live-Chat & Friction Logger"}
+              {tutorialStep === 6 && "💊 Bio-Stack & Neuro-States"}
+              {tutorialStep === 7 && "🤖 6 Specialized Agents Hub"}
+            </h3>
+            
+            <p className={styles.tourText}>
+              {tutorialStep === 1 && "Hier siehst du deine geplanten bio-kognitiven Blöcke für den heutigen Tag. Du kannst vordefinierte Zyklen laden oder eigene Blöcke anlegen."}
+              {tutorialStep === 2 && "Dies ist dein Tor zum Zirkadianen Kalender. Hier kannst du Tage vorausschauend planen, AI Syncs für ganze Wochen starten und Pläne per AI chatten."}
+              {tutorialStep === 3 && "Im Tab 'Biometrie' verwaltest du deine täglichen HRV- und Schlafwerte. Über das Skill Lab generierst du adaptive Deliberate Practice Lernkurse für deinen Ziel-Skill."}
+              {tutorialStep === 4 && "Dein bio-chronologischer Schrittmacher. Siehe die verbleibende Zeit deines aktiven Blocks und starte/pausiere das Protokoll."}
+              {tutorialStep === 5 && "Steuere das ZNS-System per Sprache! Tippe 'pausiere' oder 'ersetze block durch Meditation 15'. Protokolliere Fokus-Friction mit den Logger Buttons."}
+              {tutorialStep === 6 && "Dein Bio-Stack. Logge konsumierte Dosen und beobachte metabolische Parameter sowie dein LTP Potential in Echtzeit."}
+              {tutorialStep === 7 && "Die 6 Spezial-Agenten überwachen dich (z.B. Circadian Guardian, Flow Architect) und melden ihre Voten im System-Consensus."}
+            </p>
+            
+            <div className={styles.tourFooter}>
+              <button className={styles.tourSkipLink} onClick={handleSkipTour}>Tour überspringen</button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {tutorialStep > 1 && (
+                  <button className={styles.tourNavBtn} onClick={handlePrevTourStep}>Zurück</button>
+                )}
+                <button className={`${styles.tourNavBtn} ${styles.tourNavBtnPrimary}`} onClick={handleNextTourStep}>
+                  {tutorialStep < 7 ? "Weiter" : "Einweisung abschließen"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

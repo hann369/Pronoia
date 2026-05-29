@@ -1297,3 +1297,177 @@
   to { transform: rotate(360deg); }
 }
 
+/* --- Guided Tour Spotlight Highlights --- */
+.highlightSpotlight {
+  position: relative;
+  z-index: 1050 !important;
+  border-color: var(--cobalt-bright) !important;
+  box-shadow: 0 0 20px rgba(26, 106, 255, 0.4), inset 0 0 10px rgba(26, 106, 255, 0.1) !important;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Tour Full Overlay Behind Card */
+.tourOverlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 1040;
+  background: rgba(4, 5, 8, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: tourFadeIn 0.3s ease;
+}
+
+@keyframes tourFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Onboarding Dialog card */
+.tourCard {
+  background: rgba(20, 24, 33, 0.95);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  padding: 2rem;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
+  animation: tourSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  z-index: 1060;
+  backdrop-filter: blur(20px);
+}
+
+@keyframes tourSlideUp {
+  from { transform: translateY(15px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.tourHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+
+.tourStepIndicator {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--cobalt-bright);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.tourCloseBtn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.tourCloseBtn:hover {
+  color: var(--text);
+}
+
+.tourTitle {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+}
+
+.tourText {
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--text2);
+  margin-bottom: 1.5rem;
+}
+
+.tourFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  padding-top: 1.25rem;
+}
+
+.tourSkipLink {
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.tourSkipLink:hover {
+  color: var(--text2);
+}
+
+.tourNavBtn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text2);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tourNavBtn:hover {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.tourNavBtnPrimary {
+  background: var(--cobalt);
+  border-color: var(--cobalt-bright);
+  color: #fff;
+}
+
+.tourNavBtnPrimary:hover {
+  background: var(--cobalt-bright);
+  box-shadow: 0 0 10px rgba(26, 106, 255, 0.3);
+}
+
+/* Avatar presets circular selection */
+.avatarPresetGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.avatarPresetBtn {
+  background: none;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  padding: 2px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatarPresetBtn:hover {
+  transform: scale(1.05);
+  border-color: rgba(212, 165, 116, 0.5);
+}
+
+.avatarPresetBtnActive {
+  border-color: var(--tan) !important;
+  box-shadow: 0 0 10px rgba(212, 165, 116, 0.4);
+}
+
+
