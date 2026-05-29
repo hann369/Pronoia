@@ -15,6 +15,8 @@ const AGENTS = [
   { id: 'A.06', name: 'Orchestrator', role: 'META-AGENT' }
 ];
 
+const WEEKDAYS = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
+
 export default function ProtocolPage() {
   const { user } = useAuth();
   const {
@@ -30,6 +32,22 @@ export default function ProtocolPage() {
     agentMsg,
     isTyping,
     directives,
+    calendar,
+    selectedDate,
+    currentMonth,
+    formatDate,
+    selectDate,
+    prevMonth,
+    nextMonth,
+    addCalendarBlock,
+    editCalendarBlock,
+    deleteCalendarBlock,
+    generateDayAI,
+    generateMonthAI,
+    chatWithDayAI,
+    syncToActive,
+    generateSkillMaterials,
+    completeSkillSession,
     start,
     pause,
     toggleTimer,
@@ -61,6 +79,13 @@ export default function ProtocolPage() {
   // Biometric edits
   const [editHrv, setEditHrv] = useState('');
   const [editSleep, setEditSleep] = useState('');
+
+  // Modals state
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showSkillLabModal, setShowSkillLabModal] = useState(false);
+  const [skillContent, setSkillContent] = useState('');
+  const [isGeneratingSkill, setIsGeneratingSkill] = useState(false);
+  const [dayChatInput, setDayChatInput] = useState('');
 
   const chatEndRef = useRef(null);
 
@@ -140,6 +165,85 @@ export default function ProtocolPage() {
     if (file) {
       uploadDataSource(file);
     }
+  };
+
+  // --- Dynamic Calendar Grid logic ---
+  const getDaysInMonth = () => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const firstDayIndex = new Date(year, month, 1).getDay(); // 0 is Sunday
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    
+    // Adjust for Monday start (0=Mon, 6=Sun)
+    let startPadding = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
+    
+    const dayCells = [];
+    const prevMonthDays = new Date(year, month, 0).getDate();
+    
+    // Previous Month padding days
+    for (let i = startPadding - 1; i >= 0; i--) {
+      dayCells.push({ day: prevMonthDays - i, isCurrent: false, date: new Date(year, month - 1, prevMonthDays - i) });
+    }
+    
+    // Current Month days
+    for (let d = 1; d <= totalDays; d++) {
+      dayCells.push({ day: d, isCurrent: true, date: new Date(year, month, d) });
+    }
+    
+    // Next Month padding days
+    const totalCells = dayCells.length;
+    const endPadding = 42 - totalCells;
+    for (let i = 1; i <= endPadding; i++) {
+      dayCells.push({ day: i, isCurrent: false, date: new Date(year, month + 1, i) });
+    }
+    
+    return dayCells;
+  };
+
+  const days = getDaysInMonth();
+  const dateStrSelected = formatDate(selectedDate);
+  const dateStrToday = formatDate(new Date());
+
+  // Current selected day's blocks
+  const selectedDateStr = formatDate(selectedDate);
+  const daySchedule = calendar[selectedDateStr] || { blocks: [] };
+
+  const handleAddCalendarBlock = () => {
+    const t = prompt("Titel des neuen Blocks / Block Title:");
+    if (!t) return;
+    const time = prompt("Startzeit (HH:MM) / Start time:", "12:00");
+    addCalendarBlock(t, time);
+  };
+
+  const handleEditCalendarBlock = (idx, currentTitle, currentTime) => {
+    const newTitle = prompt("Titel anpassen / Edit title:", currentTitle);
+    const newTime = prompt("Startzeit anpassen / Edit start time (HH:MM):", currentTime);
+    editCalendarBlock(idx, { 
+      title: newTitle !== null ? newTitle : currentTitle,
+      startTime: newTime !== null ? newTime : currentTime
+    });
+  };
+
+  const handleDayChatSubmit = async (e) => {
+    e.preventDefault();
+    if (!dayChatInput.trim()) return;
+    await chatWithDayAI(dayChatInput);
+    setDayChatInput('');
+  };
+
+  // --- Skill Lab triggers ---
+  const handleOpenSkillLab = async () => {
+    setShowSkillLabModal(true);
+    setIsGeneratingSkill(true);
+    setSkillContent('');
+    const content = await generateSkillMaterials();
+    setSkillContent(content);
+    setIsGeneratingSkill(false);
+  };
+
+  const handleCompleteSkillSession = () => {
+    completeSkillSession(150);
+    setShowSkillLabModal(false);
   };
 
   // SVG Circular progress computation
@@ -249,12 +353,20 @@ export default function ProtocolPage() {
 
         {leftTab === 'queue' ? (
           <div>
-            {/* Calendar switch controls */}
+            {/* Interactive Calendar Trigger Card */}
             <div className={styles.card}>
               <span className={styles.panelTitle}>
-                <span>📅</span> Circadianer Zyklus
+                <span>📅</span> Zirkadianer Kalender
               </span>
-              <div className={styles.calendarGrid}>
+              <button 
+                type="button"
+                className={styles.calendarTriggerBtn}
+                onClick={() => setShowCalendarModal(true)}
+              >
+                📅 ARCHIV & AI KALENDER ÖFFNEN
+              </button>
+              
+              <div className={styles.calendarGrid} style={{ marginTop: '0.8rem' }}>
                 <button className={styles.calendarBtn} onClick={() => loadProtocolQueue('focus_optimization')}>
                   🧠 Focus Opt.
                 </button>
@@ -435,6 +547,43 @@ export default function ProtocolPage() {
               </form>
             </div>
 
+            {/* Adaptive Deliberate Skill Lab Focus Panel */}
+            <div className={styles.card}>
+              <span className={styles.panelTitle}>
+                <span>🧪</span> Adaptive Skill Lab
+              </span>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.5rem', marginBottom: '0.8rem' }}>
+                <div>
+                  <label className="label-mono" style={{ fontSize: '0.5rem', color: 'var(--text3)', display: 'block', marginBottom: '0.2rem' }}>Ziel-Skill</label>
+                  <input 
+                    type="text" 
+                    className={styles.formInput} 
+                    style={{ width: '100%', padding: '0.3rem 0.5rem', fontSize: '0.75rem' }} 
+                    value={profile.skill || 'Programmieren'}
+                    onChange={(e) => saveProfile({ skill: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="label-mono" style={{ fontSize: '0.5rem', color: 'var(--text3)', display: 'block', marginBottom: '0.2rem' }}>Skill Lvl</label>
+                  <input 
+                    type="number" 
+                    className={styles.formInput} 
+                    style={{ width: '100%', padding: '0.3rem 0.5rem', fontSize: '0.75rem' }} 
+                    value={profile.skillLevel || 1}
+                    onChange={(e) => saveProfile({ skillLevel: parseInt(e.target.value) || 1 })}
+                  />
+                </div>
+              </div>
+              <button 
+                type="button" 
+                className={styles.formBtn} 
+                style={{ width: '100%', background: 'rgba(245, 166, 35, 0.1)', borderColor: 'var(--amber)', color: 'var(--amber)', fontWeight: '600' }}
+                onClick={handleOpenSkillLab}
+              >
+                🔬 SKILL LAB GENERIEREN
+              </button>
+            </div>
+
             {/* XP Level progression */}
             <div className={styles.card}>
               <span className={styles.panelTitle}>
@@ -551,7 +700,7 @@ export default function ProtocolPage() {
           <form className={styles.chatInputArea} onSubmit={handleSendChat}>
             <input 
               type="text" 
-              placeholder="Imperialen Befehl an das System senden..." 
+              placeholder="Systembefehl senden... (e.g. 'pause', 'starte block 2', 'ersetze block durch Meditation 15')" 
               className={styles.chatInput}
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
@@ -664,13 +813,13 @@ export default function ProtocolPage() {
               return (
                 <div key={agent.id} className={cardClass}>
                   <div className={styles.agentMiniCardTop}>
-                    <div className={styles.agentMiniMeta}>
-                      <span className={styles.agentMiniId}>{agent.id}</span>
-                      <span className={styles.agentMiniName}>{agent.name}</span>
-                    </div>
-                    <span className={`${styles.agentMiniBadge} ${badgeClass}`}>
-                      {statusLabel}
-                    </span>
+                     <div className={styles.agentMiniMeta}>
+                       <span className={styles.agentMiniId}>{agent.id}</span>
+                       <span className={styles.agentMiniName}>{agent.name}</span>
+                     </div>
+                     <span className={`${styles.agentMiniBadge} ${badgeClass}`}>
+                       {statusLabel}
+                     </span>
                   </div>
                   <span className={styles.agentMiniRole}>{agent.role}</span>
                   <p className={styles.agentMiniText}>{info.text}</p>
@@ -686,6 +835,187 @@ export default function ProtocolPage() {
           )}
         </div>
       </aside>
+
+      {/* ═══ INTERACTIVE CALENDAR MODAL ═══ */}
+      {showCalendarModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowCalendarModal(false)}>
+          <div className={styles.calendarModal} onClick={(e) => e.stopPropagation()}>
+            <button className={styles.modalCloseBtn} onClick={() => setShowCalendarModal(false)}>&times;</button>
+            
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Zirkadianes Protokoll-Archiv</h2>
+              <p className="dim text-xs" style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                Plane und optimiere deine bio-kognitiven Tage vorausschauend mit AI Sync.
+              </p>
+            </div>
+
+            <div className={styles.calendarLayout}>
+              {/* Left Side: Calendar Grid */}
+              <div className={styles.calendarMain}>
+                <div className={styles.calendarHeaderRow}>
+                  <button className={styles.calNavBtn} onClick={prevMonth}>&lt;</button>
+                  <span className={styles.calMonthTitle}>
+                    {currentMonth.toLocaleString('de-DE', { month: 'long', year: 'numeric' }).toUpperCase()}
+                  </span>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <button className={styles.calAiBtn} onClick={generateMonthAI}>Month AI Sync</button>
+                    <button className={styles.calNavBtn} onClick={nextMonth}>&gt;</button>
+                  </div>
+                </div>
+
+                <div className={styles.calWeekdayHeader}>
+                  {WEEKDAYS.map(d => <span key={d}>{d}</span>)}
+                </div>
+
+                <div className={styles.calGridDays}>
+                  {days.map((cell, idx) => {
+                    const cellDateStr = formatDate(cell.date);
+                    const isToday = cellDateStr === dateStrToday;
+                    const isActive = cellDateStr === dateStrSelected;
+                    const hasProto = !!calendar[cellDateStr]?.blocks?.length;
+                    const blockCount = calendar[cellDateStr]?.blocks?.length || 0;
+
+                    let cellClass = styles.calDayCell;
+                    if (!cell.isCurrent) cellClass += ` ${styles.calDayCellOtherMonth}`;
+                    if (isToday) cellClass += ` ${styles.calDayCellToday}`;
+                    if (isActive) cellClass += ` ${styles.calDayCellActive}`;
+                    if (hasProto) cellClass += ` ${styles.calDayCellHasProtocol}`;
+
+                    return (
+                      <div key={idx} className={cellClass} onClick={() => selectDate(cell.date)}>
+                        <span className={styles.calDayNumber}>{cell.day}</span>
+                        {hasProto && (
+                          <span className={styles.calDayBadge}>{blockCount} Blöcke</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Right Side: Day Details & AI Commands */}
+              <div className={styles.calendarSidebar}>
+                <div className={styles.sidebarHeader}>
+                  <h3 className={styles.sidebarDate}>
+                    {selectedDate.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                  </h3>
+                  <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.4rem' }}>
+                    <button className={styles.sidebarActionBtn} onClick={handleAddCalendarBlock}>+ Block</button>
+                    <button className={styles.sidebarActionBtn} onClick={generateDayAI}>AI Sync</button>
+                    <button 
+                      className={styles.sidebarActionBtn} 
+                      style={{ background: 'var(--green)', border: 'none', color: '#fff' }}
+                      onClick={() => {
+                        syncToActive();
+                        setShowCalendarModal(false);
+                      }}
+                    >
+                      Sync Active
+                    </button>
+                  </div>
+                </div>
+
+                <div className={styles.sidebarBlockList}>
+                  {daySchedule.blocks?.map((block, idx) => (
+                    <div 
+                      key={idx} 
+                      className={styles.sidebarBlockCard}
+                      style={{ borderLeftColor: block.pillar === 'skills' ? 'var(--amber)' : block.pillar === 'recovery' ? '#00a3ff' : block.pillar === 'health' ? '#00c48c' : 'var(--cobalt-bright)' }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '600', fontSize: '0.75rem', color: 'var(--text)' }}>{block.title}</div>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--text2)', opacity: 0.8, marginTop: '0.1rem' }}>{block.rec}</div>
+                      </div>
+                      <div className={styles.sidebarBlockTime}>{block.startTime || '--:--'}</div>
+                      <div className={styles.sidebarBlockControls}>
+                        <button 
+                          onClick={() => handleEditCalendarBlock(idx, block.title, block.startTime)}
+                          className={styles.sidebarIconButton}
+                        >
+                          ✎
+                        </button>
+                        <button 
+                          onClick={() => deleteCalendarBlock(idx)}
+                          className={styles.sidebarIconButton}
+                          style={{ color: 'var(--red)' }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {(!daySchedule.blocks || daySchedule.blocks.length === 0) && (
+                    <div className="dim" style={{ textAlign: 'center', padding: '2rem 1rem', fontSize: '0.7rem', opacity: 0.5 }}>
+                      Kein Protokoll für diesen Tag hinterlegt.<br />
+                      Nutze AI Sync für optimalen Ablaufplan.
+                    </div>
+                  )}
+                </div>
+
+                {/* Day Chat Customizer */}
+                <form onSubmit={handleDayChatSubmit} className={styles.sidebarChatForm}>
+                  <input 
+                    type="text" 
+                    placeholder="Tagesplan mit AI anpassen... (e.g. 'Arzttermin 14-15 Uhr')"
+                    className={styles.sidebarChatInput}
+                    value={dayChatInput}
+                    onChange={(e) => setDayChatInput(e.target.value)}
+                    disabled={isTyping}
+                  />
+                  <button type="submit" className={styles.sidebarChatBtn} disabled={isTyping}>
+                    Sync
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ SKILL LAB MODAL ═══ */}
+      {showSkillLabModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowSkillLabModal(false)}>
+          <div className={styles.skillLabModal} onClick={(e) => e.stopPropagation()}>
+            <button className={styles.modalCloseBtn} onClick={() => setShowSkillLabModal(false)}>&times;</button>
+            
+            <div className={styles.modalHeader} style={{ borderBottom: '1px solid var(--border-s)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+              <div className="label-mono" style={{ fontSize: '0.55rem', color: 'var(--amber)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+                Agentic Skill Lab • Level {profile.skillLevel}
+              </div>
+              <h2 className={styles.modalTitle} style={{ color: 'var(--amber)' }}>
+                {profile.skill || 'Allgemeine Produktivität'} Deliberate Lab
+              </h2>
+            </div>
+
+            <div className={styles.skillLabBody}>
+              {isGeneratingSkill ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem 1rem', gap: '1rem' }}>
+                  <div className={styles.thinkingSpinner} />
+                  <div className="label-mono" style={{ fontSize: '0.65rem', color: 'var(--text3)', textAlign: 'center' }}>
+                     GENERATING_NEURAL_PATHWAYS...<br />
+                     <span style={{ opacity: 0.5 }}>Analysiere Skill Focus: {profile.skill || 'Programmieren'} (Lvl {profile.skillLevel})</span>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div 
+                    className={styles.skillLabContent}
+                    dangerouslySetInnerHTML={{ __html: skillContent }} 
+                  />
+                  <button 
+                    type="button" 
+                    className={styles.formBtn}
+                    style={{ width: '100%', marginTop: '2rem', background: 'var(--amber)', color: '#000', border: 'none', fontWeight: '700' }}
+                    onClick={handleCompleteSkillSession}
+                  >
+                    Session Abschließen (+150 XP)
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

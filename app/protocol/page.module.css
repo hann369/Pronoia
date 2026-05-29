@@ -842,3 +842,458 @@
   opacity: 0.9;
   transform: translateY(-1px);
 }
+
+/* --- Interactive Calendar & Skill Lab Modals Styling --- */
+.calendarTriggerBtn {
+  width: 100%;
+  padding: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  background: var(--cobalt-dim);
+  border: 1px solid var(--cobalt-bright);
+  color: var(--cobalt-bright);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.calendarTriggerBtn:hover {
+  background: var(--cobalt);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(26, 106, 255, 0.3);
+}
+
+/* Modal Core Overlay */
+.modalOverlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 1100;
+  background: rgba(8, 10, 15, 0.85);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Modal Content Cards */
+.calendarModal, .skillLabModal {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  border-radius: 16px;
+  max-height: 90vh;
+  overflow: hidden;
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.calendarModal {
+  width: 100%;
+  max-width: 1000px;
+  height: 620px;
+}
+
+.skillLabModal {
+  width: 100%;
+  max-width: 650px;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modalCloseBtn {
+  position: absolute;
+  top: 1rem; right: 1.25rem;
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-size: 1.75rem;
+  cursor: pointer;
+  z-index: 10;
+  transition: color 0.2s ease;
+}
+
+.modalCloseBtn:hover {
+  color: var(--text);
+}
+
+.modalHeader {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.modalTitle {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+/* Calendar Modal Structure Layout */
+.calendarLayout {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  flex: 1;
+  overflow: hidden;
+}
+
+.calendarMain {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 2rem;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.calendarHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.calMonthTitle {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.1em;
+}
+
+.calNavBtn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.calNavBtn:hover {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.calAiBtn {
+  background: var(--cobalt-dim);
+  border: 1px solid var(--cobalt);
+  color: var(--cobalt-bright);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.calAiBtn:hover {
+  background: var(--cobalt);
+  color: #fff;
+}
+
+.calWeekdayHeader {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.4rem;
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+.calWeekdayHeader span {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text3);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.calGridDays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.4rem;
+  flex: 1;
+}
+
+/* Day cell structures */
+.calDayCell {
+  aspect-ratio: 1.15;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid var(--border-s);
+  border-radius: 8px;
+  padding: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.calDayCell:hover {
+  border-color: rgba(26, 106, 255, 0.4);
+  background: rgba(26, 106, 255, 0.03);
+}
+
+.calDayCellOtherMonth {
+  opacity: 0.25;
+}
+
+.calDayCellToday {
+  border-color: var(--tan);
+  background: rgba(212, 165, 116, 0.03);
+}
+
+.calDayCellToday .calDayNumber {
+  color: var(--tan);
+  font-weight: 800;
+}
+
+.calDayCellActive {
+  border-color: var(--cobalt-bright);
+  background: rgba(26, 106, 255, 0.06);
+  box-shadow: 0 0 10px rgba(26, 106, 255, 0.15);
+}
+
+.calDayCellHasProtocol {
+  border-left: 2px solid var(--cobalt-bright);
+}
+
+.calDayNumber {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text2);
+}
+
+.calDayBadge {
+  align-self: flex-end;
+  background: rgba(var(--text-rgb), 0.04);
+  border: 1px solid var(--border);
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  padding: 0.05rem 0.25rem;
+  border-radius: 3px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sidebar Panel in Calendar */
+.calendarSidebar {
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-bg);
+  padding: 1.5rem;
+  height: 100%;
+  overflow: hidden;
+}
+
+.sidebarHeader {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+.sidebarDate {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.sidebarActionBtn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sidebarActionBtn:hover {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.sidebarBlockList {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+/* Sidebar block schedule element */
+.sidebarBlockCard {
+  display: flex;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-s);
+  border-left: 3px solid var(--cobalt-bright);
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.sidebarBlockCard:hover {
+  border-color: var(--border-strong);
+}
+
+.sidebarBlockTime {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text3);
+  padding: 0.1rem 0.3rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 4px;
+}
+
+.sidebarBlockControls {
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.sidebarBlockCard:hover .sidebarBlockControls {
+  opacity: 1;
+}
+
+.sidebarIconButton {
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.2rem;
+  border-radius: 3px;
+}
+
+.sidebarIconButton:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Sidebar Chat Command Adjustment Form */
+.sidebarChatForm {
+  display: flex;
+  gap: 0.4rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+.sidebarChatInput {
+  flex: 1;
+  background: rgba(var(--text-rgb), 0.05);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text);
+  outline: none;
+}
+
+.sidebarChatInput:focus {
+  border-color: var(--cobalt-bright);
+}
+
+.sidebarChatBtn {
+  background: var(--cobalt);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sidebarChatBtn:hover {
+  background: var(--cobalt-bright);
+}
+
+/* --- Skill Lab Modal Details --- */
+.skillLabBody {
+  padding: 0 2rem 2rem 2rem;
+  overflow-y: auto;
+  max-height: 70vh;
+}
+
+.skillLabContent {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text2);
+}
+
+.skillLabContent h3 {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--tan);
+  text-transform: uppercase;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.1em;
+}
+
+.skillLabContent p {
+  margin-bottom: 1rem;
+}
+
+.skillLabContent ul, .skillLabContent ol {
+  padding-left: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.skillLabContent li {
+  margin-bottom: 0.5rem;
+}
+
+/* Glassy spinner for AI logic load */
+.thinkingSpinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(212, 165, 116, 0.15);
+  border-top-color: var(--tan);
+  border-radius: 50%;
+  animation: spinnerRotate 0.8s linear infinite;
+}
+
+@keyframes spinnerRotate {
+  to { transform: rotate(360deg); }
+}
+
