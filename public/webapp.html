@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Pronoia</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;700&family=DM+Mono:wght@300;400&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg:#0a0a0a;--surface:#111;--border:#1e1e1e;--accent:#c8f23a;
+    --text:#f0f0ee;--muted:#555;--card:#141414;
+  }
+  html,body{height:100%;overflow:hidden;font-family:'Syne',sans-serif;background:var(--bg);color:var(--text)}
+  .app{display:flex;flex-direction:column;height:100vh;max-height:100vh}
+
+  /* ── Header ── */
+  .header{padding:1rem 1.25rem 0.75rem;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+  .logo{font-size:17px;font-weight:700;letter-spacing:-0.5px;color:var(--accent)}
+  .logo span{color:var(--text);opacity:0.4;font-weight:400;font-size:13px;margin-left:6px;font-family:'DM Mono',monospace}
+  .user-chip{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+  .user-chip .dot{width:7px;height:7px;border-radius:50%;background:#4caf50}
+
+  /* ── Screens ── */
+  .screen{display:none;flex:1;flex-direction:column;overflow:hidden}
+  .screen.active{display:flex}
+
+  /* ── Onboarding ── */
+  .scroll-body{flex:1;overflow-y:auto;padding:1.25rem;-webkit-overflow-scrolling:touch}
+  .ob-hero{margin-bottom:1.5rem;text-align:center}
+  .ob-hero h1{font-size:26px;font-weight:700;line-height:1.1;margin-bottom:6px}
+  .ob-hero h1 em{color:var(--accent);font-style:normal}
+  .ob-hero p{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1.5px}
+  .ob-section{margin-bottom:1.25rem}
+  .ob-label{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px}
+  .chip-row{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{padding:7px 13px;border-radius:22px;border:0.5px solid var(--border);font-size:12px;cursor:pointer;color:var(--muted);background:var(--card);transition:all 0.15s;user-select:none}
+  .chip.sel{border-color:var(--accent);color:var(--accent);background:rgba(200,242,58,0.07)}
+  .ob-input{width:100%;background:var(--card);border:0.5px solid var(--border);border-radius:10px;padding:11px 14px;font-size:14px;color:var(--text);font-family:'Syne',sans-serif;outline:none;transition:border 0.15s}
+  .ob-input:focus{border-color:rgba(200,242,58,0.5)}
+  .btn-main{width:100%;padding:14px;background:var(--accent);color:#0a0a0a;border:none;border-radius:12px;font-size:14px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;transition:opacity 0.15s;margin-top:0.5rem}
+  .btn-main:active{opacity:0.8}
+
+  /* ── Chat ── */
+  .chat-messages{flex:1;overflow-y:auto;padding:1rem 1.25rem;display:flex;flex-direction:column;gap:8px;-webkit-overflow-scrolling:touch}
+  .msg{max-width:82%;padding:9px 13px;border-radius:16px;font-size:13px;line-height:1.55}
+  .msg.bot{background:var(--card);border:0.5px solid var(--border);color:var(--text);border-bottom-left-radius:3px;align-self:flex-start}
+  .msg.user{background:var(--accent);color:#0a0a0a;border-bottom-right-radius:3px;align-self:flex-end;font-weight:500}
+  .typing-indicator{align-self:flex-start;background:var(--card);border:0.5px solid var(--border);border-radius:16px;border-bottom-left-radius:3px;padding:10px 14px;display:flex;gap:4px;align-items:center}
+  .typing-indicator span{width:6px;height:6px;background:var(--muted);border-radius:50%;animation:bounce 1.2s infinite}
+  .typing-indicator span:nth-child(2){animation-delay:0.2s}
+  .typing-indicator span:nth-child(3){animation-delay:0.4s}
+  @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+  .chat-footer{padding:0.75rem 1rem;border-top:0.5px solid var(--border);display:flex;gap:8px;align-items:flex-end;flex-shrink:0}
+  .chat-input{flex:1;background:var(--card);border:0.5px solid var(--border);border-radius:20px;padding:9px 14px;font-size:13px;color:var(--text);font-family:'Syne',sans-serif;outline:none;resize:none;max-height:100px;line-height:1.4;transition:border 0.15s}
+  .chat-input:focus{border-color:rgba(200,242,58,0.5)}
+  .send-btn{width:36px;height:36px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform 0.1s}
+  .send-btn:active{transform:scale(0.9)}
+  .send-btn svg{width:15px;height:15px}
+  .quick-actions{display:flex;gap:6px;padding:0 1rem 0.5rem;flex-wrap:wrap;flex-shrink:0}
+  .qa-btn{padding:5px 11px;border-radius:16px;border:0.5px solid var(--border);font-size:11px;color:var(--muted);background:transparent;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.15s;white-space:nowrap}
+  .qa-btn:active{border-color:var(--accent);color:var(--accent)}
+
+  /* ── Stack ── */
+  .stack-header{padding:1rem 1.25rem 0;flex-shrink:0}
+  .stack-header h2{font-size:15px;font-weight:700}
+  .stack-header p{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
+  .stack-item{background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:7px;display:flex;align-items:center;justify-content:space-between}
+  .si-info .name{font-size:13px;font-weight:500}
+  .si-info .dose{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:3px}
+  .badge{padding:3px 9px;border-radius:16px;font-size:10px;font-family:'DM Mono',monospace}
+  .badge.am{background:rgba(200,242,58,0.1);color:var(--accent);border:0.5px solid rgba(200,242,58,0.25)}
+  .badge.pm{background:rgba(150,130,255,0.1);color:#b0a0ff;border:0.5px solid rgba(150,130,255,0.25)}
+  .score-bar{background:rgba(200,242,58,0.06);border:0.5px solid rgba(200,242,58,0.15);border-radius:12px;padding:12px 14px;margin-top:8px;display:flex;align-items:center;justify-content:space-between}
+  .score-bar .label{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:1px;text-transform:uppercase}
+  .score-bar .num{font-size:24px;font-weight:700;color:var(--accent)}
+  .sync-row{padding:0.75rem 1.25rem;flex-shrink:0}
+  .sync-btn{width:100%;padding:11px;background:transparent;border:0.5px solid var(--accent);border-radius:10px;color:var(--accent);font-size:12px;font-family:'DM Mono',monospace;cursor:pointer;transition:all 0.15s;letter-spacing:0.5px}
+  .sync-btn:active{background:rgba(200,242,58,0.1)}
+
+  /* ── Tab bar ── */
+  .tabbar{display:flex;border-top:0.5px solid var(--border);flex-shrink:0;background:var(--bg);padding-bottom:env(safe-area-inset-bottom)}
+  .tab{flex:1;padding:10px 0 8px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;color:var(--muted);transition:color 0.15s}
+  .tab.active{color:var(--accent)}
+  .tab svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5}
+  .tab span{font-size:9px;font-family:'DM Mono',monospace;letter-spacing:0.5px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="logo">PRONOIA <span>beta</span></div>
+    <div class="user-chip"><div class="dot"></div><span id="userName">Wird geladen...</span></div>
+  </div>
+
+  <!-- ── SCREEN 1: Onboarding ── -->
+  <div class="screen active" id="s-onboard">
+    <div class="scroll-body">
+      <div class="ob-hero">
+        <h1>Dein <em>Stack.</em><br>Deine Regeln.</h1>
+        <p>powered by Pronoia Labs</p>
+      </div>
+
+      <div class="ob-section">
+        <div class="ob-label">Primäres Ziel</div>
+        <div class="chip-row" id="goals">
+          <div class="chip" onclick="toggleChip(this)">Fokus</div>
+          <div class="chip" onclick="toggleChip(this)">Muskelaufbau</div>
+          <div class="chip" onclick="toggleChip(this)">Energie</div>
+          <div class="chip" onclick="toggleChip(this)">Schlaf</div>
+          <div class="chip" onclick="toggleChip(this)">Stressmanagement</div>
+          <div class="chip" onclick="toggleChip(this)">Libido</div>
+        </div>
+      </div>
+
+      <div class="ob-section">
+        <div class="ob-label">Erfahrung mit Supplements</div>
+        <div class="chip-row" id="exp">
+          <div class="chip" onclick="soloChip(this,'exp')">Beginner</div>
+          <div class="chip sel" onclick="soloChip(this,'exp')">Intermediate</div>
+          <div class="chip" onclick="soloChip(this,'exp')">Advanced</div>
+        </div>
+      </div>
+
+      <div class="ob-section">
+        <div class="ob-label">Alter</div>
+        <input class="ob-input" type="number" id="age" placeholder="z.B. 21" min="14" max="60" />
+      </div>
+
+      <div class="ob-section">
+        <div class="ob-label">Größte Challenge</div>
+        <input class="ob-input" type="text" id="challenge" placeholder="z.B. Morgenroutine, Brain Fog, Motivation..." />
+      </div>
+
+      <button class="btn-main" onclick="submitOnboarding()">KI-Beratung starten →</button>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 2: AI Chat ── -->
+  <div class="screen" id="s-chat">
+    <div class="chat-messages" id="chatMessages">
+      <div class="msg bot" id="firstMsg"></div>
+    </div>
+    <div class="quick-actions" id="quickActions">
+      <button class="qa-btn" onclick="sendQuick('Welcher Stack passt zu mir?')">Mein Stack?</button>
+      <button class="qa-btn" onclick="sendQuick('Was ist PX-V1?')">Was ist PX-V1?</button>
+      <button class="qa-btn" onclick="sendQuick('Creatin Dosierung')">Creatin</button>
+    </div>
+    <div class="chat-footer">
+      <textarea class="chat-input" id="chatInput" rows="1" placeholder="Frag mich alles..." onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="send-btn" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 3: Stack Builder ── -->
+  <div class="screen" id="s-stack">
+    <div class="stack-header">
+      <h2>Mein Stack</h2>
+      <p id="stackSubtitle">KI-optimiert · 5 Supplements</p>
+    </div>
+    <div class="scroll-body" style="padding-top:0.75rem">
+      <div id="stackItems">
+        <!-- wird dynamisch gebaut -->
+      </div>
+      <div class="score-bar">
+        <div><div class="label">Stack Score</div><div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:3px">KI-bewertet</div></div>
+        <div class="num" id="stackScore">87</div>
+      </div>
+    </div>
+    <div class="sync-row">
+      <button class="sync-btn" id="syncBtn" onclick="syncToWebsite()">↑ STACK AN PRONOIA SENDEN</button>
+    </div>
+  </div>
+
+  <div class="tabbar">
+    <div class="tab active" id="tab-onboard" onclick="switchTab('onboard')">
+      <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Profil</span>
+    </div>
+    <div class="tab" id="tab-chat" onclick="switchTab('chat')">
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span>KI Chat</span>
+    </div>
+    <div class="tab" id="tab-stack" onclick="switchTab('stack')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+      <span>Stack</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Telegram Init ────────────────────────────────────────────
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready();
+  tg.expand();
+  tg.MainButton.hide();
+}
+const tgUser = tg?.initDataUnsafe?.user;
+const userName = tgUser?.first_name || "User";
+const userId = tgUser?.id || null;
+document.getElementById("userName").textContent = userName;
+
+// ── State ────────────────────────────────────────────────────
+let profile = { goals: [], experience: "intermediate", age: null, challenge: "", name: userName, telegramId: userId };
+let chatHistory = [];
+let userStack = [
+  { name: "Creatin Monohydrat", dose: "5g täglich", time: "am" },
+  { name: "Taurin", dose: "2g täglich", time: "am" },
+  { name: "Bromantane", dose: "50mg 5on/2off", time: "am" },
+  { name: "Magnesium Glycinat", dose: "400mg", time: "pm" },
+  { name: "D3 + K2", dose: "5000IU + 200mcg", time: "am" },
+];
+
+// ── Chips ────────────────────────────────────────────────────
+function toggleChip(el) { el.classList.toggle("sel"); }
+function soloChip(el, group) {
+  el.closest(".chip-row").querySelectorAll(".chip").forEach(c => c.classList.remove("sel"));
+  el.classList.add("sel");
+}
+
+// ── Tab Navigation ───────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.getElementById("s-" + tab).classList.add("active");
+  document.getElementById("tab-" + tab).classList.add("active");
+  if (tab === "stack") renderStack();
+}
+
+// ── Onboarding Submit ────────────────────────────────────────
+function submitOnboarding() {
+  const goals = [...document.querySelectorAll("#goals .chip.sel")].map(c => c.textContent);
+  const exp = document.querySelector("#exp .chip.sel")?.textContent || "intermediate";
+  const age = document.getElementById("age").value;
+  const challenge = document.getElementById("challenge").value;
+
+  if (!age) { document.getElementById("age").focus(); return; }
+
+  profile = { ...profile, goals, experience: exp, age, challenge };
+
+  const intro = `Hey ${userName}. Ich hab dein Profil. ${goals.length > 0 ? `Ziele: ${goals.join(", ")}. ` : ""}${challenge ? `Deine Challenge: "${challenge}". ` : ""}Ich baue dir jetzt den optimalen Stack. Was willst du zuerst wissen?`;
+  document.getElementById("firstMsg").textContent = intro;
+  chatHistory = [{ role: "assistant", content: intro }];
+
+  sendToWebsite({ event: "onboarding_complete", profile });
+  switchTab("chat");
+}
+
+// ── Chat ─────────────────────────────────────────────────────
+function handleKey(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+function autoResize(el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 100) + "px"; }
+function sendQuick(text) { document.getElementById("chatInput").value = text; sendMessage(); }
+
+async function sendMessage() {
+  const input = document.getElementById("chatInput");
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  input.style.height = "auto";
+
+  appendMsg(text, "user");
+  document.getElementById("quickActions").style.display = "none";
+
+  chatHistory.push({ role: "user", content: text });
+
+  const typingEl = appendTyping();
+
+  try {
+    const res = await fetch("/api/mistral", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: text,
+        profile,
+        history: chatHistory.slice(-10),
+        telegramUser: tgUser || null
+      })
+    });
+    const data = await res.json();
+    typingEl.remove();
+    const reply = data.reply || "Kurze Störung — bitte nochmal versuchen.";
+    appendMsg(reply, "bot");
+    chatHistory.push({ role: "assistant", content: reply });
+
+    if (data.stackUpdate) { userStack = data.stackUpdate; }
+    if (data.score) { document.getElementById("stackScore").textContent = data.score; }
+  } catch (err) {
+    typingEl.remove();
+    appendMsg("Verbindungsfehler. Bitte versuche es nochmal.", "bot");
+  }
+}
+
+function appendMsg(text, role) {
+  const container = document.getElementById("chatMessages");
+  const div = document.createElement("div");
+  div.className = "msg " + role;
+  div.textContent = text;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+function appendTyping() {
+  const container = document.getElementById("chatMessages");
+  const div = document.createElement("div");
+  div.className = "typing-indicator";
+  div.innerHTML = "<span></span><span></span><span></span>";
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+// ── Stack ────────────────────────────────────────────────────
+function renderStack() {
+  const container = document.getElementById("stackItems");
+  container.innerHTML = userStack.map(s => `
+    <div class="stack-item">
+      <div class="si-info">
+        <div class="name">${s.name}</div>
+        <div class="dose">${s.dose}</div>
+      </div>
+      <div class="badge ${s.time}">${s.time === "am" ? "morgen" : "nacht"}</div>
+    </div>
+  `).join("");
+  document.getElementById("stackSubtitle").textContent = `KI-optimiert · ${userStack.length} Supplements`;
+}
+
+async function syncToWebsite() {
+  const btn = document.getElementById("syncBtn");
+  btn.textContent = "↑ SENDET...";
+  btn.disabled = true;
+
+  await sendToWebsite({
+    event: "stack_sync",
+    profile,
+    stack: userStack,
+    chatSummary: chatHistory.slice(-6)
+  });
+
+  btn.textContent = "✓ SYNCED";
+  btn.style.borderColor = "#4caf50";
+  btn.style.color = "#4caf50";
+
+  if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+
+  setTimeout(() => {
+    btn.textContent = "↑ STACK AN PRONOIA SENDEN";
+    btn.style.borderColor = "";
+    btn.style.color = "";
+    btn.disabled = false;
+  }, 3000);
+}
+
+// ── Website API ──────────────────────────────────────────────
+async function sendToWebsite(payload) {
+  try {
+    await fetch("/api/agent-webhook", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Bot-Secret": "DEIN_WEBHOOK_SECRET_HIER"
+      },
+      body: JSON.stringify({
+        source: "telegram_webapp",
+        timestamp: new Date().toISOString(),
+        telegramUser: tgUser || null,
+        ...payload
+      })
+    });
+  } catch (err) {
+    console.warn("Webhook failed:", err.message);
+  }
+}
+
+// ── Init Stack ───────────────────────────────────────────────
+renderStack();
+</script>
+</body>
+</html>
