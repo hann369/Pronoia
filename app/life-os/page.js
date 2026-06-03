@@ -1041,6 +1041,7 @@ function LifeOSDashboard() {
                   { label: 'Systemklasse', val: profile?.class || 'Flow Architect' },
                   { label: 'Erstellt am', val: profile?.joinedDate || 'Mai 2026' },
                   { label: 'Abo-Plan', val: (profile?.subscriptionTier || 'free').toUpperCase() },
+                  { label: 'Telegram ID', val: profile?.telegramId || 'Nicht verknüpft' },
                   { label: 'Firebase Projekt', val: db?.app?.options?.projectId || 'nicht initialisiert' },
                 ].map(r => (
                   <div key={r.label} className={styles.neuroRow}>
