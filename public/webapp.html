@@ -1178,6 +1178,14 @@ async function sendMessage() {
   appendMsg(text, "user");
   document.getElementById("quickActions").style.display = "none";
 
+  if (text.toLowerCase() === "/link") {
+    const siteUrl = "https://pronoia-3g6y.vercel.app";
+    const userTgId = userId || "";
+    const linkUrl = userTgId ? `${siteUrl}/life-os?tg_id=${userTgId}` : `${siteUrl}/life-os`;
+    appendMsg(`🔗 Klicke auf den folgenden Link, um dein Telegram-Konto mit deinem Pronoia Web-Account zu verbinden:\n\n👉 ${linkUrl}\n\n(Hinweis: Logge dich danach einfach auf der Website ein, die Verknüpfung erfolgt dann automatisch!)`, "bot");
+    return;
+  }
+
   chatHistory.push({ role: "user", content: text });
 
   const typingEl = appendTyping();

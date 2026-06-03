@@ -56,6 +56,9 @@ export async function PUT(req) {
       return NextResponse.json({ reply: "API Key fehlt.", error: true });
     }
 
+    const telegramId = telegramUser?.id || null;
+    const linkUrl = telegramId ? `https://pronoia-3g6y.vercel.app/life-os?tg_id=${telegramId}` : "https://pronoia-3g6y.vercel.app/life-os";
+
     const systemPrompt = `Du bist der Pronoia Assistant — direkter KI-Berater für Self-Optimization.
 
 ÜBER PRONOIA:
@@ -64,6 +67,11 @@ export async function PUT(req) {
 - Erstes Produkt: PX-V1 (Nootropic-Stack, bald verfügbar)
 - Philosophie: Primal/ancestral, anti-dogma, Maskulinität, Natur als optimal
 - Life OS: Ermöglicht die Steuerung von Zeit-Blöcken (Fokus, Erholung, Skill, Health, Social) und Bio-Tracking (HRV, Schlaf).
+
+VERKNÜPFUNGS-INFO:
+- Der aktuelle Telegram-User hat die Telegram-ID: ${telegramId || 'Unbekannt'}.
+- Der Verknüpfungs-Link für diesen Nutzer lautet: ${linkUrl}.
+- Wenn der Nutzer nach einer Verknüpfung fragt (z.B. "Konto verbinden", "wie verbinde ich", "/link"), gib ihm genau diesen Link.
 
 TONALITÄT: Direkt, klar, kein Bullshit, wissenschaftlich fundiert, Deutsch.
 
