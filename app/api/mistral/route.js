@@ -63,6 +63,7 @@ export async function PUT(req) {
 - Säulen: Health, Fitness, Supplementation, Social, Skills
 - Erstes Produkt: PX-V1 (Nootropic-Stack, bald verfügbar)
 - Philosophie: Primal/ancestral, anti-dogma, Maskulinität, Natur als optimal
+- Life OS: Ermöglicht die Steuerung von Zeit-Blöcken (Fokus, Erholung, Skill, Health, Social) und Bio-Tracking (HRV, Schlaf).
 
 TONALITÄT: Direkt, klar, kein Bullshit, wissenschaftlich fundiert, Deutsch.
 
@@ -70,10 +71,10 @@ USER-PROFIL: ${JSON.stringify(profile || {})}
 
 ANTWORT NUR ALS JSON:
 {
-  "reply": "Antwort auf Deutsch",
+  "reply": "Antwort auf Deutsch. Falls der Nutzer einen Befehl wünscht (z.B. HRV loggen oder Timer umschalten), erkläre ihm kurz, dass er auch /hrv [Wert] oder /focus nutzen kann.",
   "stackUpdate": null,
   "score": null,
-  "intent": "chat | stack_question | px_v1_interest | lead | support",
+  "intent": "chat | stack_question | px_v1_interest | biometrics_update | block_control | calendar_query | lead | support",
   "tags": []
 }`;
 
