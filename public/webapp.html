@@ -813,6 +813,8 @@
         <p id="userEmail" style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--tan); margin-top: 4px;">EMAIL: NICHT VERKNÜPFT</p>
       </div>
 
+      <div id="debugConsole" style="font-family: 'JetBrains Mono', monospace; font-size: 8px; color: #ff5555; margin-bottom: 1rem; text-align: left; background: rgba(255, 85, 85, 0.05); padding: 8px; border-radius: 8px; border: 1px dashed rgba(255,85,85,0.25); display: none; line-height: 1.5;"></div>
+
       <!-- ONBOARDING FORM -->
       <div class="glass-card" id="onboardForm">
         <div class="card-title">Setup ausführen</div>
@@ -1142,7 +1144,7 @@ async function syncBiometrics() {
   });
 
   if (data && data.status) {
-    updateCompanionState(data.status);
+    updateCompanionState(data.status, data.debug);
   }
 
   btn.textContent = "✓ SYNCHRONISIERT";
@@ -1282,7 +1284,7 @@ async function toggleBlockTimer() {
     action: "toggle"
   });
   if (data && data.status) {
-    updateCompanionState(data.status);
+    updateCompanionState(data.status, data.debug);
   }
 }
 
@@ -1293,7 +1295,7 @@ async function nextBlock() {
     action: "next"
   });
   if (data && data.status) {
-    updateCompanionState(data.status);
+    updateCompanionState(data.status, data.debug);
   }
 }
 
@@ -1304,11 +1306,35 @@ async function prevBlock() {
     action: "prev"
   });
   if (data && data.status) {
-    updateCompanionState(data.status);
+    updateCompanionState(data.status, data.debug);
   }
 }
 
-function updateCompanionState(status) {
+function updateCompanionState(status, debug = null) {
+  // Handle debug console display
+  const debugEl = document.getElementById("debugConsole");
+  if (debug) {
+    debugEl.style.display = "block";
+    debugEl.innerHTML = `
+      <strong>DIAGNOSE-KONSOLE:</strong><br/>
+      • DB-Status: ${debug.dbInitialized ? "🟢 BEREIT" : "🔴 OFFLINE (Fehlende Vercel-Schlüssel)"}<br/>
+      • Telegram-ID: ${debug.telegramId || "null"} (${debug.telegramIdType || "undefined"})<br/>
+      • Dokumente gefunden: ${debug.matchedDocs}<br/>
+      • Status: ${debug.error ? `⚠️ ${debug.error}` : "✅ Erfolgreich verknüpft"}
+    `;
+    if (!debug.error) {
+      debugEl.style.color = "var(--green)";
+      debugEl.style.background = "rgba(0, 196, 140, 0.05)";
+      debugEl.style.borderColor = "rgba(0, 196, 140, 0.25)";
+    } else {
+      debugEl.style.color = "#ff5555";
+      debugEl.style.background = "rgba(255, 85, 85, 0.05)";
+      debugEl.style.borderColor = "rgba(255, 85, 85, 0.25)";
+    }
+  } else {
+    debugEl.style.display = "none";
+  }
+
   if (status.activeBlock) {
     document.getElementById("activeBlockTitle").textContent = status.activeBlock.title;
     document.getElementById("activeBlockPillar").textContent = status.activeBlock.pillar.toUpperCase();
@@ -1472,7 +1498,7 @@ async function addCalendarBlockSubmit() {
     block
   });
   if (data && data.status) {
-    updateCompanionState(data.status);
+    updateCompanionState(data.status, data.debug);
   }
 }
 
@@ -1546,7 +1572,7 @@ async function sendToWebsite(payload) {
 async function loadInitialStatus() {
   const data = await sendToWebsite({ event: "get_status" });
   if (data && data.status) {
-    updateCompanionState(data.status);
+    updateCompanionState(data.status, data.debug);
   }
 }
 

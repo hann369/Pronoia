@@ -40,28 +40,29 @@ export async function POST(req) {
 
   // Handle new WebApp + Bot companion events
   if (event === "get_status") {
-    const status = await getUserStatus(telegramId);
-    return NextResponse.json({ ok: true, status });
+    const { status, debug } = await getUserStatusWithDebug(telegramId);
+    return NextResponse.json({ ok: true, status, debug });
   }
 
   if (event === "biometrics_update") {
     const { hrv, sleep } = payload;
     await updateBiometrics({ telegramId, hrv, sleep });
-    const status = await getUserStatus(telegramId);
-    return NextResponse.json({ ok: true, status });
+    const { status, debug } = await getUserStatusWithDebug(telegramId);
+    return NextResponse.json({ ok: true, status, debug });
   }
 
   if (event === "block_control") {
     const { action } = payload;
     const blockStatus = await handleBlockControl({ telegramId, action });
-    return NextResponse.json({ ok: true, status: blockStatus });
+    const { debug } = await getUserStatusWithDebug(telegramId);
+    return NextResponse.json({ ok: true, status: blockStatus, debug });
   }
 
   if (event === "calendar_add") {
     const { block } = payload;
     await handleCalendarAdd({ telegramId, block });
-    const status = await getUserStatus(telegramId);
-    return NextResponse.json({ ok: true, status });
+    const { status, debug } = await getUserStatusWithDebug(telegramId);
+    return NextResponse.json({ ok: true, status, debug });
   }
 
   return NextResponse.json({ ok: true, event, timestamp: new Date().toISOString() });
@@ -520,4 +521,77 @@ function getTelegramUserQuery(telegramId) {
     idArray.push(parsed);
   }
   return query(collection(db, "users"), where("profile.telegramId", "in", idArray));
+}
+
+async function getUserStatusWithDebug(telegramId) {
+  let status = {
+    activeBlock: { title: "Fokus Arbeit", duration: 5400, pillar: "focus" },
+    blockIdx: 0,
+    isRunning: false,
+    hrv: 72,
+    sleep: 84,
+    stack: [
+      { name: 'Creatin Monohydrat', dose: '5g täglich', time: 'am' },
+      { name: 'Taurin', dose: '2g täglich', time: 'am' },
+      { name: 'Bromantane', dose: '50mg 5on/2off', time: 'am' },
+      { name: 'Magnesium Glycinat', dose: '400mg', time: 'pm' },
+      { name: 'D3 + K2', dose: '5000IU + 200mcg', time: 'am' }
+    ],
+    calendar: {}
+  };
+
+  let debug = {
+    dbInitialized: !!db,
+    telegramId,
+    telegramIdType: typeof telegramId,
+    matchedDocs: 0,
+    error: null
+  };
+
+  if (!telegramId) {
+    debug.error = "No Telegram ID provided";
+    return { status, debug };
+  }
+
+  try {
+    if (db) {
+      const q = getTelegramUserQuery(telegramId);
+      if (q) {
+        const querySnapshot = await getDocs(q);
+        debug.matchedDocs = querySnapshot.size;
+        if (!querySnapshot.empty) {
+          const docSnap = querySnapshot.docs[0];
+          const data = docSnap.data();
+          const activeBlock = data.blocks?.[data.blockIdx] || null;
+          const mappedStack = (data.stack || []).map(s => ({
+            name: s.name,
+            dose: s.dose,
+            time: s.timing === "evening" ? "pm" : "am"
+          }));
+          
+          status = {
+            activeBlock,
+            blockIdx: data.blockIdx || 0,
+            isRunning: !!data.isRunning,
+            hrv: data.profile?.metrics?.hrv || 72,
+            sleep: data.profile?.metrics?.sleep || 84,
+            stack: mappedStack.length > 0 ? mappedStack : status.stack,
+            calendar: data.calendar || {},
+            email: data.profile?.email || null
+          };
+        } else {
+          debug.error = "No document found matching this Telegram ID";
+        }
+      } else {
+        debug.error = "Failed to construct Firestore query";
+      }
+    } else {
+      debug.error = "Firestore db is null. Check Vercel environment variables!";
+    }
+  } catch (e) {
+    console.error("Debug status load failed:", e);
+    debug.error = e.message;
+  }
+
+  return { status, debug };
 }
