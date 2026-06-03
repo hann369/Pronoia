@@ -72,16 +72,18 @@ async function saveUser({ telegramUser, profile }) {
   // Update Firestore if telegramId matches
   try {
     if (db && telegramUser?.id) {
-      const q = query(collection(db, "users"), where("profile.telegramId", "==", telegramUser.id));
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach(async (document) => {
-        await updateDoc(doc(db, "users", document.id), {
-          "profile.goals": profile?.goals || [],
-          "profile.experience": profile?.experience || "intermediate",
-          "profile.age": profile?.age || null,
-          "profile.challenge": profile?.challenge || ""
+      const q = getTelegramUserQuery(telegramUser.id);
+      if (q) {
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach(async (document) => {
+          await updateDoc(doc(db, "users", document.id), {
+            "profile.goals": profile?.goals || [],
+            "profile.experience": profile?.experience || "intermediate",
+            "profile.age": profile?.age || null,
+            "profile.challenge": profile?.challenge || ""
+          });
         });
-      });
+      }
     }
   } catch (e) {
     console.error("[Pronoia Webhook] saveUser Firestore error:", e);
@@ -121,20 +123,22 @@ async function saveStack({ telegramUser, stack, profile, chatSummary }) {
   // Update Firestore if telegramId matches
   try {
     if (db && telegramUser?.id) {
-      const q = query(collection(db, "users"), where("profile.telegramId", "==", telegramUser.id));
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach(async (document) => {
-        // Map WebApp stack structure to Firestore stack structure if needed
-        const mappedStack = stack.map(s => ({
-          name: s.name,
-          dose: s.dose,
-          timing: s.time === "am" ? "morning" : "evening",
-          supply: 100
-        }));
-        await updateDoc(doc(db, "users", document.id), {
-          stack: mappedStack
+      const q = getTelegramUserQuery(telegramUser.id);
+      if (q) {
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach(async (document) => {
+          // Map WebApp stack structure to Firestore stack structure if needed
+          const mappedStack = stack.map(s => ({
+            name: s.name,
+            dose: s.dose,
+            timing: s.time === "am" ? "morning" : "evening",
+            supply: 100
+          }));
+          await updateDoc(doc(db, "users", document.id), {
+            stack: mappedStack
+          });
         });
-      });
+      }
     }
   } catch (e) {
     console.error("[Pronoia Webhook] saveStack Firestore error:", e);
@@ -189,27 +193,29 @@ async function getUserStatus(telegramId) {
   // 1. Try Firestore
   try {
     if (db) {
-      const q = query(collection(db, "users"), where("profile.telegramId", "==", telegramId));
-      const querySnapshot = await getDocs(q);
-      if (!querySnapshot.empty) {
-        const docSnap = querySnapshot.docs[0];
-        const data = docSnap.data();
-        const activeBlock = data.blocks?.[data.blockIdx] || null;
-        // Map Firestore stack format back to webapp format
-        const mappedStack = (data.stack || []).map(s => ({
-          name: s.name,
-          dose: s.dose,
-          time: s.timing === "evening" ? "pm" : "am"
-        }));
-        return {
-          activeBlock,
-          blockIdx: data.blockIdx || 0,
-          isRunning: !!data.isRunning,
-          hrv: data.profile?.metrics?.hrv || 72,
-          sleep: data.profile?.metrics?.sleep || 84,
-          stack: mappedStack.length > 0 ? mappedStack : status.stack,
-          calendar: data.calendar || {}
-        };
+      const q = getTelegramUserQuery(telegramId);
+      if (q) {
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const docSnap = querySnapshot.docs[0];
+          const data = docSnap.data();
+          const activeBlock = data.blocks?.[data.blockIdx] || null;
+          // Map Firestore stack format back to webapp format
+          const mappedStack = (data.stack || []).map(s => ({
+            name: s.name,
+            dose: s.dose,
+            time: s.timing === "evening" ? "pm" : "am"
+          }));
+          return {
+            activeBlock,
+            blockIdx: data.blockIdx || 0,
+            isRunning: !!data.isRunning,
+            hrv: data.profile?.metrics?.hrv || 72,
+            sleep: data.profile?.metrics?.sleep || 84,
+            stack: mappedStack.length > 0 ? mappedStack : status.stack,
+            calendar: data.calendar || {}
+          };
+        }
       }
     }
   } catch (e) {
@@ -270,14 +276,16 @@ async function updateBiometrics({ telegramId, hrv, sleep }) {
   // 1. Update Firestore
   try {
     if (db) {
-      const q = query(collection(db, "users"), where("profile.telegramId", "==", telegramId));
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach(async (document) => {
-        await updateDoc(doc(db, "users", document.id), {
-          "profile.metrics.hrv": parseInt(hrv) || 72,
-          "profile.metrics.sleep": parseInt(sleep) || 84
+      const q = getTelegramUserQuery(telegramId);
+      if (q) {
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach(async (document) => {
+          await updateDoc(doc(db, "users", document.id), {
+            "profile.metrics.hrv": parseInt(hrv) || 72,
+            "profile.metrics.sleep": parseInt(sleep) || 84
+          });
         });
-      });
+      }
     }
   } catch (e) {
     console.error("[Pronoia Webhook] updateBiometrics Firestore error:", e);
@@ -315,36 +323,38 @@ async function handleBlockControl({ telegramId, action }) {
   // 1. Update Firestore
   try {
     if (db) {
-      const q = query(collection(db, "users"), where("profile.telegramId", "==", telegramId));
-      const querySnapshot = await getDocs(q);
-      for (const document of querySnapshot.docs) {
-        const data = document.data();
-        let newIdx = data.blockIdx !== undefined ? data.blockIdx : 0;
-        let newRunning = data.isRunning !== undefined ? data.isRunning : false;
-        const blocks = data.blocks || [
-          { title: "Fokus Arbeit", duration: 5400, pillar: "focus" },
-          { title: "Skill Erwerb", duration: 2700, pillar: "skills" },
-          { title: "Sunset Regeneration", duration: 1500, pillar: "recovery" }
-        ];
+      const q = getTelegramUserQuery(telegramId);
+      if (q) {
+        const querySnapshot = await getDocs(q);
+        for (const document of querySnapshot.docs) {
+          const data = document.data();
+          let newIdx = data.blockIdx !== undefined ? data.blockIdx : 0;
+          let newRunning = data.isRunning !== undefined ? data.isRunning : false;
+          const blocks = data.blocks || [
+            { title: "Fokus Arbeit", duration: 5400, pillar: "focus" },
+            { title: "Skill Erwerb", duration: 2700, pillar: "skills" },
+            { title: "Sunset Regeneration", duration: 1500, pillar: "recovery" }
+          ];
 
-        if (action === "next") {
-          if (newIdx < blocks.length - 1) newIdx++;
-        } else if (action === "prev") {
-          if (newIdx > 0) newIdx--;
-        } else if (action === "toggle") {
-          newRunning = !newRunning;
+          if (action === "next") {
+            if (newIdx < blocks.length - 1) newIdx++;
+          } else if (action === "prev") {
+            if (newIdx > 0) newIdx--;
+          } else if (action === "toggle") {
+            newRunning = !newRunning;
+          }
+
+          await updateDoc(doc(db, "users", document.id), {
+            blockIdx: newIdx,
+            isRunning: newRunning
+          });
+          
+          updatedState = {
+            activeBlock: blocks[newIdx] || null,
+            blockIdx: newIdx,
+            isRunning: newRunning
+          };
         }
-
-        await updateDoc(doc(db, "users", document.id), {
-          blockIdx: newIdx,
-          isRunning: newRunning
-        });
-        
-        updatedState = {
-          activeBlock: blocks[newIdx] || null,
-          blockIdx: newIdx,
-          isRunning: newRunning
-        };
       }
     }
   } catch (e) {
@@ -443,16 +453,18 @@ async function handleCalendarAdd({ telegramId, block }) {
   // 1. Update Firestore
   try {
     if (db) {
-      const q = query(collection(db, "users"), where("profile.telegramId", "==", telegramId));
-      const querySnapshot = await getDocs(q);
-      for (const document of querySnapshot.docs) {
-        const data = document.data();
-        const calendar = data.calendar || {};
-        const dayData = calendar[date] || { blocks: [] };
-        const updatedBlocks = [...(dayData.blocks || []), newBlock].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
-        
-        calendar[date] = { ...dayData, blocks: updatedBlocks };
-        await updateDoc(doc(db, "users", document.id), { calendar });
+      const q = getTelegramUserQuery(telegramId);
+      if (q) {
+        const querySnapshot = await getDocs(q);
+        for (const document of querySnapshot.docs) {
+          const data = document.data();
+          const calendar = data.calendar || {};
+          const dayData = calendar[date] || { blocks: [] };
+          const updatedBlocks = [...(dayData.blocks || []), newBlock].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+          
+          calendar[date] = { ...dayData, blocks: updatedBlocks };
+          await updateDoc(doc(db, "users", document.id), { calendar });
+        }
       }
     }
   } catch (e) {
@@ -497,4 +509,14 @@ async function handleCalendarAdd({ telegramId, block }) {
   } catch (e) {
     console.error("[Pronoia Webhook] handleCalendarAdd Supabase error:", e);
   }
+}
+
+function getTelegramUserQuery(telegramId) {
+  if (telegramId === undefined || telegramId === null) return null;
+  const idArray = [String(telegramId)];
+  const parsed = parseInt(telegramId);
+  if (!isNaN(parsed) && !idArray.includes(parsed)) {
+    idArray.push(parsed);
+  }
+  return query(collection(db, "users"), where("profile.telegramId", "in", idArray));
 }
