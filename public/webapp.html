@@ -59,17 +59,13 @@
     z-index: 10;
   }
   .logo {
-    font-family: 'DM Serif Display', serif;
-    font-size: 21px;
-    font-weight: 400;
-    color: var(--text);
     display: flex;
     align-items: center;
-    gap: 6px;
   }
-  .logo span {
-    color: var(--accent);
-    text-shadow: 0 0 8px var(--accent-glow);
+  .logo-img {
+    height: 18px;
+    display: block;
+    filter: invert(1) brightness(1.2);
   }
   .system-status {
     display: flex;
@@ -732,7 +728,9 @@
 <body>
 <div class="app">
   <div class="header">
-    <div class="logo">PRONOIA <span>⊕</span></div>
+    <div class="logo">
+      <img src="/graphic assets/pronoia_logo.png" alt="Pronoia" class="logo-img" />
+    </div>
     <div class="system-status">
       <div class="pulsing-dot"></div>
       <span id="systemState">SYSTEM: ONLINE</span>
