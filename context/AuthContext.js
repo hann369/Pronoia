@@ -29,10 +29,22 @@ export function AuthProvider({ children }) {
     return unsub;
   }, []);
 
-  const login  = (email, pw) => signInWithEmailAndPassword(auth, email, pw);
-  const signup = (email, pw) => createUserWithEmailAndPassword(auth, email, pw);
-  const loginWithGoogle = () => signInWithPopup(auth, new GoogleAuthProvider());
-  const logout = () => signOut(auth);
+  const login = (email, pw) => {
+    if (!auth) return Promise.reject(new Error("Authentifizierung offline: Firebase ist nicht konfiguriert. Bitte füge die Umgebungsvariablen in Vercel hinzu."));
+    return signInWithEmailAndPassword(auth, email, pw);
+  };
+  const signup = (email, pw) => {
+    if (!auth) return Promise.reject(new Error("Registrierung offline: Firebase ist nicht konfiguriert. Bitte füge die Umgebungsvariablen in Vercel hinzu."));
+    return createUserWithEmailAndPassword(auth, email, pw);
+  };
+  const loginWithGoogle = () => {
+    if (!auth) return Promise.reject(new Error("Google Login offline: Firebase ist nicht konfiguriert. Bitte füge die Umgebungsvariablen in Vercel hinzu."));
+    return signInWithPopup(auth, new GoogleAuthProvider());
+  };
+  const logout = () => {
+    if (!auth) return Promise.resolve();
+    return signOut(auth);
+  };
 
   return (
     <AuthContext.Provider value={{ user, loading, login, signup, loginWithGoogle, logout }}>

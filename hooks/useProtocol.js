@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 import { PROTOCOL_DATABASE } from '@/lib/protocol_data';
 
 export function useProtocol() {
@@ -71,7 +72,7 @@ export function useProtocol() {
   // Auth & Load State
   useEffect(() => {
     if (!auth) return;
-    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
         // Load from Firestore
