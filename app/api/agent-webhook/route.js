@@ -5,7 +5,8 @@ import { NextResponse } from "next/server";
 
 export async function POST(req) {
   const secret = req.headers.get("x-bot-secret");
-  if (secret !== process.env.WEBHOOK_SECRET) {
+  const webhookSecret = process.env.WEBHOOK_SECRET || "DEIN_WEBHOOK_SECRET_HIER";
+  if (secret !== webhookSecret) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -37,44 +38,59 @@ export async function POST(req) {
 
 async function saveUser({ telegramUser, profile }) {
   if (!process.env.SUPABASE_URL) return;
-  await fetch(`${process.env.SUPABASE_URL}/rest/v1/pronoia_users`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: process.env.SUPABASE_SERVICE_KEY,
-      Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-      Prefer: "resolution=merge-duplicates"
-    },
-    body: JSON.stringify({
-      telegram_id: telegramUser?.id,
-      username: telegramUser?.username || null,
-      name: telegramUser?.first_name || null,
-      goals: profile?.goals || [],
-      experience: profile?.experience || null,
-      age: profile?.age || null,
-      challenge: profile?.challenge || null,
-      source: "telegram_webapp",
-      created_at: new Date().toISOString()
-    })
-  });
+  try {
+    const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1/pronoia_users`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: process.env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+        Prefer: "resolution=merge-duplicates"
+      },
+      body: JSON.stringify({
+        telegram_id: telegramUser?.id,
+        username: telegramUser?.username || null,
+        name: telegramUser?.first_name || null,
+        goals: profile?.goals || [],
+        experience: profile?.experience || null,
+        age: profile?.age || null,
+        challenge: profile?.challenge || null,
+        source: "telegram_webapp",
+        created_at: new Date().toISOString()
+      })
+    });
+    if (!res.ok) {
+      console.error(`[Pronoia Webhook] saveUser Supabase error: ${res.status} ${res.statusText}`);
+    }
+  } catch (error) {
+    console.error("[Pronoia Webhook] saveUser network/fetch error:", error);
+  }
 }
 
 async function saveStack({ telegramUser, stack, profile, chatSummary }) {
   if (!process.env.SUPABASE_URL) return;
-  await fetch(`${process.env.SUPABASE_URL}/rest/v1/pronoia_stacks`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: process.env.SUPABASE_SERVICE_KEY,
-      Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`
-    },
-    body: JSON.stringify({
-      telegram_id: telegramUser?.id,
-      username: telegramUser?.username || null,
-      stack,
-      profile,
-      chat_summary: chatSummary || [],
-      synced_at: new Date().toISOString()
-    })
-  });
+  try {
+    const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1/pronoia_stacks`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: process.env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`
+      },
+      body: JSON.stringify({
+        telegram_id: telegramUser?.id,
+        username: telegramUser?.username || null,
+        stack,
+        profile,
+        chat_summary: chatSummary || [],
+        synced_at: new Date().toISOString()
+      })
+    });
+    if (!res.ok) {
+      console.error(`[Pronoia Webhook] saveStack Supabase error: ${res.status} ${res.statusText}`);
+    }
+  } catch (error) {
+    console.error("[Pronoia Webhook] saveStack network/fetch error:", error);
+  }
 }
+

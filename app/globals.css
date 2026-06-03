@@ -48,19 +48,21 @@
 }
 
 [data-theme="dark"] {
-  --bg:      #080808;
-  --bg2:     #111111;
-  --bg3:     #1a1a1a;
-  --bg-card: rgba(18, 18, 18, 0.92);
-  --text:    #f0ede8;
-  --text2:   #888;
-  --text3:   #444;
-  --border:  rgba(213, 184, 147, 0.08);
-  --border-s:rgba(213, 184, 147, 0.18);
-  --nav-bg:  rgba(8, 8, 8, 0.92);
-  --bg-rgb:     8, 8, 8;
-  --text-rgb:   240, 237, 232;
-  --panel-bg:   rgba(8, 10, 20, 0.65);
+  --bg:           #080a0f;
+  --bg2:          #0f1118;
+  --bg3:          #161b27;
+  --bg-card:      rgba(15, 20, 32, 0.95);
+  --text:         #eef0f4;
+  --text2:        #a8b4c0;
+  --text3:        #6a7890;
+  --border:       rgba(100, 130, 180, 0.12);
+  --border-s:     rgba(100, 130, 180, 0.22);
+  --border-strong: rgba(100, 130, 180, 0.4);
+  --nav-bg:       rgba(8, 10, 15, 0.94);
+  --bg-rgb:       8, 10, 15;
+  --text-rgb:     238, 240, 244;
+  --panel-bg:     rgba(8, 12, 22, 0.72);
+  --cobalt-dim:   rgba(26, 106, 255, 0.15);
 }
 
 /* ═══ RESET ═══════════════════════════════════════════ */

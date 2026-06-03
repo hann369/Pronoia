@@ -6,12 +6,10 @@ import { useAuth } from '@/context/AuthContext';
 import styles from './Nav.module.css';
 
 const NAV_LINKS = [
-  { href: '/',          label: 'Core' },
-  { href: '/protocol',  label: 'Protocol' },
-  { href: '/vault',     label: 'Vault' },
-  { href: '/labs',      label: 'Labs' },
-  { href: '/health',    label: 'Health' },
-  { href: '/store',     label: 'Store' },
+  { href: '/',                label: 'Core' },
+  { href: '/labs',            label: 'Pronoia Labs' },
+  { href: '/bio-synthetics',  label: 'Bio-Synthetics' },
+  { href: '/store',           label: 'Store' },
 ];
 
 export default function Nav() {

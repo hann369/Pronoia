@@ -89,8 +89,8 @@ export default function HomePage() {
               <Link href="/auth" className="btn-10x btn-10x-solid" style={{ padding: '1rem 2.5rem', background: 'var(--tan)', color: 'var(--bg)', textDecoration: 'none', borderRadius: '50px', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.15em', fontWeight: 700, transition: 'all 0.3s' }}>
                 Begin Assessment
               </Link>
-              <Link href="/protocol" className="btn-10x btn-10x-outline" style={{ padding: '1rem 2.5rem', border: '1px solid var(--border-strong)', color: 'var(--text)', textDecoration: 'none', borderRadius: '50px', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.15em', fontWeight: 700, transition: 'all 0.3s', backdropFilter: 'blur(10px)' }}>
-                Explore System
+              <Link href="/life-os" className="btn-10x btn-10x-outline" style={{ padding: '1rem 2.5rem', border: '1px solid var(--border-strong)', color: 'var(--text)', textDecoration: 'none', borderRadius: '50px', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.15em', fontWeight: 700, transition: 'all 0.3s', backdropFilter: 'blur(10px)' }}>
+                Explore Life OS
               </Link>
             </div>
           </div>
@@ -323,11 +323,10 @@ function EcosystemGrid() {
   };
 
   const pillars = [
-    { id: 'protocol', label: 'Protocol Runner', icon: '⏳', desc: 'Silent daily routine controller. Prompts next focus blocks based on your HRV and circadian baseline. No clutter.', path: '/protocol' },
-    { id: 'labs', label: 'Pronoia Labs', icon: '🧪', desc: 'The neurochemistry core. PX-V1 formulation specs, purity reports, and open Certificates of Analysis.', path: '/labs' },
-    { id: 'health', label: 'Pronoia Health', icon: '🌿', desc: 'Environment over willpower. Dermal detox, organic fabric sync, and zirkadian lighting protocols.', path: '/health' },
-    { id: 'vault', label: 'Knowledge Vault', icon: '✦', desc: 'Spatial intelligence context. Drop notes, papers, and files directly to feed your personalized AI agent.', path: '/vault' },
-    { id: 'store', label: 'Blueprints Store', icon: '💳', desc: 'PDF optimization courses and custom guidelines designed to compile high performance from first principles.', path: '/store' }
+    { id: 'life-os', label: 'Life OS', icon: '⏳', desc: 'Das Herzstück des Systems. Steuert deine täglichen bio-kognitiven Blöcke, deinen Kalender und das Skill Lab. Inkl. eingebettetem Knowledge Vault.', path: '/life-os' },
+    { id: 'labs', label: 'Pronoia Labs', icon: '🧪', desc: 'Die Neurochemie-Einheit. PX-V1 Nootropika-Specs, Reinheitsberichte und offene Zertifikate für jede Charge.', path: '/labs' },
+    { id: 'bio-synthetics', label: 'Bio-Synthetics', icon: '🌿', desc: 'Bio-Adaptive Fuel und Functional Gear. Biologische Integrität durch kuratierte Mahlzeiten, nootropische Refills und organische Textilien.', path: '/bio-synthetics' },
+    { id: 'store', label: 'Pronoia Store', icon: '💳', desc: 'Wähle dein Abo-Modell: Free, Premium oder Max. Automatische Produkt-Lieferungen je nach Stufe inklusive.', path: '/store' }
   ];
 
   return (
@@ -480,17 +479,16 @@ function ManifestoAndFooter() {
           </blockquote>
           <div className={styles.manifestoBtnGroup}>
             <Link href="/auth" className="btn btn-primary btn-lg">Begin System Assessment</Link>
-            <Link href="/protocol" className="btn btn-ghost btn-lg" style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.2)' }}>Launch Runner</Link>
+            <Link href="/life-os" className="btn btn-ghost btn-lg" style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.2)' }}>Launch Life OS</Link>
           </div>
         </div>
       </section>
 
       <footer className={styles.footer}>
         <div className={styles.footerLinks}>
-          <Link href="/protocol">Protocol</Link>
-          <Link href="/labs">Labs</Link>
-          <Link href="/health">Health</Link>
-          <Link href="/vault">Vault</Link>
+          <Link href="/life-os">Life OS</Link>
+          <Link href="/labs">Pronoia Labs</Link>
+          <Link href="/bio-synthetics">Bio-Synthetics</Link>
           <Link href="/store">Store</Link>
         </div>
         <div className={styles.footerCopy}>
