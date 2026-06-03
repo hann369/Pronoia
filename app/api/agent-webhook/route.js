@@ -213,7 +213,8 @@ async function getUserStatus(telegramId) {
             hrv: data.profile?.metrics?.hrv || 72,
             sleep: data.profile?.metrics?.sleep || 84,
             stack: mappedStack.length > 0 ? mappedStack : status.stack,
-            calendar: data.calendar || {}
+            calendar: data.calendar || {},
+            email: data.profile?.email || null
           };
         }
       }

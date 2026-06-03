@@ -190,7 +190,11 @@ export function useProtocol() {
   // Sync to Firestore / LocalStorage on change (debounced)
   useEffect(() => {
     const timer = setTimeout(() => {
-      const stateObj = { profile, blocks, blockIdx, isRunning, stack, frictionLogs, directives, dataSources, calendar };
+      let finalProfile = profile;
+      if (user?.email && profile.email !== user.email) {
+        finalProfile = { ...profile, email: user.email };
+      }
+      const stateObj = { profile: finalProfile, blocks, blockIdx, isRunning, stack, frictionLogs, directives, dataSources, calendar };
       if (user && db) {
         setDoc(doc(db, 'users', user.uid), stateObj, { merge: true });
       } else if (!user) {

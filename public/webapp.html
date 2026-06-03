@@ -810,6 +810,7 @@
         <div class="avatar-placeholder">⊕</div>
         <h2 id="userName">User</h2>
         <p id="userSystemId">SYSTEM ID: PX-2026-88</p>
+        <p id="userEmail" style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--tan); margin-top: 4px;">EMAIL: NICHT VERKNÜPFT</p>
       </div>
 
       <!-- ONBOARDING FORM -->
@@ -1338,6 +1339,11 @@ function updateCompanionState(status) {
   }
   if (status.stack) {
     userStack = status.stack;
+  }
+  if (status.email) {
+    document.getElementById("userEmail").textContent = "EMAIL: " + status.email;
+  } else {
+    document.getElementById("userEmail").textContent = "EMAIL: NICHT VERKNÜPFT";
   }
 }
 
