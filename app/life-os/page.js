@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -107,6 +107,13 @@ export default function LifeOSPage() {
 
   /* ─── Profile Sidebar ─── */
   const [showProfile, setShowProfile] = useState(false);
+
+  /* ─── Live Clock ─── */
+  const [liveTime, setLiveTime] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setLiveTime(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   /* ─── Core State ─── */
   const [messages, setMessages] = useState([
@@ -337,6 +344,33 @@ export default function LifeOSPage() {
     rec: 'Keine Empfehlungen geladen.', insight: 'Initialisiere das Pronoia System.'
   };
 
+  /* ─── Live Clock Helpers ─── */
+  const clockHH = liveTime.getHours().toString().padStart(2, '0');
+  const clockMM = liveTime.getMinutes().toString().padStart(2, '0');
+  const clockSS = liveTime.getSeconds().toString().padStart(2, '0');
+  const greeting = useMemo(() => {
+    const h = liveTime.getHours();
+    if (h < 5)  return 'Nacht-Modus';
+    if (h < 12) return 'Guten Morgen';
+    if (h < 17) return 'Guten Tag';
+    if (h < 21) return 'Guten Abend';
+    return 'Erholung-Modus';
+  }, [clockHH]);
+
+  const todayStr = liveTime.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' });
+
+  /* ─── Focus Score ─── */
+  const focusScore = useMemo(() => {
+    const hrv    = profile?.metrics?.hrv   || 72;
+    const sleep  = profile?.metrics?.sleep || 84;
+    const hrvNorm  = Math.min(100, (hrv / 100) * 100);
+    const raw = Math.round((hrvNorm * 0.55) + (sleep * 0.45));
+    return Math.max(10, Math.min(99, raw));
+  }, [profile]);
+
+  const focusLabel = focusScore >= 80 ? 'PEAK' : focusScore >= 60 ? 'OPTIMAL' : focusScore >= 40 ? 'MODERAT' : 'KRITISCH';
+  const focusColor = focusScore >= 80 ? 'var(--green)' : focusScore >= 60 ? 'var(--cobalt-bright)' : focusScore >= 40 ? 'var(--amber)' : 'var(--red)';
+
   const prog = totalTime > 0 ? 1 - timeLeft / totalTime : 0;
   let ltpPotential = 45;
   let plasticity = 50;
@@ -452,24 +486,45 @@ export default function LifeOSPage() {
       {/* ═══ MAIN DASHBOARD — always visible ═══ */}
       <main className={styles.main}>
 
-        {/* Header bar */}
-        <header className={styles.mainHeader}>
-          <div className={styles.mainHeaderLeft}>
-            <span className={styles.mainHeaderBadge}>{currentBlock.type}</span>
-            <h1 className={styles.mainHeaderTitle}>{currentBlock.title}</h1>
+        {/* ─── SYSTEM STATUS BAR ─── */}
+        <div className={styles.statusBar}>
+          <div className={styles.statusBarLeft}>
+            <div className={styles.clockDisplay}>
+              <span className={styles.clockHH}>{clockHH}</span>
+              <span className={styles.clockColon}>:</span>
+              <span className={styles.clockMM}>{clockMM}</span>
+              <span className={styles.clockSS}>:{clockSS}</span>
+            </div>
+            <div className={styles.statusBarInfo}>
+              <span className={styles.statusGreeting}>{greeting}</span>
+              <span className={styles.statusDate}>{todayStr}</span>
+            </div>
           </div>
-          <div className={styles.mainHeaderRight}>
-            <button className={styles.mainNavBtn} onClick={prevBlock}>← Zurück</button>
-            <button className={styles.mainNavBtn} onClick={skipBlock}>Weiter →</button>
-            <button
-              className={styles.calendarOpenBtn}
-              onClick={() => setShowCalendarModal(true)}
-              title="Kalender öffnen"
-            >
-              📅
-            </button>
+          <div className={styles.statusBarRight}>
+            <div className={styles.focusScoreBadge}>
+              <span className={styles.focusScoreNum} style={{ color: focusColor }}>{focusScore}</span>
+              <span className={styles.focusScoreLabel}>FOCUS</span>
+              <span className={styles.focusScoreTag} style={{ color: focusColor, borderColor: focusColor }}>{focusLabel}</span>
+            </div>
+            <div className={styles.statusActions}>
+              <button className={styles.mainNavBtn} onClick={prevBlock}>←</button>
+              <button className={styles.mainNavBtn} onClick={skipBlock}>→</button>
+              <button
+                className={styles.calendarOpenBtn}
+                onClick={() => setShowCalendarModal(true)}
+                title="Kalender öffnen"
+              >
+                📅
+              </button>
+            </div>
           </div>
-        </header>
+        </div>
+
+        {/* Block label under status bar */}
+        <div className={styles.blockLabel}>
+          <span className={styles.mainHeaderBadge}>{currentBlock.type}</span>
+          <h1 className={styles.mainHeaderTitle}>{currentBlock.title}</h1>
+        </div>
 
         {/* ─── CHRONOMETER ─── */}
         <div className={styles.chronoSection}>

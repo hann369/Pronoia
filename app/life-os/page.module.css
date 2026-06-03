@@ -175,7 +175,158 @@
   }
 }
 
-/* ─── Main Header ─── */
+/* ─── System Status Bar ─── */
+.statusBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 0.85rem 1.5rem;
+  margin-bottom: 1.5rem;
+  gap: 1.5rem;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 600px) {
+  .statusBar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+  }
+}
+
+.statusBarLeft {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.statusBarRight {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.clockDisplay {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.clockHH, .clockMM {
+  font-size: 1.6rem;
+  color: var(--text);
+  letter-spacing: -0.03em;
+}
+
+.clockColon {
+  font-size: 1.6rem;
+  color: var(--cobalt-bright);
+  animation: colonBlink 1s step-end infinite;
+  margin: 0 1px;
+}
+
+@keyframes colonBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+
+.clockSS {
+  font-size: 0.85rem;
+  color: var(--text3);
+  align-self: flex-end;
+  margin-bottom: 3px;
+  margin-left: 2px;
+}
+
+.statusBarInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.statusGreeting {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.statusDate {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text3);
+  letter-spacing: 0.02em;
+}
+
+.focusScoreBadge {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border-s);
+  border-radius: 12px;
+  padding: 0.4rem 0.85rem;
+}
+
+.focusScoreNum {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  transition: color 0.5s ease;
+}
+
+.focusScoreLabel {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--text3);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  align-self: flex-end;
+  margin-bottom: 2px;
+}
+
+.focusScoreTag {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: 700;
+  border: 1px solid;
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  align-self: flex-end;
+  margin-bottom: 2px;
+  transition: color 0.5s ease, border-color 0.5s ease;
+}
+
+.statusActions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* ─── Block Label ─── */
+.blockLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 2.5rem;
+}
+
+/* ─── Main Header (legacy) ─── */
 .mainHeader {
   display: flex;
   justify-content: space-between;
@@ -2216,4 +2367,82 @@
 @keyframes slideUp {
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
+}
+
+/* ─── Shared Utility Classes ─── */
+.stackedForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.emptyState {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text3);
+  text-align: center;
+  padding: 1.5rem 0;
+  font-style: italic;
+}
+
+/* ─── Dark Mode Contrast Boost ─── */
+[data-theme="dark"] .drawerTitle {
+  color: #eef0f4;
+}
+
+[data-theme="dark"] .drawerGroupLabel {
+  color: #8fa3bf;
+}
+
+[data-theme="dark"] .insightText {
+  color: #c4cdd8;
+}
+
+[data-theme="dark"] .chatMsgAgent {
+  color: #c4cdd8;
+}
+
+[data-theme="dark"] .queueTitle {
+  color: #eef0f4;
+}
+
+[data-theme="dark"] .stackName {
+  color: #eef0f4;
+}
+
+[data-theme="dark"] .agentName {
+  color: #eef0f4;
+}
+
+[data-theme="dark"] .metricCardVal {
+  color: #eef0f4;
+}
+
+[data-theme="dark"] .vaultCardTitle {
+  color: #eef0f4;
+}
+
+[data-theme="dark"] .vaultCardContent {
+  color: #9fb3c8;
+}
+
+[data-theme="dark"] .calTitle {
+  color: #eef0f4;
+}
+
+[data-theme="dark"] .calBlockTitle {
+  color: #eef0f4;
+}
+
+[data-theme="dark"] .profileName {
+  color: #eef0f4;
+}
+
+[data-theme="dark"] .statusGreeting {
+  color: #eef0f4;
+}
+
+[data-theme="dark"] .clockHH,
+[data-theme="dark"] .clockMM {
+  color: #eef0f4;
 }
