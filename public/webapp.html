@@ -1057,6 +1057,7 @@ let currentBlockDuration = 5400; // 90 mins
 let timeLeft = 5400;
 let isTimerRunning = false;
 let timerInterval = null;
+let currentBlockIdx = null;
 
 // ── Sliders live update ──
 const hrvSlider = document.getElementById("hrvSlider");
@@ -1212,6 +1213,9 @@ async function sendMessage() {
 
     if (data.stackUpdate) { userStack = data.stackUpdate; }
     if (data.score) { document.getElementById("stackScore").textContent = data.score; }
+    if (data.status) {
+      updateCompanionState(data.status, data.debug);
+    }
   } catch (err) {
     typingEl.remove();
     appendMsg("Verbindungsfehler. Bitte versuche es noch einmal.", "bot");
@@ -1317,10 +1321,8 @@ function updateCompanionState(status, debug = null) {
     debugEl.style.display = "block";
     debugEl.innerHTML = `
       <strong>DIAGNOSE-KONSOLE:</strong><br/>
-      • DB-Status: ${debug.dbInitialized ? "🟢 BEREIT" : "🔴 OFFLINE (Fehlende Vercel-Schlüssel)"}<br/>
-      • Firebase Projekt: ${debug.projectId || "unbekannt"}<br/>
-      • API-Key (Vercel): ${debug.apiKey || "unbekannt"}<br/>
-      • Telegram-ID: ${debug.telegramId || "null"} (${debug.telegramIdType || "undefined"})<br/>
+      • DB-Status: ${debug.dbInitialized ? "🟢 BEREIT" : "🔴 OFFLINE"}<br/>
+      • Telegram-ID: ${debug.telegramId || "null"}<br/>
       • Dokumente gefunden: ${debug.matchedDocs}<br/>
       • Status: ${debug.error ? `⚠️ ${debug.error}` : "✅ Erfolgreich verknüpft"}
     `;
@@ -1345,9 +1347,10 @@ function updateCompanionState(status, debug = null) {
     currentBlockDuration = status.activeBlock.duration;
     isTimerRunning = status.isRunning;
     
-    // reset or match timer value
-    if (status.blockIdx !== undefined) {
+    // reset timer value ONLY if the active block index changed
+    if (status.blockIdx !== undefined && status.blockIdx !== currentBlockIdx) {
       timeLeft = status.activeBlock.duration;
+      currentBlockIdx = status.blockIdx;
     }
     updateTimerUI();
   }

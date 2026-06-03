@@ -73,16 +73,22 @@ VERKNÜPFUNGS-INFO:
 - Der Verknüpfungs-Link für diesen Nutzer lautet: ${linkUrl}.
 - Wenn der Nutzer nach einer Verknüpfung fragt (z.B. "Konto verbinden", "wie verbinde ich", "/link"), gib ihm genau diesen Link.
 
+HANDLUNGEN AUSFÜHREN:
+Du kannst Aktionen direkt im System ausführen lassen, indem du das "action"-Objekt befüllst:
+- Wenn der Nutzer seine HRV oder seinen Schlaf loggen möchte (z. B. "logge meine HRV auf 78", "HRV 72 setzen", "Schlaf 85% eintragen"), befüllst du "action" mit: {"type": "biometrics_update", "hrv": [Zahl], "sleep": [Zahl]}. Nimm Standardwerte (HRV: 72, Schlaf: 84) falls ein Wert fehlt.
+- Wenn der Nutzer den Fokus-Timer umschalten oder den Block steuern möchte (z. B. "Fokus starten", "Timer stoppen", "Nächster Block", "Pause"), befüllst du "action" mit: {"type": "block_control", "action": "toggle" | "next" | "prev"}.
+
 TONALITÄT: Direkt, klar, kein Bullshit, wissenschaftlich fundiert, Deutsch.
 
 USER-PROFIL: ${JSON.stringify(profile || {})}
 
 ANTWORT NUR ALS JSON:
 {
-  "reply": "Antwort auf Deutsch. Falls der Nutzer einen Befehl wünscht (z.B. HRV loggen oder Timer umschalten), erkläre ihm kurz, dass er auch /hrv [Wert] oder /focus nutzen kann.",
+  "reply": "Antwort auf Deutsch. Bestätige kurz, dass die Aktion ausgeführt wurde, wenn du ein action-Objekt befüllst.",
+  "intent": "chat | stack_question | px_v1_interest | biometrics_update | block_control | calendar_query | lead | support",
+  "action": null | { "type": "biometrics_update", "hrv": 72, "sleep": 84 } | { "type": "block_control", "action": "toggle" | "next" | "prev" },
   "stackUpdate": null,
   "score": null,
-  "intent": "chat | stack_question | px_v1_interest | biometrics_update | block_control | calendar_query | lead | support",
   "tags": []
 }`;
 
@@ -110,12 +116,79 @@ ANTWORT NUR ALS JSON:
     const data = await response.json();
     const parsed = JSON.parse(data.choices?.[0]?.message?.content);
 
+    let status = null;
+    let debug = null;
+
+    if (parsed.action && telegramId) {
+      const siteUrl = process.env.PRONOIA_URL || "https://pronoia-3g6y.vercel.app";
+      let event = "";
+      let actionParams = {};
+      if (parsed.action.type === "biometrics_update") {
+        event = "biometrics_update";
+        actionParams = { 
+          hrv: parsed.action.hrv || (profile?.metrics?.hrv || 72), 
+          sleep: parsed.action.sleep || (profile?.metrics?.sleep || 84) 
+        };
+      } else if (parsed.action.type === "block_control") {
+        event = "block_control";
+        actionParams = { action: parsed.action.action };
+      }
+
+      if (event) {
+        try {
+          const webhookRes = await fetch(`${siteUrl}/app/api/agent-webhook` || `${siteUrl}/api/agent-webhook`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Bot-Secret": process.env.WEBHOOK_SECRET || "DEIN_WEBHOOK_SECRET_HIER"
+            },
+            body: JSON.stringify({
+              source: "telegram_webapp_chat",
+              telegramUser,
+              event,
+              ...actionParams
+            })
+          });
+          
+          // Fallback if local/relative path differs or deployment hasn't finished, try relative path local fetch if on the same host
+          let finalRes = webhookRes;
+          if (!webhookRes.ok) {
+            // Try fetching absolute path to route API
+            const fallbackUrl = `${req.nextUrl.origin}/api/agent-webhook`;
+            finalRes = await fetch(fallbackUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Bot-Secret": process.env.WEBHOOK_SECRET || "DEIN_WEBHOOK_SECRET_HIER"
+              },
+              body: JSON.stringify({
+                source: "telegram_webapp_chat",
+                telegramUser,
+                event,
+                ...actionParams
+              })
+            });
+          }
+
+          if (finalRes.ok) {
+            const webhookData = await finalRes.json();
+            status = webhookData.status;
+            debug = webhookData.debug;
+          }
+        } catch (webhookErr) {
+          console.error("Failed to forward action to agent-webhook:", webhookErr);
+        }
+      }
+    }
+
     return NextResponse.json({
       reply: parsed.reply,
       stackUpdate: parsed.stackUpdate || null,
       score: parsed.score || null,
       intent: parsed.intent,
-      tags: parsed.tags || []
+      tags: parsed.tags || [],
+      status,
+      debug
     });
 
   } catch (error) {
