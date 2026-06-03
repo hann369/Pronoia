@@ -31,12 +31,27 @@
     --amber: #F5A623;
   }
 
+  /* ── Light Theme variables override ── */
+  body.light-theme {
+    --bg: #f4f6fa;
+    --bg2: #ffffff;
+    --bg3: #eef2f8;
+    --border: rgba(26, 106, 255, 0.08);
+    --border-strong: rgba(26, 106, 255, 0.18);
+    --text: #0c0f16;
+    --text-muted: #4a5568;
+    --text-dim: #718096;
+    --tan: #a88a65; /* Darker tan for proper contrast on white background */
+    --accent-glow: rgba(26, 106, 255, 0.15);
+  }
+
   html, body {
     height: 100%;
     overflow: hidden;
     font-family: 'DM Sans', sans-serif;
     background: var(--bg);
     color: var(--text);
+    transition: background 0.3s ease, color 0.3s ease;
   }
 
   .app {
@@ -45,27 +60,61 @@
     height: 100vh;
     max-height: 100vh;
     position: relative;
+    background: var(--bg);
+    transition: background 0.3s ease;
   }
 
   /* ── Header ── */
   .header {
-    padding: 1.25rem 1.25rem 0.85rem;
+    padding: 0.65rem 1.25rem;
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-shrink: 0;
-    background: var(--bg);
+    background: var(--bg2);
     z-index: 10;
+    transition: background 0.3s ease, border-color 0.3s ease;
   }
   .logo {
     display: flex;
     align-items: center;
+    height: 38px;
   }
   .logo-img {
-    height: 18px;
+    height: 28px; /* Increased from 18px to 28px */
     display: block;
-    filter: invert(1) brightness(1.2);
+    transition: filter 0.3s ease;
+  }
+  body:not(.light-theme) .logo-img {
+    filter: invert(1) brightness(1.4);
+  }
+  body.light-theme .logo-img {
+    filter: none;
+  }
+  .theme-toggle-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border-radius: 8px;
+    margin-right: 6px;
+    transition: all 0.2s ease;
+    outline: none;
+  }
+  .theme-toggle-btn:active {
+    background: rgba(26, 106, 255, 0.1);
+    color: var(--accent);
+  }
+  .theme-toggle-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
   }
   .system-status {
     display: flex;
@@ -115,9 +164,10 @@
     border-radius: 16px;
     padding: 1.25rem;
     margin-bottom: 1rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
   }
   .card-title {
     font-family: 'DM Serif Display', serif;
@@ -350,6 +400,7 @@
     align-items: flex-end;
     flex-shrink: 0;
     background: var(--bg);
+    transition: background 0.3s ease, border-color 0.3s ease;
   }
   .chat-input {
     flex: 1;
@@ -695,6 +746,7 @@
     flex-shrink: 0;
     background: var(--bg);
     padding-bottom: env(safe-area-inset-bottom);
+    transition: background 0.3s ease, border-color 0.3s ease;
   }
   .tab {
     flex: 1;
@@ -732,6 +784,20 @@
       <img src="/graphic assets/pronoia_logo.png" alt="Pronoia" class="logo-img" />
     </div>
     <div class="system-status">
+      <button class="theme-toggle-btn" onclick="toggleThemeManual()" aria-label="Theme umschalten">
+        <svg id="themeToggleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <!-- Sun icon default -->
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+      </button>
       <div class="pulsing-dot"></div>
       <span id="systemState">SYSTEM: ONLINE</span>
     </div>
@@ -1469,6 +1535,52 @@ async function loadInitialStatus() {
     updateCompanionState(data.status);
   }
 }
+
+// ── Theme Control ──
+function applyTelegramTheme() {
+  if (tg) {
+    const isLight = tg.colorScheme === "light";
+    if (isLight) {
+      document.body.classList.add("light-theme");
+    } else {
+      document.body.classList.remove("light-theme");
+    }
+    updateThemeIcon(isLight);
+  }
+}
+
+function toggleThemeManual() {
+  const isLight = document.body.classList.toggle("light-theme");
+  updateThemeIcon(isLight);
+}
+
+function updateThemeIcon(isLight) {
+  const icon = document.getElementById("themeToggleIcon");
+  if (!icon) return;
+  if (isLight) {
+    // Show Moon Icon for dark mode switch
+    icon.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>`;
+  } else {
+    // Show Sun Icon for light mode switch
+    icon.innerHTML = `
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    `;
+  }
+}
+
+// Register Telegram events if available
+if (tg) {
+  tg.onEvent("themeChanged", applyTelegramTheme);
+}
+applyTelegramTheme();
 
 // Start up
 loadInitialStatus();
