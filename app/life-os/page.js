@@ -94,7 +94,7 @@ function LifeOSDashboard() {
     generateSkillMaterials, completeSkillSession,
     toggleTimer, nextBlock, prevBlock, skipBlock, handleCommand, setAgentMsg,
     consumeStackItem, addStackItem, removeStackItem, updateStackItem,
-    saveProfile, logFriction, loadProtocolQueue, addCustomBlock, uploadDataSource
+    saveProfile, linkTelegramId, logFriction, loadProtocolQueue, addCustomBlock, uploadDataSource
   } = useProtocol();
 
   /* ─── Access Gate ─── */
@@ -113,14 +113,19 @@ function LifeOSDashboard() {
     if (tgId && user && profile) {
       const parsedId = parseInt(tgId);
       if (profile.telegramId !== parsedId) {
-        saveProfile({ telegramId: parsedId });
-        setLinkNotification("Telegram-Konto erfolgreich verknüpft! ⊕");
+        linkTelegramId(parsedId).then((success) => {
+          if (success) {
+            setLinkNotification("Telegram-Konto erfolgreich verknüpft! ⊕");
+          } else {
+            setLinkNotification("Verknüpfungs-Fehler! Siehe Konsole/Alert.");
+          }
+        });
         // Remove query param from URL
         const newUrl = window.location.pathname;
         window.history.replaceState({ path: newUrl }, '', newUrl);
       }
     }
-  }, [searchParams, user, profile, saveProfile]);
+  }, [searchParams, user, profile, linkTelegramId]);
 
   /* ─── Drawer Navigation ─── */
   const [activeDrawer, setActiveDrawer] = useState(null);

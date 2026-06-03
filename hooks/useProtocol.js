@@ -322,6 +322,31 @@ export function useProtocol() {
     setAgentMsg("Profil-Parameter erfolgreich aktualisiert.");
   };
 
+  const linkTelegramId = async (telegramId) => {
+    if (!user || !db) {
+      console.warn("Cannot link account: user or db is null");
+      return false;
+    }
+    const parsedId = parseInt(telegramId);
+    if (isNaN(parsedId)) return false;
+
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      setProfile(prev => ({ ...prev, telegramId: parsedId }));
+      await setDoc(userRef, {
+        profile: {
+          telegramId: parsedId
+        }
+      }, { merge: true });
+      setAgentMsg("Telegram-Konto erfolgreich in der Cloud verknüpft.");
+      return true;
+    } catch (err) {
+      console.error("Direct Firestore link write failed:", err);
+      alert("Firestore-Fehler beim Verknüpfen: " + err.message);
+      return false;
+    }
+  };
+
   // Friction Logs
   const logFriction = (status) => {
     const currentBlock = blocks[blockIdx];
@@ -884,6 +909,7 @@ export function useProtocol() {
     removeStackItem,
     updateStackItem,
     saveProfile,
+    linkTelegramId,
     logFriction,
     loadProtocolQueue,
     addCustomBlock,
