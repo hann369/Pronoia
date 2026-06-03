@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { db, auth } from '@/lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { PROTOCOL_DATABASE } from '@/lib/protocol_data';
 
@@ -72,39 +72,89 @@ export function useProtocol() {
   // Auth & Load State
   useEffect(() => {
     if (!auth) return;
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    let unsubscribeDoc = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+
+      // Clean up previous document listener if user logs out or changes
+      if (unsubscribeDoc) {
+        unsubscribeDoc();
+        unsubscribeDoc = null;
+      }
+
       if (currentUser) {
-        // Load from Firestore
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          if (data.profile) setProfile(prev => ({ ...prev, ...data.profile }));
-          if (data.calendar) setCalendar(data.calendar);
-          if (data.blocks && data.blocks.length > 0) {
-            setBlocks(data.blocks);
-            const loadedIdx = data.blockIdx !== undefined ? data.blockIdx : 0;
-            setBlockIdx(loadedIdx);
-            if (data.blocks[loadedIdx]) {
-              setTotalTime(data.blocks[loadedIdx].duration);
-              setTimeLeft(data.blocks[loadedIdx].duration);
+        // Set up real-time listener on user's Firestore document
+        unsubscribeDoc = onSnapshot(doc(db, 'users', currentUser.uid), (userDoc) => {
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+
+            // Only update local states if the data is actually different (prevents loop with sync useEffect)
+            if (data.profile) {
+              setProfile(prev => {
+                const updated = { ...prev, ...data.profile };
+                return JSON.stringify(prev) === JSON.stringify(updated) ? prev : updated;
+              });
+            }
+            if (data.calendar) {
+              setCalendar(prev => JSON.stringify(prev) === JSON.stringify(data.calendar) ? prev : data.calendar);
+            }
+            if (data.isRunning !== undefined) {
+              setIsRunning(prev => prev === data.isRunning ? prev : data.isRunning);
+            }
+            if (data.blocks && data.blocks.length > 0) {
+              setBlocks(prev => {
+                if (JSON.stringify(prev) === JSON.stringify(data.blocks)) return prev;
+                // Update timer if active block duration changed
+                const loadedIdx = data.blockIdx !== undefined ? data.blockIdx : 0;
+                if (data.blocks[loadedIdx] && (!prev[loadedIdx] || prev[loadedIdx].duration !== data.blocks[loadedIdx].duration)) {
+                  setTotalTime(data.blocks[loadedIdx].duration);
+                  setTimeLeft(data.blocks[loadedIdx].duration);
+                }
+                return data.blocks;
+              });
+
+              const loadedIdx = data.blockIdx !== undefined ? data.blockIdx : 0;
+              setBlockIdx(prev => {
+                if (prev === loadedIdx) return prev;
+                if (data.blocks[loadedIdx]) {
+                  setTotalTime(data.blocks[loadedIdx].duration);
+                  setTimeLeft(data.blocks[loadedIdx].duration);
+                }
+                return loadedIdx;
+              });
+            } else {
+              setBlocks(prev => {
+                if (JSON.stringify(prev) === JSON.stringify(PROTOCOL_DATABASE.focus_optimization)) return prev;
+                setTotalTime(PROTOCOL_DATABASE.focus_optimization[0].duration);
+                setTimeLeft(PROTOCOL_DATABASE.focus_optimization[0].duration);
+                return PROTOCOL_DATABASE.focus_optimization;
+              });
+            }
+            if (data.stack) {
+              setStack(prev => JSON.stringify(prev) === JSON.stringify(data.stack) ? prev : data.stack);
+            }
+            if (data.frictionLogs) {
+              setFrictionLogs(prev => JSON.stringify(prev) === JSON.stringify(data.frictionLogs) ? prev : data.frictionLogs);
+            }
+            if (data.directives) {
+              setDirectives(prev => JSON.stringify(prev) === JSON.stringify(data.directives) ? prev : data.directives);
+            }
+            if (data.dataSources) {
+              setDataSources(prev => JSON.stringify(prev) === JSON.stringify(data.dataSources) ? prev : data.dataSources);
             }
           } else {
-            // Default blocks
-            setBlocks(PROTOCOL_DATABASE.focus_optimization);
-            setTotalTime(PROTOCOL_DATABASE.focus_optimization[0].duration);
-            setTimeLeft(PROTOCOL_DATABASE.focus_optimization[0].duration);
+            // Default setup if document doesn't exist
+            setBlocks(prev => {
+              if (JSON.stringify(prev) === JSON.stringify(PROTOCOL_DATABASE.focus_optimization)) return prev;
+              setTotalTime(PROTOCOL_DATABASE.focus_optimization[0].duration);
+              setTimeLeft(PROTOCOL_DATABASE.focus_optimization[0].duration);
+              return PROTOCOL_DATABASE.focus_optimization;
+            });
           }
-          if (data.stack) setStack(data.stack);
-          if (data.frictionLogs) setFrictionLogs(data.frictionLogs);
-          if (data.directives) setDirectives(data.directives);
-          if (data.dataSources) setDataSources(data.dataSources);
-        } else {
-          // Default setup
-          setBlocks(PROTOCOL_DATABASE.focus_optimization);
-          setTotalTime(PROTOCOL_DATABASE.focus_optimization[0].duration);
-          setTimeLeft(PROTOCOL_DATABASE.focus_optimization[0].duration);
-        }
+        }, (err) => {
+          console.error("Firestore onSnapshot error:", err);
+        });
       } else {
         // Not logged in: check localStorage or use default
         const localData = localStorage.getItem('pronoia_protocol_state');
@@ -130,13 +180,17 @@ export function useProtocol() {
         }
       }
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeDoc) unsubscribeDoc();
+    };
   }, []);
 
   // Sync to Firestore / LocalStorage on change (debounced)
   useEffect(() => {
     const timer = setTimeout(() => {
-      const stateObj = { profile, blocks, blockIdx, stack, frictionLogs, directives, dataSources, calendar };
+      const stateObj = { profile, blocks, blockIdx, isRunning, stack, frictionLogs, directives, dataSources, calendar };
       if (user && db) {
         setDoc(doc(db, 'users', user.uid), stateObj, { merge: true });
       } else if (!user) {
@@ -144,7 +198,7 @@ export function useProtocol() {
       }
     }, 2000);
     return () => clearTimeout(timer);
-  }, [profile, blocks, blockIdx, stack, frictionLogs, directives, dataSources, calendar, user]);
+  }, [profile, blocks, blockIdx, isRunning, stack, frictionLogs, directives, dataSources, calendar, user]);
 
   // Timer Logic
   const tick = useCallback(() => {

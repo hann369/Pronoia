@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useProtocol } from '@/hooks/useProtocol';
@@ -39,6 +39,10 @@ const NAV_ITEMS = [
 /* ─── Gate Screen ─── */
 function GateScreen({ reason }) {
   const isAuth = reason === 'auth';
+  const searchParams = useSearchParams();
+  const tgId = searchParams.get('tg_id');
+  const authUrl = tgId ? `/auth?tg_id=${tgId}` : '/auth';
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,
@@ -63,7 +67,7 @@ function GateScreen({ reason }) {
         <p style={{ fontSize: '0.9rem', color: 'var(--text2)', lineHeight: 1.7, marginBottom: '2rem' }}>
           Melde dich an, um das Life OS System zu starten.
         </p>
-        <Link href="/auth" style={{
+        <Link href={authUrl} style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           background: 'var(--cobalt)', color: '#fff', border: '1px solid var(--cobalt-bright)',
           borderRadius: '8px', padding: '0.9rem 2rem', fontSize: '0.85rem', fontWeight: 600,
@@ -79,7 +83,7 @@ function GateScreen({ reason }) {
 /* ═══════════════════════════════════════════════════════
    MAIN PAGE
 ═══════════════════════════════════════════════════════ */
-export default function LifeOSPage() {
+function LifeOSDashboard() {
   const { user, loading: authLoading } = useAuth();
   const {
     blocks, blockIdx, timeLeft, totalTime, isRunning,
@@ -95,11 +99,28 @@ export default function LifeOSPage() {
 
   /* ─── Access Gate ─── */
   const [gateState, setGateState] = useState('loading');
+  const searchParams = useSearchParams();
+  const [linkNotification, setLinkNotification] = useState(null);
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) { setGateState('auth'); return; }
     setGateState('ok');
   }, [authLoading, user]);
+
+  useEffect(() => {
+    const tgId = searchParams.get('tg_id');
+    if (tgId && user && profile) {
+      const parsedId = parseInt(tgId);
+      if (profile.telegramId !== parsedId) {
+        saveProfile({ telegramId: parsedId });
+        setLinkNotification("Telegram-Konto erfolgreich verknüpft! ⊕");
+        // Remove query param from URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({ path: newUrl }, '', newUrl);
+      }
+    }
+  }, [searchParams, user, profile, saveProfile]);
 
   /* ─── Drawer Navigation ─── */
   const [activeDrawer, setActiveDrawer] = useState(null);
@@ -443,6 +464,19 @@ export default function LifeOSPage() {
   ═══════════════════════════════════════════════════════ */
   return (
     <div className={styles.shell}>
+      {linkNotification && (
+        <div style={{
+          position: 'fixed', top: '90px', left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(0,196,140,0.95)', color: '#fff', border: '1px solid #00c48c',
+          padding: '0.75rem 1.5rem', borderRadius: '10px', zIndex: 10000,
+          fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.05em',
+          boxShadow: '0 10px 30px rgba(0,196,140,0.3)', display: 'flex', alignItems: 'center', gap: '10px',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <span>{linkNotification}</span>
+          <button onClick={() => setLinkNotification(null)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem', outline: 'none' }}>✕</button>
+        </div>
+      )}
 
       {/* ═══ SIDEBAR NAVIGATION ═══ */}
       <nav className={styles.sidebar}>
@@ -1168,5 +1202,23 @@ export default function LifeOSPage() {
       )}
 
     </div>
+  );
+}
+
+export default function LifeOSPage() {
+  return (
+    <Suspense fallback={
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 9999, background: '#080a0f',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#6a7890', letterSpacing: '0.15em', gap: '1.5rem'
+      }}>
+        <div style={{ width: '36px', height: '36px', border: '2px solid rgba(26,106,255,0.15)', borderTopColor: '#1A6AFF', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        LIFE_OS_INITIALIZING...
+      </div>
+    }>
+      <LifeOSDashboard />
+    </Suspense>
   );
 }

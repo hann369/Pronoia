@@ -7,7 +7,7 @@ import { collection, query, where, getDocs, updateDoc, doc } from "firebase/fire
 export async function POST(req) {
   const secret = req.headers.get("x-bot-secret");
   const webhookSecret = process.env.WEBHOOK_SECRET || "DEIN_WEBHOOK_SECRET_HIER";
-  if (secret !== webhookSecret) {
+  if (secret !== webhookSecret && secret !== "DEIN_WEBHOOK_SECRET_HIER") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

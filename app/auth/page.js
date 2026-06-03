@@ -20,7 +20,14 @@ export default function AuthPage() {
     try {
       if (mode === 'login') await login(email, password);
       else                  await signup(email, password);
-      router.push('/store');
+      
+      const searchParams = new URLSearchParams(window.location.search);
+      const tgId = searchParams.get('tg_id');
+      if (tgId) {
+        router.push(`/life-os?tg_id=${tgId}`);
+      } else {
+        router.push('/store');
+      }
     } catch (err) {
       setError(err.message.replace('Firebase: ', ''));
     } finally {
@@ -33,7 +40,14 @@ export default function AuthPage() {
     setLoading(true);
     try {
       await loginWithGoogle();
-      router.push('/store');
+      
+      const searchParams = new URLSearchParams(window.location.search);
+      const tgId = searchParams.get('tg_id');
+      if (tgId) {
+        router.push(`/life-os?tg_id=${tgId}`);
+      } else {
+        router.push('/store');
+      }
     } catch (err) {
       setError(err.message.replace('Firebase: ', ''));
     } finally {
