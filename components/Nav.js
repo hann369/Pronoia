@@ -3,18 +3,22 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useProtocol } from '@/hooks/useProtocol';
 import styles from './Nav.module.css';
 
 const NAV_LINKS = [
   { href: '/',                label: 'Core' },
+  { href: '/life-os',         label: 'Life OS' },
   { href: '/labs',            label: 'Pronoia Labs' },
   { href: '/bio-synthetics',  label: 'Bio-Synthetics' },
+  { href: '/safety',          label: 'Pronoia Safety' },
   { href: '/store',           label: 'Store' },
 ];
 
 export default function Nav() {
   const pathname          = usePathname();
   const { user, logout }  = useAuth();
+  const { profile }       = useProtocol();
   const [scrolled, setScrolled] = useState(false);
   const [theme, setTheme]       = useState('light');
   const [menuOpen, setMenuOpen] = useState(false);

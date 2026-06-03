@@ -1,0 +1,218 @@
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 8rem 2rem 4rem;
+  position: relative;
+  min-height: 100vh;
+}
+
+.ambientOrb {
+  position: absolute;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(26, 106, 255, 0.08) 0%, rgba(0, 0, 0, 0) 70%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--theme-accent, var(--cobalt-bright));
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 2.75rem;
+  font-weight: 400;
+  color: var(--text);
+  margin: 0.5rem 0 1rem;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  font-size: 1.05rem;
+  color: var(--text2);
+  max-width: 700px;
+  margin: 0 auto;
+  line-height: 1.65;
+}
+
+.mainGrid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 2.5rem;
+}
+
+.panelCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-s);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.panelTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.75rem;
+}
+
+.featureList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.featureItem {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+}
+
+.featureIcon {
+  font-size: 1.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.featureText h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.featureText p {
+  font-size: 0.82rem;
+  color: var(--text2);
+  line-height: 1.5;
+  margin-top: 0.25rem;
+}
+
+.downloadCard {
+  border-color: var(--theme-accent-dim, rgba(26, 106, 255, 0.25));
+}
+
+.versionBadge {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--theme-accent, var(--cobalt-bright));
+  background: var(--theme-accent-dim, rgba(26, 106, 255, 0.1));
+  border: 1px solid var(--theme-accent, var(--cobalt-bright));
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+.downloadCardTitle {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.downloadCardDesc {
+  font-size: 0.85rem;
+  color: var(--text2);
+  line-height: 1.55;
+  margin: 0.5rem 0 1.75rem;
+}
+
+.downloadBtn {
+  background: var(--theme-accent, var(--cobalt-bright));
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--theme-accent, var(--cobalt-bright));
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+  text-decoration: none;
+}
+
+.downloadBtn:hover {
+  background: var(--theme-accent-dark, var(--cobalt));
+  border-color: var(--theme-accent-dark, var(--cobalt));
+  box-shadow: 0 4px 15px var(--theme-accent-glow, var(--cobalt-glow));
+  transform: translateY(-1px);
+}
+
+.downloadMeta {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--text3);
+  text-align: center;
+  display: block;
+  margin-top: 0.6rem;
+}
+
+.divider {
+  border-bottom: 1px solid var(--border);
+  margin: 2rem 0;
+}
+
+.setupTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+
+.setupSteps {
+  font-size: 0.82rem;
+  color: var(--text2);
+  padding-left: 1.1rem;
+  line-height: 1.7;
+}
+
+.setupSteps li {
+  margin-bottom: 0.6rem;
+}
+
+.setupSteps code {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--border-s);
+  color: var(--text);
+}
+
+@media (max-width: 850px) {
+  .mainGrid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  
+  .title {
+    font-size: 2.25rem;
+  }
+}

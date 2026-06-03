@@ -30,7 +30,17 @@ export function useProtocol() {
     class: 'Flow Architect',
     systemId: 'PX-2026-88',
     joinedDate: 'Mai 2026',
-    hasCompletedTutorial: false
+    hasCompletedTutorial: false,
+    customization: {
+      accent: 'blue',
+      mode: 'serious',
+      layout: {
+        telemetry: true,
+        directives: true,
+        friction: true,
+        connectors: true
+      }
+    }
   });
 
   const [stack, setStack] = useState([
@@ -254,7 +264,7 @@ export function useProtocol() {
         newXP -= newNextLevelXp;
         newLevel++;
         newNextLevelXp = Math.round(newNextLevelXp * 1.25);
-        setAgentMsg(`LEVEL UP: Stufe ${newLevel} erreicht! (+150 Bonus-Einheit)`);
+        setAgentMsg(`LEVEL UP: Stufe ${newLevel} erreicht!`);
       }
 
       return { ...prev, xp: newXP, skillLevel: newLevel, nextLevelXp: newNextLevelXp };
@@ -647,34 +657,222 @@ export function useProtocol() {
     setIsTyping(true);
     try {
       const prompt = `Skill Focus: "${skill}" auf Level ${lvl}/10. 
-      Erstelle 3 personalisierte, delikate Lernmaterialien für eine Deliberate Practice Session:
-      1. Ein prägnantes Theorie-Modul (Konzept & Verständnis)
-      2. Ein Video-Modul (YouTube-Beschreibung als Platzhalter mit Video-Symbol)
-      3. Eine spezifische praktische Übung, die den aktuellen Schwierigkeitsgrad herausfordert.
+      Erstelle exakt 3 personalisierte, tiefgreifende Lernmodule für eine anspruchsvolle Deliberate Practice Session im JSON-Format.
       
-      Antworte in einem wunderschön strukturierten HTML-Snippet. Sei hochgradig motivierend und präzise. 
-      Wichtig: Verwende stilvolles HTML ohne Markdown-Zäune. Nutze Klassen des Pronoia Layouts (z.B. style-spezifische Inline-Tags oder CSS-Klassen).`;
+      Qualitäts-Anforderungen:
+      - Modul 1 (type: "video"): Ein spezifisches YouTube-Video-Modul. Wähle ein passendes Video (Titel und Embed-URL) und liefere eine ausführliche Zusammenfassung (mindestens 3-4 Sätze) des Lerninhalts.
+      - Modul 2 (type: "theory"): Ein extrem detailliertes Theorie-Modul zum Lesen. Erkläre fortgeschrittene, konkrete Konzepte, Formeln oder Best Practices für "${skill}" auf Level ${lvl}. Liefere mindestens 200 Wörter Fließtext, klar strukturiert in Absätzen, ggf. mit Code-Beispielen oder Checklisten.
+      - Modul 3 (type: "practice"): Eine konkrete, herausfordernde Praxis-Challenge. Beschreibe die Aufgabe detailliert und formuliere 3 glasklare, praktische Einzelschritte, die der User nacheinander abhaken muss.
+
+      Das JSON-Objekt MUSS exakt dieses Format haben (antworte NUR mit diesem JSON, ohne Markdown-Zäune):
+      {
+        "skill": "${skill}",
+        "level": ${lvl},
+        "modules": [
+          {
+            "id": "m1",
+            "type": "video",
+            "title": "Aussagekräftiger Titel der Lektion",
+            "videoUrl": "https://www.youtube.com/embed/dQw4w9WgXcQ",
+            "summary": "Detaillierte Zusammenfassung der Kernpunkte des Videos.",
+            "completed": false
+          },
+          {
+            "id": "m2",
+            "type": "theory",
+            "title": "Präziser Titel des Theorie-Moduls",
+            "content": "Vollständiger, hochgradig informativer Theorie-Text. Erkläre spezifische Techniken für Level ${lvl} ${skill}.",
+            "completed": false
+          },
+          {
+            "id": "m3",
+            "type": "practice",
+            "title": "Titel der Praxis-Herausforderung",
+            "instructions": "Detaillierte Anweisungen zur Bearbeitung der Aufgabe.",
+            "steps": [
+              "Konkrete Teilaufgabe 1",
+              "Konkrete Teilaufgabe 2",
+              "Konkrete Teilaufgabe 3"
+            ],
+            "completedSteps": [],
+            "completed": false
+          }
+        ]
+      }`;
 
       const res = await fetch('/api/mistral', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, systemPrompt: "Du bist der Pronoia Skill Lab Coach. Antworte in Deutsch. Gib ausschließlich HTML ohne Markdown-Fencing zurück." })
+        body: JSON.stringify({ prompt, systemPrompt: "Du bist der Pronoia Skill Lab Coach. Antworte in Deutsch. Gib ausschließlich ein gültiges JSON-Objekt ohne Markdown-Zäune zurück." })
       });
       if (!res.ok) throw new Error("Skill API failed");
       const data = await res.json();
       const text = data.choices[0].message.content;
-      const cleanHtml = text.replace(/```html|```/g, '').trim();
-      return cleanHtml;
+      
+      // Prevent parsing if API Key is missing and warning text is returned
+      if (text.includes("AI Sync eingeschränkt") || text.includes("API Key fehlt")) {
+        throw new Error("API Key missing or invalid");
+      }
+      
+      const cleanJson = text.replace(/```json|```html|```/g, '').trim();
+      // Verify parser validity
+      JSON.parse(cleanJson);
+      return cleanJson;
     } catch(e) {
-      console.error(e);
-      return `
-        <div style="padding: 1.5rem; border: 1px solid rgba(213, 184, 147, 0.2); border-radius: 4px; font-family: monospace; font-size: 0.75rem;">
-          <h3 style="color: var(--tan); margin-bottom: 0.5rem;">[OFFLINE BASELINE RECOVERY]</h3>
-          <p style="opacity:0.8;">Theorie: Deliberate Practice erfordert bewussten Fokus an der Leistungsgrenze.</p>
-          <h4 style="color: var(--tan); margin-top: 1rem;">Übung:</h4>
-          <p style="opacity:0.8;">Isoliere dein schwierigstes Teilproblem für 20 Minuten und bearbeite es ohne Ablenkung.</p>
-        </div>
-      `;
+      if (e.message !== "API Key missing or invalid") {
+        console.error("[Skill Lab] Error generating materials, using fallback:", e);
+      }
+      
+      const skillLower = skill.toLowerCase();
+      let customFallback = null;
+
+      // Smart specific fallbacks for dev/offline mode
+      if (skillLower.includes("next") || skillLower.includes("react") || skillLower.includes("typescript") || skillLower.includes("frontend") || skillLower.includes("js") || skillLower.includes("javascript")) {
+        customFallback = {
+          skill,
+          level: lvl,
+          modules: [
+            {
+              id: "m1",
+              type: "video",
+              title: "Next.js 15 Server Components & Server Actions Masterclass",
+              videoUrl: "https://www.youtube.com/embed/R2iiV4hC1L4",
+              summary: "Lerne den Unterschied zwischen Server und Client Components, das automatische Data Fetching und wie Server Actions eine direkte DB-Anbindung ohne API-Endpoints ermöglichen.",
+              completed: false
+            },
+            {
+              id: "m2",
+              type: "theory",
+              title: "React Server Components (RSC) & Hydration unter der Haube",
+              content: `Um moderne React Applikationen zu meistern, musst du RSC verstehen.\n\nServer Components werden auf dem Server in ein spezielles JSON-Format (RSC Payload) gerendert, nicht direkt in HTML. Dieser Payload enthält die serialisierten Props und den Component-Tree. Der Client liest diesen Payload und baut die UI auf, ohne dass JavaScript für die Server-Komponenten geladen werden muss.\n\nHydration: Client-Komponenten werden als Platzhalter (Placeholders) markiert. Beim Hydration-Prozess im Browser wird der HTML-DOM mit dem React-Event-System verknüpft, um interaktive Elemente (wie onClick) funktionsfähig zu machen.\n\nBest Practices:\n- Halte Datenabfragen so nah wie möglich an der Quelle (in Server Components).\n- Verwende Client-Komponenten nur an den äußeren Blättern des UI-Baums (z.B. für Buttons, Forms, Slider).`,
+              completed: false
+            },
+            {
+              id: "m3",
+              type: "practice",
+              title: "Next.js Challenge: Pre-rendering & Optimiertes Hydration-Handling",
+              instructions: "Setze eine optimierte Client/Server-Komponente mit statischem Pre-rendering um. Bearbeite folgende Schritte:",
+              steps: [
+                "Erstelle eine Server-Komponente, die Daten über eine async-Funktion lädt und als statische Liste rendert.",
+                "Implementiere ein interaktives Like-Button-Element als Client-Komponente ('use client') und binde sie in die Liste ein.",
+                "Nutze React Suspense, um ein detailliertes Loading-Skeleton für das Server-seitige Data-Fetching anzuzeigen, während die Daten geladen werden."
+              ],
+              completedSteps: [],
+              completed: false
+            }
+          ]
+        };
+      } else if (skillLower.includes("python") || skillLower.includes("backend") || skillLower.includes("django") || skillLower.includes("fastapi") || skillLower.includes("machine learning") || skillLower.includes("ki") || skillLower.includes("ai")) {
+        customFallback = {
+          skill,
+          level: lvl,
+          modules: [
+            {
+              id: "m1",
+              type: "video",
+              title: "Python Concurrency Masterclass: Asyncio, Threads & Process Pools",
+              videoUrl: "https://www.youtube.com/embed/FsAPt_9Bf3U",
+              summary: "Verstehe das Zusammenspiel von Pythons Global Interpreter Lock (GIL). Lerne, wann du Asyncio für I/O-intensive Aufgaben und Threading/Multiprocessing für CPU-intensive Tasks einsetzt.",
+              completed: false
+            },
+            {
+              id: "m2",
+              type: "theory",
+              title: "Der Global Interpreter Lock (GIL) und asynchrone Event Loops",
+              content: `Python nutzt den Global Interpreter Lock (GIL), um Thread-Sicherheit bei der Speicherverwaltung zu garantieren. Der GIL sorgt dafür, dass zu jedem Zeitpunkt nur ein einziger nativer Thread Python-Bytecode ausführt.\n\nAuswirkungen:\n- CPU-bound: Reines Threading bringt bei rechenintensiven Aufgaben in Python keinen Geschwindigkeitsvorteil, da die Threads nacheinander blockieren. Hier MUSS Multiprocessing (separate Betriebssystemprozesse) genutzt werden.\n- I/O-bound: Bei Wartezeiten auf Web-Anfragen oder Datenbanken blockiert der Thread nicht die CPU. Hier glänzt Asyncio mit einer Single-Threaded Event Loop. Sie schaltet extrem schnell zwischen kooperativen Tasks hin und her, ohne den Overhead von Betriebssystem-Threads.\n\nEvent Loop Funktionsweise:\nDie Loop läuft kontinuierlich und prüft, welche angemeldeten I/O-Tasks (Futures) Daten empfangen haben. Sobald ein Task bereit ist, führt sie ihn bis zum nächsten await-Statement weiter.`,
+              completed: false
+            },
+            {
+              id: "m3",
+              type: "practice",
+              title: "Python Challenge: Asynchroner Web-Scraper mit asyncio & aiohttp",
+              instructions: "Implementiere einen performanten asynchronen Scraper, der mehrere Endpunkte parallel abfragt. Führe folgende Schritte aus:",
+              steps: [
+                "Schreibe eine asynchrone Funktion unter Nutzung von aiohttp.ClientSession, die den HTML-Inhalt einer URL abruft.",
+                "Nutze asyncio.gather(), um 5 Webseiten-Requests parallel auszulösen und fange HTTP-Fehler sauber ab.",
+                "Füge ein semaphor-basiertes Rate-Limiting hinzu (asyncio.Semaphore), damit maximal 2 Requests gleichzeitig laufen."
+              ],
+              completedSteps: [],
+              completed: false
+            }
+          ]
+        };
+      } else if (skillLower.includes("biohacking") || skillLower.includes("schlaf") || skillLower.includes("sleep") || skillLower.includes("fitness") || skillLower.includes("sport") || skillLower.includes("training") || skillLower.includes("nutrition") || skillLower.includes("ernährung")) {
+        customFallback = {
+          skill,
+          level: lvl,
+          modules: [
+            {
+              id: "m1",
+              type: "video",
+              title: "Dr. Andrew Huberman: Master Your Sleep & Circadian Rhythm",
+              videoUrl: "https://www.youtube.com/embed/nm1TxQj9IIQ",
+              summary: "Verstehe den Einfluss von Licht, Temperatur und Timing auf deine Schlafqualität. Lerne, wie du morgendliches Sonnenlicht nutzt, um Cortisol- und Melatoninkurven perfekt zu synchronisieren.",
+              completed: false
+            },
+            {
+              id: "m2",
+              type: "theory",
+              title: "Die Wissenschaft hinter dem zirkadianen Rhythmus & Tiefschlaf",
+              content: `Der zirkadiane Rhythmus steuert deinen 24-Stunden-Zyklus von Wachheit und Müdigkeit. Haupttaktgeber ist der suprachiasmatische Nukleus (SCN) im Gehirn, der direkt auf Lichtsignale der Netzhaut reagiert.\n\nSchlüsselfaktoren für Schlafoptimierung:\n1. Adenosin-Akkumulation: Je länger wir wach sind, desto mehr Adenosin baut sich im Gehirn auf, was den Schlafdruck (Sleep Drive) erhöht. Koffein blockiert Adenosin-Rezeptoren temporär, baut das Adenosin aber nicht ab.\n2. Cortisol & Melatonin: Licht am Morgen triggert eine gesunde Cortisol-Ausschüttung (Energie-Peak) und startet einen Timer für die Melatonin-Freisetzung ca. 12-14 Stunden später.\n3. Körperkerntemperatur: Um einzuschlafen, muss die Kerntemperatur des Körpers um ca. 1 °C sinken. Ein warmes Bad vor dem Schlafengehen leitet Wärme in die Extremitäten ab und kühlt den Kern ab.\n\nTiefschlaf (Slow Wave Sleep) ist essenziell für die physische Regeneration, während REM-Schlaf (Traumschlaf) kognitive Synthesen und emotionale Verarbeitung steuert.`,
+              completed: false
+            },
+            {
+              id: "m3",
+              type: "practice",
+              title: "Biohacking Challenge: Protokoll zur Schlaf-Architektur",
+              instructions: "Setze folgendes zirkadianes Protokoll für 3 Tage um und dokumentiere die Resultate:",
+              steps: [
+                "Morgensonne: Gehe innerhalb von 30 Minuten nach dem Aufwachen für 10 Minuten ins Freie (direktes Licht ohne Sonnenbrille).",
+                "Koffein-Delay: Konsumiere dein erstes Koffein frühestens 90-120 Minuten nach dem Aufwachen, um den natürlichen Adenosin-Abbau nicht zu stören.",
+                "Wind-down Phase: Dämme 2 Stunden vor dem Schlafen alle Deckenlichter und vermeide Blaulicht (Bildschirme) vollständig."
+              ],
+              completedSteps: [],
+              completed: false
+            }
+          ]
+        };
+      }
+
+      // Default rich fallback if none matched
+      if (!customFallback) {
+        customFallback = {
+          skill,
+          level: lvl,
+          modules: [
+            {
+              id: "m1",
+              type: "video",
+              title: `Deliberate Practice Masterclass: So wirst du Experte in ${skill}`,
+              videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+              summary: "Verstehe das Konzept der gezielten Übung an der eigenen Leistungsgrenze. Lerne, wie du Plateaus durchbrichst und effektives Feedback in deinen Lernalltag integrierst.",
+              completed: false
+            },
+            {
+              id: "m2",
+              type: "theory",
+              title: `Wissenschaftliche Lerntheorie & Mastery-Konzepte für ${skill}`,
+              content: `Um in ${skill} echtes Meisterschaftsniveau zu erreichen, reichen einfache Wiederholungen nicht aus. Laut K. Anders Ericsson basiert Höchstleistung auf Deliberate Practice (bewusstem, zielgerichtetem Üben).\n\nKernprinzipien:\n- Gezielte Schwachstellenanalyse: Isoliere die Aspekte von ${skill}, die dir am schwersten fallen. Wiederhole nicht, was du bereits beherrschst.\n- Mentale Repräsentationen: Baue ein tiefes Verständnis für die Strukturen auf. Experten erkennen Muster und Fehler schneller, weil ihre mentalen Modelle der Domäne hochgradig verfeinert sind.\n- Immediate Feedback: Suche nach Wegen für sofortige Korrektur. Ob Compiler-Fehler, Code-Review oder direkte Vergleiche — ohne Feedback verfestigen sich fehlerhafte Angewohnheiten.\n\nFokussiertes Arbeiten:\nÜbe in kurzen Blöcken (z.B. 45-60 Minuten) bei 100% Konzentration ohne Multitasking. Die neuronale Plastizität reagiert am stärksten auf diese hohe kognitive Last.`,
+              completed: false
+            },
+            {
+              id: "m3",
+              type: "practice",
+              title: `Deliberate Practice Challenge für ${skill}`,
+              instructions: `Isoliere deine Schwachstellen in ${skill} und bearbeite sie in einer fokussierten Session:`,
+              steps: [
+                "Isoliere das aktuell schwierigste Teilkonzept oder Problem und formuliere eine konkrete Mini-Aufgabe dazu.",
+                "Führe 20 Minuten ununterbrochene Arbeit (Deep Work) an dieser Aufgabe aus und schreibe deine Lösungsansätze auf.",
+                "Vergleiche dein Ergebnis mit Best Practices, analysiere jeden Fehler genau und halte deine Learnings in den Notizen fest."
+              ],
+              completedSteps: [],
+              completed: false
+            }
+          ]
+        };
+      }
+
+      return JSON.stringify(customFallback);
     } finally {
       setIsTyping(false);
     }
