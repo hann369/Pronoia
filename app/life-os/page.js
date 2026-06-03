@@ -1043,6 +1043,7 @@ function LifeOSDashboard() {
                   { label: 'Abo-Plan', val: (profile?.subscriptionTier || 'free').toUpperCase() },
                   { label: 'Telegram ID', val: profile?.telegramId || 'Nicht verknüpft' },
                   { label: 'Firebase Projekt', val: db?.app?.options?.projectId || 'nicht initialisiert' },
+                  { label: 'API-Key (Client)', val: db?.app?.options?.apiKey ? db.app.options.apiKey.substring(0, 8) + '...' : 'nicht initialisiert' },
                 ].map(r => (
                   <div key={r.label} className={styles.neuroRow}>
                     <span>{r.label}</span>

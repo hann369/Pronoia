@@ -543,6 +543,7 @@ async function getUserStatusWithDebug(telegramId) {
   let debug = {
     dbInitialized: !!db,
     projectId: db ? db.app?.options?.projectId || null : null,
+    apiKey: db ? (db.app?.options?.apiKey ? db.app.options.apiKey.substring(0, 8) + "..." : null) : null,
     telegramId,
     telegramIdType: typeof telegramId,
     matchedDocs: 0,

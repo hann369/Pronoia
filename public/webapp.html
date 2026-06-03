@@ -1319,6 +1319,7 @@ function updateCompanionState(status, debug = null) {
       <strong>DIAGNOSE-KONSOLE:</strong><br/>
       • DB-Status: ${debug.dbInitialized ? "🟢 BEREIT" : "🔴 OFFLINE (Fehlende Vercel-Schlüssel)"}<br/>
       • Firebase Projekt: ${debug.projectId || "unbekannt"}<br/>
+      • API-Key (Vercel): ${debug.apiKey || "unbekannt"}<br/>
       • Telegram-ID: ${debug.telegramId || "null"} (${debug.telegramIdType || "undefined"})<br/>
       • Dokumente gefunden: ${debug.matchedDocs}<br/>
       • Status: ${debug.error ? `⚠️ ${debug.error}` : "✅ Erfolgreich verknüpft"}
