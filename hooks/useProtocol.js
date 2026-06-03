@@ -59,6 +59,7 @@ export function useProtocol() {
   const [calendar, setCalendar] = useState({});
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [profileLoading, setProfileLoading] = useState(true);
 
   const timerRef = useRef(null);
 
@@ -84,6 +85,7 @@ export function useProtocol() {
       }
 
       if (currentUser) {
+        setProfileLoading(true);
         // Set up real-time listener on user's Firestore document
         unsubscribeDoc = onSnapshot(doc(db, 'users', currentUser.uid), (userDoc) => {
           if (userDoc.exists()) {
@@ -152,8 +154,10 @@ export function useProtocol() {
               return PROTOCOL_DATABASE.focus_optimization;
             });
           }
+          setProfileLoading(false);
         }, (err) => {
           console.error("Firestore onSnapshot error:", err);
+          setProfileLoading(false);
         });
       } else {
         // Not logged in: check localStorage or use default
@@ -178,6 +182,7 @@ export function useProtocol() {
           setTotalTime(PROTOCOL_DATABASE.focus_optimization[0].duration);
           setTimeLeft(PROTOCOL_DATABASE.focus_optimization[0].duration);
         }
+        setProfileLoading(false);
       }
     });
 
@@ -322,16 +327,25 @@ export function useProtocol() {
     setAgentMsg("Profil-Parameter erfolgreich aktualisiert.");
   };
 
-  const linkTelegramId = async (telegramId) => {
-    if (!user || !db) {
-      console.warn("Cannot link account: user or db is null");
+  const linkTelegramId = async (telegramId, currentUser) => {
+    const activeUser = currentUser || user;
+    console.log("[linkTelegramId] Initializing link process:", { telegramId, activeUserUid: activeUser?.uid, dbReady: !!db });
+    if (!db) {
+      alert("Fehler: Firestore Datenbank (db) ist nicht initialisiert!");
+      return false;
+    }
+    if (!activeUser) {
+      alert("Fehler: Kein eingeloggter Nutzer in useProtocol!");
       return false;
     }
     const parsedId = parseInt(telegramId);
-    if (isNaN(parsedId)) return false;
+    if (isNaN(parsedId)) {
+      alert("Fehler: Ungültige Telegram-ID (" + telegramId + ")");
+      return false;
+    }
 
     try {
-      const userRef = doc(db, 'users', user.uid);
+      const userRef = doc(db, 'users', activeUser.uid);
       setProfile(prev => ({ ...prev, telegramId: parsedId }));
       await setDoc(userRef, {
         profile: {
@@ -874,6 +888,7 @@ export function useProtocol() {
     totalTime,
     isRunning,
     profile,
+    profileLoading,
     stack,
     frictionLogs,
     dataSources,

@@ -87,7 +87,7 @@ function LifeOSDashboard() {
   const { user, loading: authLoading } = useAuth();
   const {
     blocks, blockIdx, timeLeft, totalTime, isRunning,
-    profile, stack, frictionLogs, dataSources, agentMsg, isTyping, directives,
+    profile, profileLoading, stack, frictionLogs, dataSources, agentMsg, isTyping, directives,
     calendar, selectedDate, currentMonth, formatDate, selectDate, prevMonth, nextMonth,
     addCalendarBlock, editCalendarBlock, deleteCalendarBlock,
     generateDayAI, generateMonthAI, chatWithDayAI, syncToActive,
@@ -110,14 +110,14 @@ function LifeOSDashboard() {
 
   useEffect(() => {
     const tgId = searchParams.get('tg_id');
-    if (tgId && user && profile) {
+    if (tgId && user && !profileLoading && profile) {
       const parsedId = parseInt(tgId);
       if (profile.telegramId !== parsedId) {
-        linkTelegramId(parsedId).then((success) => {
+        linkTelegramId(parsedId, user).then((success) => {
           if (success) {
             setLinkNotification("Telegram-Konto erfolgreich verknüpft! ⊕");
           } else {
-            setLinkNotification("Verknüpfungs-Fehler! Siehe Konsole/Alert.");
+            setLinkNotification("Verknüpfungs-Fehler! Siehe Alert.");
           }
         });
         // Remove query param from URL
@@ -125,7 +125,7 @@ function LifeOSDashboard() {
         window.history.replaceState({ path: newUrl }, '', newUrl);
       }
     }
-  }, [searchParams, user, profile, linkTelegramId]);
+  }, [searchParams, user, profile, profileLoading, linkTelegramId]);
 
   /* ─── Drawer Navigation ─── */
   const [activeDrawer, setActiveDrawer] = useState(null);
