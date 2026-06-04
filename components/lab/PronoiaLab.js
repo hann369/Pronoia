@@ -14,6 +14,27 @@ export default function PronoiaLab({ setActiveTab }) {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedCompound, setSelectedCompound] = useState(null);
   
+  // Intro splash animation states
+  const [showIntro, setShowIntro] = useState(true);
+  const [introFadeOut, setIntroFadeOut] = useState(false);
+
+  useEffect(() => {
+    // Start splitting panels at 1200ms
+    const openTimer = setTimeout(() => {
+      setIntroFadeOut(true);
+    }, 1200);
+
+    // Unmount overlay at 2200ms
+    const closeTimer = setTimeout(() => {
+      setShowIntro(false);
+    }, 2200);
+
+    return () => {
+      clearTimeout(openTimer);
+      clearTimeout(closeTimer);
+    };
+  }, []);
+  
   // Share state
   const [showShareDropdown, setShowShareDropdown] = useState(false);
 
@@ -189,6 +210,17 @@ export default function PronoiaLab({ setActiveTab }) {
 
   return (
     <div className={styles.labShell}>
+      {/* Intro Startup Splash Animation */}
+      {showIntro && (
+        <div className={`${styles.introOverlay} ${introFadeOut ? styles.introOpen : ''}`}>
+          <div className={styles.introTop} />
+          <div className={styles.introBottom} />
+          <div className={styles.introWordmark}>
+            <div className={styles.introPip} />PRONOIA LABS
+          </div>
+        </div>
+      )}
+
       {/* Sidebar - Tab bar */}
       <div className={styles.labSidebar}>
         <div className={styles.tabBar}>
@@ -257,6 +289,13 @@ export default function PronoiaLab({ setActiveTab }) {
               )}
             </div>
           )}
+        </div>
+
+        {/* Dynamic Exit Button to escape fullscreen Pronoia Lab */}
+        <div className={styles.sidebarExitSection}>
+          <button className={styles.exitBtn} onClick={() => setActiveTab('apps')}>
+            <span>←</span> EXIT LAB
+          </button>
         </div>
       </div>
 

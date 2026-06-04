@@ -3,11 +3,15 @@
 .labShell {
   display: grid;
   grid-template-columns: 300px 1fr;
-  height: 600px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 16px;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #080a0f;
+  border: none;
+  border-radius: 0;
   overflow: hidden;
+  z-index: 9000;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -603,4 +607,125 @@
   color: var(--text3);
   text-align: center;
   padding: 2rem 1rem;
+}
+
+/* --- Sidebar Exit Section --- */
+.sidebarExitSection {
+  padding: 1.25rem;
+  border-top: 1px solid var(--border);
+  background: rgba(10, 12, 18, 0.6);
+}
+
+.exitBtn {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: rgba(255, 68, 68, 0.08);
+  border: 1px solid rgba(255, 68, 68, 0.2);
+  color: #ff6b6b;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  outline: none;
+}
+
+.exitBtn:hover {
+  background: rgba(255, 68, 68, 0.15);
+  border-color: #ff4d4d;
+  color: #ff4d4d;
+  box-shadow: 0 0 12px rgba(255, 68, 68, 0.15);
+  transform: translateY(-1px);
+}
+
+/* --- Intro Animation Overlay --- */
+.introOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: all;
+  overflow: hidden;
+}
+
+.introTop, .introBottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: #080a0f;
+  transition: transform 1.2s cubic-bezier(0.85, 0, 0.15, 1);
+}
+
+.introTop {
+  top: 0;
+  transform: translateY(0);
+  border-bottom: 1px solid rgba(26, 106, 255, 0.1);
+}
+
+.introBottom {
+  bottom: 0;
+  transform: translateY(0);
+  border-top: 1px solid rgba(26, 106, 255, 0.1);
+}
+
+.introOpen {
+  pointer-events: none !important;
+}
+
+.introOpen .introTop {
+  transform: translateY(-100%);
+}
+
+.introOpen .introBottom {
+  transform: translateY(100%);
+}
+
+.introWordmark {
+  position: relative;
+  z-index: 100000;
+  font-family: var(--font-mono);
+  font-size: clamp(24px, 4vw, 42px);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  opacity: 1;
+  transition: opacity 0.5s cubic-bezier(0.25, 1, 0.5, 1), transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+  text-shadow: 0 0 20px rgba(26, 106, 255, 0.3);
+}
+
+.introOpen .introWordmark {
+  opacity: 0;
+  transform: translateY(-20px);
+  pointer-events: none;
+}
+
+.introPip {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--theme-accent, #1A6AFF);
+  animation: pipPulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes pipPulse {
+  from {
+    transform: scale(0.8);
+    box-shadow: 0 0 8px rgba(26, 106, 255, 0.4), 0 0 2px rgba(26, 106, 255, 0.8);
+  }
+  to {
+    transform: scale(1.2);
+    box-shadow: 0 0 24px rgba(26, 106, 255, 0.95), 0 0 8px rgba(26, 106, 255, 0.95);
+  }
 }

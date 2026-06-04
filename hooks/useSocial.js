@@ -8,6 +8,7 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
   setDoc,
   deleteDoc,
   onSnapshot,
@@ -19,9 +20,9 @@ import {
 async function getDocProfile(uid) {
   if (!db) return null;
   try {
-    const snapDoc = await getDocs(query(collection(db, 'users')));
-    const foundDoc = snapDoc.docs.find(d => d.id === uid);
-    return foundDoc?.data()?.profile || null;
+    const docRef = doc(db, 'users', uid);
+    const snap = await getDoc(docRef);
+    return snap.exists() ? snap.data()?.profile || null : null;
   } catch (e) {
     console.error("Error in getDocProfile:", e);
     return null;
@@ -119,7 +120,7 @@ export function useSocial() {
 
 
 
-  // Search users in Firestore by username
+  // Search users in Firestore by username or Telegram ID
   const searchUsers = useCallback(async (searchQuery) => {
     if (!db || !searchQuery.trim() || !user) {
       setSearchResults([]);
@@ -130,23 +131,29 @@ export function useSocial() {
     try {
       const q = query(
         collection(db, 'users'),
-        orderBy('profile.username'),
-        limit(20)
+        limit(100)
       );
 
       const querySnapshot = await getDocs(q);
       const results = [];
       
-      const searchLower = searchQuery.toLowerCase();
+      const searchLower = searchQuery.toLowerCase().trim();
       querySnapshot.forEach((doc) => {
         const data = doc.data();
         if (doc.id === user.uid) return; // don't search self
         
         const username = data.profile?.username || '';
-        if (username.toLowerCase().includes(searchLower)) {
+        const telegramId = data.profile?.telegramId ? String(data.profile.telegramId) : '';
+        const telegramUsername = data.profile?.telegramUser?.username || '';
+
+        const matchUsername = username.toLowerCase().includes(searchLower);
+        const matchTelegramId = telegramId.toLowerCase().includes(searchLower);
+        const matchTelegramUser = telegramUsername.toLowerCase().includes(searchLower);
+
+        if (matchUsername || matchTelegramId || matchTelegramUser) {
           results.push({
             uid: doc.id,
-            profile: data.profile || { username: 'Unnamed Hacker' }
+            profile: data.profile || { username: username || 'Unnamed Hacker' }
           });
         }
       });

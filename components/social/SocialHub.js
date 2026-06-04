@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSocial } from '@/hooks/useSocial';
 import { useChat } from '@/hooks/useChat';
+import { useAuth } from '@/context/AuthContext';
 import ChatList from './ChatList';
 import ChatBubble from './ChatBubble';
 import UserCard from './UserCard';
@@ -10,6 +11,7 @@ import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firesto
 import styles from './SocialHub.module.css';
 
 export default function SocialHub({ setActiveTab }) {
+  const { user } = useAuth();
   const {
     friends,
     pendingRequests,

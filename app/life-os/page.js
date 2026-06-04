@@ -32,9 +32,7 @@ const AVATAR_PRESETS = [
   { name: 'Metabolic Sage', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200' }
 ];
 
-const NAV_ITEMS = [
-  { id: 'apps',       label: 'Apps' },
-];
+
 
 const renderNavIcon = (id, active) => {
   const color = active ? 'var(--cobalt-bright)' : 'var(--text3)';
@@ -440,6 +438,83 @@ function LifeOSDashboard() {
   ], []);
 
   const appsList = useMemo(() => profile?.appConfig?.apps || defaultApps, [profile?.appConfig?.apps, defaultApps]);
+  const [sidebarDragOver, setSidebarDragOver] = useState(false);
+  const [reorderDragOverId, setReorderDragOverId] = useState(null);
+
+  const sidebarItems = useMemo(() => {
+    const baseItems = [{ id: 'apps', name: 'Apps', label: 'Apps', icon: 'apps' }];
+    const pinnedIds = profile?.appConfig?.pinnedAppIds || ['dashboard', 'biometrics', 'skills', 'lab', 'social'];
+    const pinned = pinnedIds
+      .map(id => appsList.find(a => a.id === id) || defaultApps.find(a => a.id === id))
+      .filter(Boolean);
+    return [...baseItems, ...pinned];
+  }, [profile?.appConfig?.pinnedAppIds, appsList, defaultApps]);
+
+  const handlePinApp = (appId, targetId = null) => {
+    if (!appId) return;
+    if (appId === 'apps' || appId === 'profile') return;
+
+    const currentPinned = profile?.appConfig?.pinnedAppIds || ['dashboard', 'biometrics', 'skills', 'lab', 'social'];
+    
+    if (currentPinned.includes(appId) && !targetId) return;
+
+    let newPinned = [...currentPinned];
+    if (currentPinned.includes(appId)) {
+      newPinned = newPinned.filter(id => id !== appId);
+    }
+
+    if (targetId) {
+      const targetIndex = newPinned.indexOf(targetId);
+      if (targetIndex !== -1) {
+        newPinned.splice(targetIndex, 0, appId);
+      } else {
+        newPinned.push(appId);
+      }
+    } else {
+      newPinned.push(appId);
+    }
+
+    saveProfile({
+      appConfig: {
+        ...(profile?.appConfig || {}),
+        pinnedAppIds: newPinned
+      }
+    });
+  };
+
+  const handleUnpinApp = (appId) => {
+    const currentPinned = profile?.appConfig?.pinnedAppIds || ['dashboard', 'biometrics', 'skills', 'lab', 'social'];
+    const newPinned = currentPinned.filter(id => id !== appId);
+    saveProfile({
+      appConfig: {
+        ...(profile?.appConfig || {}),
+        pinnedAppIds: newPinned
+      }
+    });
+    if (activeTab === appId) {
+      setActiveTab('apps');
+    }
+  };
+
+  const handleReorderPinnedApps = (draggedId, targetId) => {
+    const currentPinned = profile?.appConfig?.pinnedAppIds || ['dashboard', 'biometrics', 'skills', 'lab', 'social'];
+    if (!currentPinned.includes(draggedId) || !currentPinned.includes(targetId)) return;
+
+    const newPinned = [...currentPinned];
+    const draggedIndex = newPinned.indexOf(draggedId);
+    newPinned.splice(draggedIndex, 1);
+    
+    const targetIndex = newPinned.indexOf(targetId);
+    newPinned.splice(targetIndex, 0, draggedId);
+
+    saveProfile({
+      appConfig: {
+        ...(profile?.appConfig || {}),
+        pinnedAppIds: newPinned
+      }
+    });
+  };
+
   const [editingAppId, setEditingAppId] = useState(null);
   const [editAppName, setEditAppName] = useState('');
   const [editAppDesc, setEditAppDesc] = useState('');
@@ -1155,6 +1230,11 @@ function LifeOSDashboard() {
                   <div
                     key={app.id}
                     className={styles.appCard}
+                    draggable={true}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', app.id);
+                      e.dataTransfer.effectAllowed = 'copyMove';
+                    }}
                     onClick={() => {
                       if (!isEditing) {
                         setActiveTab(app.id);
@@ -2645,23 +2725,27 @@ function LifeOSDashboard() {
     }
   };
 
+  const isLabFullscreen = activeTab === 'lab';
+
   return (
-    <div className={styles.shell}>
+    <div className={`${styles.shell} ${isLabFullscreen ? styles.fullscreenShell : ''}`}>
       {/* Sleek Native Window Decoration Frame */}
-      <div className={styles.desktopTitleBar}>
-        <div className={styles.titleBarLeft}>
-          <span className={styles.titleBarDot} style={{ background: '#FF5F56' }} />
-          <span className={styles.titleBarDot} style={{ background: '#FFBD2E' }} />
-          <span className={styles.titleBarDot} style={{ background: '#27C93F' }} />
+      {!isLabFullscreen && (
+        <div className={styles.desktopTitleBar}>
+          <div className={styles.titleBarLeft}>
+            <span className={styles.titleBarDot} style={{ background: '#FF5F56' }} />
+            <span className={styles.titleBarDot} style={{ background: '#FFBD2E' }} />
+            <span className={styles.titleBarDot} style={{ background: '#27C93F' }} />
+          </div>
+          <div className={styles.titleBarCenter}>
+            🔒 SECURE SYSTEM NODE // PRONOIA LIFE OS v3.2.0 [USER: {profile?.username?.toUpperCase()}]
+          </div>
+          <div className={styles.titleBarRight}>
+            <span className={styles.statusGlowDot} />
+            <span>ONLINE SYNC // ACTIVE</span>
+          </div>
         </div>
-        <div className={styles.titleBarCenter}>
-          🔒 SECURE SYSTEM NODE // PRONOIA LIFE OS v3.2.0 [USER: {profile?.username?.toUpperCase()}]
-        </div>
-        <div className={styles.titleBarRight}>
-          <span className={styles.statusGlowDot} />
-          <span>ONLINE SYNC // ACTIVE</span>
-        </div>
-      </div>
+      )}
 
       {linkNotification && (
         <div style={{
@@ -2678,78 +2762,151 @@ function LifeOSDashboard() {
       )}
 
       {/* ═══ SIDEBAR NAVIGATION ═══ */}
-      <nav className={styles.sidebar}>
-        {/* Logo mark */}
-        <div className={styles.sidebarLogo}>
-          <span>⊕</span>
-        </div>
+      {!isLabFullscreen && (
+        <nav className={styles.sidebar}>
+          {/* Logo mark */}
+          <div className={styles.sidebarLogo}>
+            <span>⊕</span>
+          </div>
 
-        {/* Section nav items */}
-        <div className={styles.sidebarNav}>
-          {NAV_ITEMS.map(item => (
-            <button
-              key={item.id}
-              className={`${styles.sidebarBtn} ${activeTab === item.id ? styles.sidebarBtnActive : ''}`}
-              onClick={() => setActiveTab(item.id)}
-              title={item.label}
-            >
-              <span className={styles.sidebarBtnIcon}>{renderNavIcon(item.id, activeTab === item.id)}</span>
-              <span className={styles.sidebarBtnLabel}>{item.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Profile button at bottom */}
-        <div className={styles.sidebarBottom}>
-          <button
-            className={`${styles.sidebarBtn} ${activeTab === 'profile' ? styles.sidebarBtnActive : ''}`}
-            onClick={() => setActiveTab('profile')}
-            title="Profil"
+          {/* Section nav items */}
+          <div 
+            className={`${styles.sidebarNav} ${sidebarDragOver ? styles.sidebarNavDraggingOver : ''}`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setSidebarDragOver(true);
+            }}
+            onDragLeave={() => setSidebarDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setSidebarDragOver(false);
+              const appId = e.dataTransfer.getData('text/plain');
+              if (appId) {
+                handlePinApp(appId);
+              }
+            }}
           >
-            <img
-              src={profile?.avatar || AVATAR_PRESETS[0].url}
-              alt="Avatar"
-              className={styles.sidebarAvatar}
-            />
-            <span className={styles.sidebarBtnLabel}>Profil</span>
-          </button>
-        </div>
-      </nav>
+            {sidebarItems.map(item => (
+              <button
+                key={item.id}
+                className={`${styles.sidebarBtn} ${activeTab === item.id ? styles.sidebarBtnActive : ''} ${reorderDragOverId === item.id ? styles.sidebarBtnDragOver : ''}`}
+                onClick={() => setActiveTab(item.id)}
+                title={item.name || item.label}
+                draggable={item.id !== 'apps'}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('text/sidebar-id', item.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (item.id !== 'apps') {
+                    setReorderDragOverId(item.id);
+                  }
+                }}
+                onDragLeave={() => setReorderDragOverId(null)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setReorderDragOverId(null);
+                  const draggedId = e.dataTransfer.getData('text/sidebar-id');
+                  if (draggedId && draggedId !== item.id) {
+                    handleReorderPinnedApps(draggedId, item.id);
+                  } else if (!draggedId) {
+                    const appId = e.dataTransfer.getData('text/plain');
+                    handlePinApp(appId, item.id);
+                  }
+                }}
+              >
+                <span className={styles.sidebarBtnIcon}>
+                  {item.image ? (
+                    <img src={item.image} alt={item.name} className={styles.sidebarCustomImg} />
+                  ) : (
+                    renderNavIcon(item.icon || item.id, activeTab === item.id)
+                  )}
+                </span>
+                <span className={styles.sidebarBtnLabel}>{item.name || item.label}</span>
+                
+                {item.id === 'social' && chatUnreadCount > 0 && (
+                  <div className={styles.sidebarBtnBadge}>{chatUnreadCount}</div>
+                )}
+
+                {item.id !== 'apps' && (
+                  <span 
+                    className={styles.sidebarUnpinBtn} 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUnpinApp(item.id);
+                    }}
+                    title="Aus Seitenleiste entfernen"
+                  >
+                    ✕
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Profile button at bottom */}
+          <div className={styles.sidebarBottom}>
+            <button
+              className={`${styles.sidebarBtn} ${activeTab === 'profile' ? styles.sidebarBtnActive : ''}`}
+              onClick={() => setActiveTab('profile')}
+              title="Profil"
+            >
+              <img
+                src={profile?.avatar || AVATAR_PRESETS[0].url}
+                alt="Avatar"
+                className={styles.sidebarAvatar}
+              />
+              <span className={styles.sidebarBtnLabel}>Profil</span>
+            </button>
+          </div>
+        </nav>
+      )}
 
       {/* ═══ MAIN DASHBOARD WORKSPACE ═══ */}
-      <main className={styles.main}>
-
-        {/* ─── SYSTEM STATUS BAR ─── */}
-        <div className={styles.statusBar}>
-          <div className={styles.statusBarLeft}>
-            <div className={styles.clockDisplay}>
-              <span className={styles.clockHH}>{clockHH}</span>
-              <span className={styles.clockColon}>:</span>
-              <span className={styles.clockMM}>{clockMM}</span>
-              <span className={styles.clockSS}>:{clockSS}</span>
+      <main 
+        className={`${styles.main} ${isLabFullscreen ? styles.mainFullscreen : ''}`}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          const draggedSidebarId = e.dataTransfer.getData('text/sidebar-id');
+          if (draggedSidebarId) {
+            handleUnpinApp(draggedSidebarId);
+          }
+        }}
+      >
+        {!isLabFullscreen && (
+          /* ─── SYSTEM STATUS BAR ─── */
+          <div className={styles.statusBar}>
+            <div className={styles.statusBarLeft}>
+              <div className={styles.clockDisplay}>
+                <span className={styles.clockHH}>{clockHH}</span>
+                <span className={styles.clockColon}>:</span>
+                <span className={styles.clockMM}>{clockMM}</span>
+                <span className={styles.clockSS}>:{clockSS}</span>
+              </div>
+              <div className={styles.statusBarInfo}>
+                <span className={styles.statusGreeting}>{greeting}</span>
+                <span className={styles.statusDate}>{todayStr}</span>
+              </div>
             </div>
-            <div className={styles.statusBarInfo}>
-              <span className={styles.statusGreeting}>{greeting}</span>
-              <span className={styles.statusDate}>{todayStr}</span>
+            <div className={styles.statusBarRight}>
+              <div className={styles.focusScoreBadge}>
+                <span className={styles.focusScoreNum} style={{ color: focusColor }}>{focusScore}</span>
+                <span className={styles.focusScoreLabel}>FOCUS</span>
+                <span className={styles.focusScoreTag} style={{ color: focusColor, borderColor: focusColor }}>{focusLabel}</span>
+              </div>
+              <div className={styles.statusActions}>
+                <button
+                  className={styles.calendarOpenBtn}
+                  onClick={() => setShowCalendarModal(true)}
+                  title="Kalender öffnen"
+                >
+                  📅
+                </button>
+              </div>
             </div>
           </div>
-          <div className={styles.statusBarRight}>
-            <div className={styles.focusScoreBadge}>
-              <span className={styles.focusScoreNum} style={{ color: focusColor }}>{focusScore}</span>
-              <span className={styles.focusScoreLabel}>FOCUS</span>
-              <span className={styles.focusScoreTag} style={{ color: focusColor, borderColor: focusColor }}>{focusLabel}</span>
-            </div>
-            <div className={styles.statusActions}>
-              <button
-                className={styles.calendarOpenBtn}
-                onClick={() => setShowCalendarModal(true)}
-                title="Kalender öffnen"
-              >
-                📅
-              </button>
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* ─── TAB PANEL CONTENT RENDERER ─── */}
         {renderTabContent()}
