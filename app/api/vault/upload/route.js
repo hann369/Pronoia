@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { storage } from '@/lib/firebase';
-import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 
 export async function POST(req) {
   try {
@@ -10,21 +8,42 @@ export async function POST(req) {
       return NextResponse.json({ error: "Missing file data" }, { status: 400 });
     }
 
-    if (!storage) {
-      // Server fallback/mock mode if storage is null (e.g. build time or missing credentials)
-      const simulatedURL = `https://firebasestorage.googleapis.com/v0/b/mock-bucket/o/vault%2F${userId || 'shared'}%2F${fileName}?alt=media`;
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      // Server fallback/mock mode if Supabase is not configured
+      const simulatedURL = `https://supabase-mock-bucket.co/storage/v1/object/public/vault/${userId || 'shared'}/${fileName}`;
       return NextResponse.json({ downloadURL: simulatedURL, mock: true });
     }
 
-    const fileRef = ref(storage, `vault/${userId || 'shared'}/${fileName}`);
+    // Convert base64 back to binary Buffer
+    const buffer = Buffer.from(base64Data, 'base64');
     
-    // Upload base64 string to Firebase Storage
-    await uploadString(fileRef, base64Data, 'base64', {
-      contentType: fileType
+    // Upload to Supabase Storage bucket 'vault'
+    const bucket = 'vault';
+    const filePath = `${userId || 'shared'}/${fileName}`;
+    const uploadUrl = `${supabaseUrl}/storage/v1/object/${bucket}/${filePath}`;
+
+    const uploadRes = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': fileType
+      },
+      body: buffer
     });
 
-    const downloadURL = await getDownloadURL(fileRef);
-    return NextResponse.json({ downloadURL });
+    if (!uploadRes.ok) {
+      const errorText = await uploadRes.text();
+      throw new Error(`Supabase Storage upload failed: ${uploadRes.status} ${errorText}`);
+    }
+
+    // Get the public URL for the uploaded file
+    const publicURL = `${supabaseUrl}/storage/v1/object/public/${bucket}/${filePath}`;
+
+    return NextResponse.json({ downloadURL: publicURL });
   } catch (error) {
     console.error("Server upload error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

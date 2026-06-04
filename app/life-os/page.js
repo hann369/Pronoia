@@ -575,21 +575,26 @@ function LifeOSDashboard() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 4.2 * 1024 * 1024) {
+      triggerVaultToast("Fehler: Datei ist zu groß (Limit: 4.2 MB für Supabase-Upload via Server).");
+      return;
+    }
+
     setUploadingFile(true);
     setUploadProgress(0);
 
     const fileName = `${Date.now()}_${file.name}`;
     
-    // Read the file as base64 in the browser
+    // Read the file as base64 in the browser and upload to Supabase via server-side endpoint
     const reader = new FileReader();
     reader.onload = async () => {
       try {
         const base64Data = reader.result.split(',')[1];
         
-        // Progress ticker to simulate network upload progress visually
-        let progressVal = 0;
+        let progressVal = 30;
+        setUploadProgress(progressVal);
         const progressInterval = setInterval(() => {
-          progressVal = Math.min(90, progressVal + 15);
+          progressVal = Math.min(95, progressVal + 15);
           setUploadProgress(progressVal);
         }, 150);
 
@@ -625,7 +630,7 @@ function LifeOSDashboard() {
         try {
           data = JSON.parse(resText);
         } catch (e) {
-          throw new Error("Ungültige Serverantwort (kein JSON): " + resText.substring(0, 150));
+          throw new Error("Server antwortete nicht mit JSON: " + resText.substring(0, 100));
         }
 
         setUploadProgress(100);
@@ -636,10 +641,10 @@ function LifeOSDashboard() {
           content: data.downloadURL
         }));
 
-        triggerVaultToast(data.mock ? "Datei hochgeladen (Simuliert)." : "Datei erfolgreich hochgeladen.");
+        triggerVaultToast(data.mock ? "Datei hochgeladen (Simuliert)." : "Datei erfolgreich in Supabase Storage geladen.");
       } catch (err) {
-        console.error("Upload error:", err);
-        triggerVaultToast("Upload-Fehler: " + err.message);
+        console.error("Supabase upload failed:", err);
+        triggerVaultToast("Upload fehlgeschlagen: " + err.message);
       } finally {
         setUploadingFile(false);
       }
