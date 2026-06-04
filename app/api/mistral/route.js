@@ -124,7 +124,7 @@ export async function PUT(req) {
                   const fileRes = await fetch(item.content, { signal: AbortSignal.timeout(3000) });
                   if (fileRes.ok) {
                     fileContent = await fileRes.text();
-                    fileContent = fileContent.substring(0, 1500); // limit to 1500 chars to save token space
+                    fileContent = fileContent.substring(0, 20000); // limit to 20000 chars to cover full text files
                   }
                 } else if (isPdf) {
                   const fileRes = await fetch(item.content, { signal: AbortSignal.timeout(6000) }); // longer timeout for PDF
@@ -134,7 +134,7 @@ export async function PUT(req) {
                     const pdfParser = require('pdf-parse');
                     const pdfData = await pdfParser(buffer);
                     fileContent = pdfData.text;
-                    fileContent = fileContent.replace(/\s+/g, ' ').substring(0, 1500); // limit to 1500 chars
+                    fileContent = fileContent.replace(/\s+/g, ' ').substring(0, 50000); // limit to 50000 chars to cover full PDF documents
                   }
                 }
               } catch (e) {
@@ -165,7 +165,8 @@ VERKNÜPFUNGS-INFO:
 - Wenn der Nutzer nach einer Verknüpfung fragt (z.B. "Konto verbinden", "wie verbinde ich", "/link"), gib ihm genau diesen Link.
 
 ${vaultContext ? `KNOWLEDGE VAULT (RAG CONTEXT - BENUTZER-EINTRÄGE):
-Nutze diesen Kontext aus dem Knowledge Vault des Nutzers für personalisierte, kontextbasierte Antworten:
+Nutze diesen Kontext aus dem Knowledge Vault des Nutzers für personalisierte, kontextbasierte Antworten.
+WICHTIG: Antworte STRENG faktenbasiert auf Grundlage des bereitgestellten Vault-Kontexts. Denke dir niemals Details, Phasen, Ratschläge oder Lernpläne aus, die nicht explizit in den Vault-Dateien oder Texten stehen. Wenn der bereitgestellte Kontext die Antwort nicht enthält, antworte stattdessen, dass diese Information nicht in deinen hochgeladenen Dokumenten zu finden ist.
 ${vaultContext}
 ` : ''}
 
