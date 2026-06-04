@@ -4,6 +4,88 @@ import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { PROTOCOL_DATABASE } from '@/lib/protocol_data';
 
+// --- Block Normalization Utilities ---
+export function normalizeBlock(b) {
+  if (!b || typeof b !== 'object') return null;
+  const normalized = { ...b };
+  
+  // 1. Casing of start time
+  if (b.start_time && !b.startTime) {
+    normalized.startTime = b.start_time;
+  } else if (b.start && !b.startTime) {
+    normalized.startTime = b.start;
+  }
+  
+  if (typeof normalized.startTime === 'string') {
+    normalized.startTime = normalized.startTime.trim();
+  }
+
+  // 2. Pillar field (standardize to lowercase, map type/pillar)
+  let rawPillar = b.pillar || b.type || '';
+  if (typeof rawPillar === 'string') {
+    rawPillar = rawPillar.toLowerCase().trim();
+  }
+  
+  if (rawPillar.includes('foc')) {
+    normalized.pillar = 'focus';
+  } else if (rawPillar.includes('heal') || rawPillar.includes('phys')) {
+    normalized.pillar = 'health';
+  } else if (rawPillar.includes('skill') || rawPillar.includes('lern')) {
+    normalized.pillar = 'skills';
+  } else if (rawPillar.includes('soc') || rawPillar.includes('part')) {
+    normalized.pillar = 'social';
+  } else if (rawPillar.includes('rec') || rawPillar.includes('erhol')) {
+    normalized.pillar = 'recovery';
+  } else {
+    normalized.pillar = 'focus'; // fallback
+  }
+
+  // Ensure type matches the capitalized version for UI components
+  normalized.type = normalized.pillar.charAt(0).toUpperCase() + normalized.pillar.slice(1);
+
+  // 3. Duration conversion from minutes to seconds (threshold of 240 min)
+  let dVal = normalized.duration;
+  if (typeof dVal === 'string') {
+    dVal = parseInt(dVal, 10);
+  }
+  if (typeof dVal === 'number' && !isNaN(dVal)) {
+    if (dVal <= 240) {
+      normalized.duration = dVal * 60;
+    } else {
+      normalized.duration = dVal;
+    }
+  } else {
+    normalized.duration = 1800; // default 30 min
+  }
+
+  return normalized;
+}
+
+export function normalizeBlockList(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map(normalizeBlock).filter(Boolean);
+}
+
+export function normalizeCalendar(cal) {
+  if (!cal || typeof cal !== 'object') return {};
+  const normalized = {};
+  for (const [dateStr, dayData] of Object.entries(cal)) {
+    if (dayData && Array.isArray(dayData.blocks)) {
+      normalized[dateStr] = {
+        ...dayData,
+        blocks: normalizeBlockList(dayData.blocks)
+      };
+    } else if (dayData && Array.isArray(dayData)) {
+      normalized[dateStr] = {
+        blocks: normalizeBlockList(dayData)
+      };
+    } else {
+      normalized[dateStr] = dayData;
+    }
+  }
+  return normalized;
+}
+
 export function useProtocol() {
   const [user, setUser] = useState(null);
   const [blocks, setBlocks] = useState(PROTOCOL_DATABASE.focus_optimization || []);
@@ -111,7 +193,8 @@ export function useProtocol() {
               });
             }
             if (data.calendar) {
-              setCalendar(prev => JSON.stringify(prev) === JSON.stringify(data.calendar) ? prev : data.calendar);
+              const normalizedCal = normalizeCalendar(data.calendar);
+              setCalendar(prev => JSON.stringify(prev) === JSON.stringify(normalizedCal) ? prev : normalizedCal);
             }
             if (data.isRunning !== undefined) {
               setIsRunning(prev => prev === data.isRunning ? prev : data.isRunning);
@@ -120,32 +203,34 @@ export function useProtocol() {
               setCircadianMode(prev => prev === data.circadianMode ? prev : data.circadianMode);
             }
             if (data.blocks && data.blocks.length > 0) {
+              const normalizedB = normalizeBlockList(data.blocks);
               setBlocks(prev => {
-                if (JSON.stringify(prev) === JSON.stringify(data.blocks)) return prev;
+                if (JSON.stringify(prev) === JSON.stringify(normalizedB)) return prev;
                 // Update timer if active block duration changed
                 const loadedIdx = data.blockIdx !== undefined ? data.blockIdx : 0;
-                if (data.blocks[loadedIdx] && (!prev[loadedIdx] || prev[loadedIdx].duration !== data.blocks[loadedIdx].duration)) {
-                  setTotalTime(data.blocks[loadedIdx].duration);
-                  setTimeLeft(data.blocks[loadedIdx].duration);
+                if (normalizedB[loadedIdx] && (!prev[loadedIdx] || prev[loadedIdx].duration !== normalizedB[loadedIdx].duration)) {
+                  setTotalTime(normalizedB[loadedIdx].duration);
+                  setTimeLeft(normalizedB[loadedIdx].duration);
                 }
-                return data.blocks;
+                return normalizedB;
               });
 
               const loadedIdx = data.blockIdx !== undefined ? data.blockIdx : 0;
               setBlockIdx(prev => {
                 if (prev === loadedIdx) return prev;
-                if (data.blocks[loadedIdx]) {
-                  setTotalTime(data.blocks[loadedIdx].duration);
-                  setTimeLeft(data.blocks[loadedIdx].duration);
+                if (normalizedB[loadedIdx]) {
+                  setTotalTime(normalizedB[loadedIdx].duration);
+                  setTimeLeft(normalizedB[loadedIdx].duration);
                 }
                 return loadedIdx;
               });
             } else {
               setBlocks(prev => {
-                if (JSON.stringify(prev) === JSON.stringify(PROTOCOL_DATABASE.focus_optimization)) return prev;
-                setTotalTime(PROTOCOL_DATABASE.focus_optimization[0].duration);
-                setTimeLeft(PROTOCOL_DATABASE.focus_optimization[0].duration);
-                return PROTOCOL_DATABASE.focus_optimization;
+                const normDefault = normalizeBlockList(PROTOCOL_DATABASE.focus_optimization);
+                if (JSON.stringify(prev) === JSON.stringify(normDefault)) return prev;
+                setTotalTime(normDefault[0].duration);
+                setTimeLeft(normDefault[0].duration);
+                return normDefault;
               });
             }
             if (data.stack) {
@@ -163,10 +248,11 @@ export function useProtocol() {
           } else {
             // Default setup if document doesn't exist
             setBlocks(prev => {
-              if (JSON.stringify(prev) === JSON.stringify(PROTOCOL_DATABASE.focus_optimization)) return prev;
-              setTotalTime(PROTOCOL_DATABASE.focus_optimization[0].duration);
-              setTimeLeft(PROTOCOL_DATABASE.focus_optimization[0].duration);
-              return PROTOCOL_DATABASE.focus_optimization;
+              const normDefault = normalizeBlockList(PROTOCOL_DATABASE.focus_optimization);
+              if (JSON.stringify(prev) === JSON.stringify(normDefault)) return prev;
+              setTotalTime(normDefault[0].duration);
+              setTimeLeft(normDefault[0].duration);
+              return normDefault;
             });
           }
           setProfileLoading(false);
@@ -181,8 +267,12 @@ export function useProtocol() {
           try {
             const parsed = JSON.parse(localData);
             if (parsed.profile) setProfile(prev => ({ ...prev, ...parsed.profile }));
-            if (parsed.calendar) setCalendar(parsed.calendar);
-            if (parsed.blocks) setBlocks(parsed.blocks);
+            if (parsed.calendar) {
+              setCalendar(normalizeCalendar(parsed.calendar));
+            }
+            if (parsed.blocks) {
+              setBlocks(normalizeBlockList(parsed.blocks));
+            }
             if (parsed.blockIdx !== undefined) setBlockIdx(parsed.blockIdx);
             if (parsed.circadianMode !== undefined) setCircadianMode(parsed.circadianMode);
             if (parsed.stack) setStack(parsed.stack);
@@ -194,9 +284,10 @@ export function useProtocol() {
           }
         }
         if (blocks.length === 0) {
-          setBlocks(PROTOCOL_DATABASE.focus_optimization);
-          setTotalTime(PROTOCOL_DATABASE.focus_optimization[0].duration);
-          setTimeLeft(PROTOCOL_DATABASE.focus_optimization[0].duration);
+          const normDefault = normalizeBlockList(PROTOCOL_DATABASE.focus_optimization);
+          setBlocks(normDefault);
+          setTotalTime(normDefault[0].duration);
+          setTimeLeft(normDefault[0].duration);
         }
         setProfileLoading(false);
       }
@@ -536,24 +627,25 @@ export function useProtocol() {
   // Calendar switches (predefined queues)
   const loadProtocolQueue = (queueKey) => {
     if (PROTOCOL_DATABASE[queueKey]) {
-      setBlocks(PROTOCOL_DATABASE[queueKey]);
+      const normalizedBlocks = normalizeBlockList(PROTOCOL_DATABASE[queueKey]);
+      setBlocks(normalizedBlocks);
       setBlockIdx(0);
-      setTimeLeft(PROTOCOL_DATABASE[queueKey][0].duration);
-      setTotalTime(PROTOCOL_DATABASE[queueKey][0].duration);
+      setTimeLeft(normalizedBlocks[0].duration);
+      setTotalTime(normalizedBlocks[0].duration);
       setAgentMsg(`Protokoll geladen: ${queueKey.toUpperCase()}`);
     }
   };
 
   // Add Custom Block to Active List
   const addCustomBlock = (title, minutes, type = 'Focus', pillar = 'focus') => {
-    const newBlock = {
+    const newBlock = normalizeBlock({
       title,
       duration: minutes * 60,
       type,
       pillar,
       rec: 'Individueller Block.',
       insight: 'Konsistente Blöcke stützen den zirkadianen Rhythmus.'
-    };
+    });
     setBlocks(prev => {
       const nextList = [...prev, newBlock];
       if (prev.length === 0) {
@@ -599,14 +691,14 @@ export function useProtocol() {
 
   const addCalendarBlock = (title, time, durationSec = 3600, pillar = 'focus') => {
     const dateStr = formatDate(selectedDate);
-    const newBlock = {
+    const newBlock = normalizeBlock({
       title: title || 'Neuer Block',
       startTime: time || '12:00',
       duration: durationSec,
       pillar: pillar || 'focus',
       rec: 'Manuell hinzugefügt.',
       insight: 'Aktive Lebensplanung reduziert kognitive Reibungspunkte.'
-    };
+    });
     setCalendar(prev => {
       const dayData = prev[dateStr] || { blocks: [] };
       const updatedBlocks = [...(dayData.blocks || []), newBlock].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
@@ -627,7 +719,7 @@ export function useProtocol() {
     setCalendar(prev => {
       const dayData = prev[dateStr];
       if (!dayData || !dayData.blocks) return prev;
-      const updatedBlocks = dayData.blocks.map((b, i) => i === idx ? { ...b, ...updatedFields } : b).sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+      const updatedBlocks = dayData.blocks.map((b, i) => i === idx ? normalizeBlock({ ...b, ...updatedFields }) : b).sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
       
       // Auto-sync to active blocks if editing today
       const todayStr = formatDate(new Date());
@@ -678,15 +770,17 @@ export function useProtocol() {
       const cleaned = text.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(cleaned);
       if (parsed && parsed.blocks) {
-        setCalendar(prev => ({ ...prev, [dateStr]: parsed }));
+        const normalizedBlocks = normalizeBlockList(parsed.blocks);
+        const normalizedParsed = { ...parsed, blocks: normalizedBlocks };
+        setCalendar(prev => ({ ...prev, [dateStr]: normalizedParsed }));
         
         // Auto-load to active blocks if it's today
         const todayStr = formatDate(new Date());
         if (dateStr === todayStr) {
-          setBlocks(parsed.blocks);
+          setBlocks(normalizedBlocks);
           setBlockIdx(0);
-          setTimeLeft(parsed.blocks[0].duration);
-          setTotalTime(parsed.blocks[0].duration);
+          setTimeLeft(normalizedBlocks[0]?.duration || 0);
+          setTotalTime(normalizedBlocks[0]?.duration || 0);
         }
         
         setAgentMsg(`Protokoll für ${dateStr} erfolgreich synchronisiert.`);
@@ -696,14 +790,14 @@ export function useProtocol() {
     } catch(e) {
       console.warn("AI Day Sync Failed. Loading Local Fallback Pattern.", e);
       const fallback = {
-        blocks: [
+        blocks: normalizeBlockList([
           { title: 'Morning Hydration & Stack', startTime: '07:30', duration: 15*60, pillar: 'health', rec: 'Creatine + Taurine in 500ml Wasser.', insight: 'Intrazellulärer Volumen-Peak.' },
           { title: 'Deep Work Block I', startTime: '08:30', duration: 90*60, pillar: 'focus', rec: 'Absolute Isolation. Binaural Beats.', insight: 'Maximales Dopaminerges Fenster.' },
           { title: 'Deliberate Skill Practice', startTime: '11:00', duration: 45*60, pillar: 'skills', rec: 'Hochfokussiertes Training am Ziel-Skill.', insight: 'LTP Potential auf Maximum.' },
           { title: 'Zirkadianer Lunch Walk', startTime: '13:00', duration: 30*60, pillar: 'health', rec: '30 Minuten direktes Sonnenlicht.', insight: 'Stoppt Melatoninausschüttung.' },
           { title: 'Deep Work Block II', startTime: '14:30', duration: 60*60, pillar: 'focus', rec: 'Administrative und operative Tasks.', insight: 'Kognitives Nachmittagsfenster.' },
           { title: 'Sunset NSDR Recovery', startTime: '17:30', duration: 25*60, pillar: 'recovery', rec: 'Liegendes Entspannungsprotokoll.', insight: 'Parasympathischer System-Reset.' }
-        ]
+        ])
       };
       setCalendar(prev => ({ ...prev, [dateStr]: fallback }));
       
@@ -712,8 +806,8 @@ export function useProtocol() {
       if (dateStr === todayStr) {
         setBlocks(fallback.blocks);
         setBlockIdx(0);
-        setTimeLeft(fallback.blocks[0].duration);
-        setTotalTime(fallback.blocks[0].duration);
+        setTimeLeft(fallback.blocks[0]?.duration || 0);
+        setTotalTime(fallback.blocks[0]?.duration || 0);
       }
       
       setAgentMsg(`Tagesprotokoll für ${dateStr} geladen (Heuristisches Backup).`);
@@ -761,28 +855,29 @@ export function useProtocol() {
       const text = data.choices[0].message.content;
       const cleaned = text.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(cleaned);
+      const normalizedParsed = normalizeCalendar(parsed);
       setCalendar(prev => {
         const copy = { ...prev };
-        for (const dateStr of Object.keys(parsed)) {
-          if (parsed[dateStr] && parsed[dateStr].blocks) {
-            copy[dateStr] = parsed[dateStr];
+        for (const dateStr of Object.keys(normalizedParsed)) {
+          if (normalizedParsed[dateStr] && normalizedParsed[dateStr].blocks) {
+            copy[dateStr] = normalizedParsed[dateStr];
           }
         }
         return copy;
       });
-      setAgentMsg(`Schedules für ${Object.keys(parsed).length} Tage erfolgreich eingepflegt.`);
+      setAgentMsg(`Schedules für ${Object.keys(normalizedParsed).length} Tage erfolgreich eingepflegt.`);
     } catch(e) {
       console.warn("AI Month Sync Failed. Building Local Fallbacks.", e);
       setCalendar(prev => {
         const copy = { ...prev };
         for (const dateStr of chunk) {
           copy[dateStr] = {
-            blocks: [
+            blocks: normalizeBlockList([
               { title: 'Morning Stack', startTime: '08:00', duration: 15*60, pillar: 'health', rec: 'Hydrierung.', insight: 'Morgen-Baseline.' },
               { title: 'Fokus Arbeit', startTime: '09:00', duration: 90*60, pillar: 'focus', rec: 'Deep Work.', insight: 'Maximale Last.' },
               { title: 'Skill Erwerb', startTime: '11:00', duration: 45*60, pillar: 'skills', rec: 'Lernen.', insight: 'Neuronale Plastizität.' },
               { title: 'Erholungsphase', startTime: '15:00', duration: 30*60, pillar: 'recovery', rec: 'NSDR.', insight: 'PNS Trigger.' }
-            ]
+            ])
           };
         }
         return copy;
@@ -815,7 +910,18 @@ export function useProtocol() {
       const cleaned = text.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(cleaned);
       if (parsed && parsed.blocks) {
-        setCalendar(prev => ({ ...prev, [dateStr]: parsed }));
+        const normalizedBlocks = normalizeBlockList(parsed.blocks);
+        const normalizedParsed = { ...parsed, blocks: normalizedBlocks };
+        setCalendar(prev => ({ ...prev, [dateStr]: normalizedParsed }));
+        
+        // Auto-sync to active blocks if editing today
+        const todayStr = formatDate(new Date());
+        if (dateStr === todayStr) {
+          setBlocks(normalizedBlocks);
+          setBlockIdx(0);
+          setTimeLeft(normalizedBlocks[0]?.duration || 0);
+          setTotalTime(normalizedBlocks[0]?.duration || 0);
+        }
         setAgentMsg(`Plan erfolgreich angepasst.`);
       }
     } catch(e) {
@@ -833,10 +939,11 @@ export function useProtocol() {
       setAgentMsg("Kein fertiges Protokoll für diesen Tag im Kalender vorhanden.");
       return;
     }
-    setBlocks(dayData.blocks);
+    const normalizedBlocks = normalizeBlockList(dayData.blocks);
+    setBlocks(normalizedBlocks);
     setBlockIdx(0);
-    setTimeLeft(dayData.blocks[0].duration);
-    setTotalTime(dayData.blocks[0].duration);
+    setTimeLeft(normalizedBlocks[0].duration);
+    setTotalTime(normalizedBlocks[0].duration);
     setAgentMsg(`Kalender-Protokoll vom ${dateStr} geladen.`);
   };
 
