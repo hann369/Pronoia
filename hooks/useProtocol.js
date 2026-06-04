@@ -86,6 +86,102 @@ export function normalizeCalendar(cal) {
   return normalized;
 }
 
+export function calculateVirtualTimeline(blocks) {
+  if (!blocks || blocks.length === 0) return [];
+
+  // 1. Identify all anchors
+  const anchors = [];
+  for (let i = 0; i < blocks.length; i++) {
+    if (blocks[i].startTime || i === 0 || i === blocks.length - 1) {
+      anchors.push({
+        idx: i,
+        startTime: blocks[i].startTime || (i === 0 ? "08:00" : "22:00"),
+        duration: blocks[i].duration
+      });
+    }
+  }
+
+  // Ensure sorted by index
+  anchors.sort((a, b) => a.idx - b.idx);
+
+  const parseTimeToMin = (timeStr) => {
+    if (typeof timeStr !== 'string') return 480;
+    const parts = timeStr.split(':').map(Number);
+    if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return 480;
+    return parts[0] * 60 + parts[1];
+  };
+
+  const virtualBlocks = blocks.map(b => ({
+    ...b,
+    virtualDuration: b.duration // fallback
+  }));
+
+  // Process anchors
+  for (let a = 0; a < anchors.length; a++) {
+    const anchor = anchors[a];
+    const startMin = parseTimeToMin(anchor.startTime);
+    virtualBlocks[anchor.idx].calculatedStartMin = startMin;
+    virtualBlocks[anchor.idx].calculatedEndMin = startMin + (anchor.duration / 60);
+    virtualBlocks[anchor.idx].virtualDuration = anchor.duration;
+  }
+
+  // Process windows between anchors
+  for (let a = 0; a < anchors.length - 1; a++) {
+    const startAnchor = anchors[a];
+    const endAnchor = anchors[a + 1];
+    
+    // Window start is when the start anchor ends
+    const windowStartMin = parseTimeToMin(startAnchor.startTime) + (startAnchor.duration / 60);
+    // Window end is when the next anchor starts
+    let windowEndMin = parseTimeToMin(endAnchor.startTime);
+    
+    // Wrap around for overnight
+    if (windowEndMin < windowStartMin) {
+      windowEndMin += 24 * 60;
+    }
+    
+    const windowSizeMin = windowEndMin - windowStartMin;
+    
+    // Floating blocks are strictly between the two anchors (index startAnchor.idx + 1 to endAnchor.idx - 1)
+    const floatingIndices = [];
+    let sumFloatingDuration = 0;
+    
+    for (let i = startAnchor.idx + 1; i < endAnchor.idx; i++) {
+      floatingIndices.push(i);
+      sumFloatingDuration += blocks[i].duration;
+    }
+    
+    if (floatingIndices.length === 0) {
+      // If there are no floating blocks, the space between anchors is a "gap".
+      // We stretch the start anchor to fill it for contiguous flow.
+      if (windowSizeMin > 0) {
+        virtualBlocks[startAnchor.idx].calculatedEndMin = windowEndMin;
+        virtualBlocks[startAnchor.idx].virtualDuration = (windowEndMin - parseTimeToMin(startAnchor.startTime)) * 60;
+      }
+      continue;
+    }
+    
+    // Scale factor for floating blocks in this window
+    const sumFloatingDurationMin = sumFloatingDuration / 60;
+    const scaleFactor = sumFloatingDurationMin > 0 ? (windowSizeMin / sumFloatingDurationMin) : 1;
+    
+    let currentStart = windowStartMin;
+    for (const idx of floatingIndices) {
+      const b = virtualBlocks[idx];
+      const scaledDurationSec = b.duration * scaleFactor;
+      const durationMin = scaledDurationSec / 60;
+      
+      b.calculatedStartMin = currentStart;
+      b.calculatedEndMin = currentStart + durationMin;
+      b.virtualDuration = scaledDurationSec;
+      
+      currentStart += durationMin;
+    }
+  }
+
+  return virtualBlocks;
+}
+
 export function useProtocol() {
   const [user, setUser] = useState(null);
   const [blocks, setBlocks] = useState(PROTOCOL_DATABASE.focus_optimization || []);
@@ -351,35 +447,7 @@ export function useProtocol() {
       const nowMin = h * 60 + m;
 
       // 1. Build a virtual schedule ensuring all blocks have contiguous start/end times
-      const virtualBlocks = [];
-      let currentStartMin = 480; // Default to 08:00 if no blocks have start times
-
-      // Find first block with explicit start time to anchor the baseline
-      const firstWithStart = blocks.find(b => b.startTime);
-      if (firstWithStart) {
-        const [bh, bm] = firstWithStart.startTime.split(':').map(Number);
-        currentStartMin = bh * 60 + bm;
-      }
-
-      for (let i = 0; i < blocks.length; i++) {
-        const b = blocks[i];
-        let startMin = currentStartMin;
-        if (b.startTime) {
-          const [bh, bm] = b.startTime.split(':').map(Number);
-          startMin = bh * 60 + bm;
-        }
-        const durationMin = b.duration / 60;
-        const endMin = startMin + durationMin;
-
-        virtualBlocks.push({
-          ...b,
-          calculatedStartMin: startMin,
-          calculatedEndMin: endMin
-        });
-
-        // Contiguous chain: next block starts when current ends
-        currentStartMin = endMin;
-      }
+      const virtualBlocks = calculateVirtualTimeline(blocks);
 
       // 2. Find the active block index based on current time
       let foundIdx = -1;
@@ -391,29 +459,19 @@ export function useProtocol() {
         }
       }
 
-      // 3. Handle out-of-bounds or gaps
+      // 3. Handle out-of-bounds
       if (foundIdx === -1) {
-        const firstStartMin = virtualBlocks[0].calculatedStartMin;
-        const lastEndMin = virtualBlocks[virtualBlocks.length - 1].calculatedEndMin;
+        if (virtualBlocks.length > 0) {
+          const firstStartMin = virtualBlocks[0].calculatedStartMin;
+          const lastEndMin = virtualBlocks[virtualBlocks.length - 1].calculatedEndMin;
 
-        if (nowMin < firstStartMin) {
-          // Pre-start: show first block
-          foundIdx = 0;
-        } else if (nowMin >= lastEndMin) {
-          // Post-end: show last block
-          foundIdx = virtualBlocks.length - 1;
-        } else {
-          // Inside a gap: find first upcoming block
-          let upcomingIdx = -1;
-          let minDiff = Infinity;
-          for (let i = 0; i < virtualBlocks.length; i++) {
-            const vb = virtualBlocks[i];
-            if (vb.calculatedStartMin > nowMin && (vb.calculatedStartMin - nowMin) < minDiff) {
-              minDiff = vb.calculatedStartMin - nowMin;
-              upcomingIdx = i;
-            }
+          if (nowMin < firstStartMin) {
+            foundIdx = 0;
+          } else {
+            foundIdx = virtualBlocks.length - 1;
           }
-          foundIdx = upcomingIdx !== -1 ? upcomingIdx : 0;
+        } else {
+          foundIdx = 0;
         }
       }
 
@@ -436,13 +494,13 @@ export function useProtocol() {
           const remainingSec = Math.max(0, Math.round(diffMin * 60 - s));
           setTimeLeft(remainingSec);
         } else if (nowMin < startMin) {
-          // Block is in the future: show full duration
-          setTimeLeft(activeBlock.duration);
+          // Block is in the future: show full virtual duration
+          setTimeLeft(activeBlock.virtualDuration || activeBlock.duration);
         } else {
           // Block is in the past: show 0
           setTimeLeft(0);
         }
-        setTotalTime(activeBlock.duration);
+        setTotalTime(activeBlock.virtualDuration || activeBlock.duration);
       }
     };
 

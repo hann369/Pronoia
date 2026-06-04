@@ -733,7 +733,8 @@ async function getUserStatusWithDebug(telegramId) {
         stack: mappedStack.length > 0 ? mappedStack : status.stack,
         calendar: data.calendar || {},
         email: data.profile?.email || null,
-        customization: data.profile?.customization || { accent: 'blue', mode: 'serious' }
+        customization: data.profile?.customization || { accent: 'blue', mode: 'serious' },
+        directives: data.directives || []
       };
     } else {
       debug.error = "No document found matching this Telegram ID";
