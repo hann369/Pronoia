@@ -660,17 +660,64 @@ function LifeOSDashboard() {
 
   const loadVaultItems = async () => {
     setVaultLoading(true);
-    try {
-      if (db) {
-        const q = query(collection(db, 'vault_items'), orderBy('created_at', 'desc'));
-        const snap = await getDocs(q);
-        setVaultItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      } else throw new Error();
-    } catch {
-      setVaultItems(JSON.parse(localStorage.getItem('px_vault') || '[]'));
-    } finally { setVaultLoading(false); }
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const userId = user?.uid || 'local';
+
+    if (supabaseUrl && supabaseAnonKey) {
+      try {
+        // --- Auto-migrate local storage items to Supabase ---
+        const localItems = JSON.parse(localStorage.getItem('px_vault') || '[]');
+        if (localItems.length > 0) {
+          console.log(`Migrating ${localItems.length} local vault items to Supabase...`);
+          for (const item of localItems) {
+            const payload = {
+              user_id: userId,
+              type: item.type,
+              title: item.title,
+              content: item.content,
+              url: item.url || null,
+              tags: item.tags || [],
+              created_at: item.created_at || new Date().toISOString()
+            };
+            
+            await fetch(`${supabaseUrl}/rest/v1/vault_items`, {
+              method: 'POST',
+              headers: {
+                'apikey': supabaseAnonKey,
+                'Authorization': `Bearer ${supabaseAnonKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(payload)
+            });
+          }
+          localStorage.removeItem('px_vault');
+          console.log("Migration complete!");
+        }
+
+        const res = await fetch(`${supabaseUrl}/rest/v1/vault_items?user_id=eq.${userId}&order=created_at.desc`, {
+          method: 'GET',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${supabaseAnonKey}`
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setVaultItems(data);
+          setVaultLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.warn("Failed to load/migrate vault items from Supabase:", err);
+      }
+    }
+
+    // Fallback to local storage if Supabase is unavailable
+    setVaultItems(JSON.parse(localStorage.getItem('px_vault') || '[]'));
+    setVaultLoading(false);
   };
-  useEffect(() => { loadVaultItems(); }, []);
+  useEffect(() => { loadVaultItems(); }, [user]);
 
   const triggerVaultToast = (msg) => { setVaultToast(msg); setTimeout(() => setVaultToast(''), 3000); };
 
@@ -685,13 +732,36 @@ function LifeOSDashboard() {
       tags: vaultForm.tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean),
       created_at: new Date().toISOString(),
     };
-    try {
-      if (db) await addDoc(collection(db, 'vault_items'), payload);
-      else throw new Error();
-    } catch {
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    let saved = false;
+    if (supabaseUrl && supabaseAnonKey) {
+      try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/vault_items`, {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          saved = true;
+        }
+      } catch (err) {
+        console.warn("Failed to save vault item to Supabase:", err);
+      }
+    }
+
+    if (!saved) {
       const local = JSON.parse(localStorage.getItem('px_vault') || '[]');
       localStorage.setItem('px_vault', JSON.stringify([{ id: Date.now().toString(), ...payload }, ...local]));
     }
+
     await loadVaultItems();
     setVaultForm({ type: 'note', title: '', content: '', tags: '' });
     setVaultSaving(false);
@@ -699,11 +769,32 @@ function LifeOSDashboard() {
   };
 
   const handleDeleteVaultItem = async (id) => {
-    try { if (db) await deleteDoc(doc(db, 'vault_items', id)); else throw new Error(); }
-    catch {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    let deleted = false;
+    if (supabaseUrl && supabaseAnonKey && isNaN(Number(id))) {
+      try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/vault_items?id=eq.${id}`, {
+          method: 'DELETE',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${supabaseAnonKey}`
+          }
+        });
+        if (res.ok) {
+          deleted = true;
+        }
+      } catch (err) {
+        console.warn("Failed to delete vault item from Supabase:", err);
+      }
+    }
+
+    if (!deleted) {
       const local = JSON.parse(localStorage.getItem('px_vault') || '[]');
       localStorage.setItem('px_vault', JSON.stringify(local.filter(i => i.id !== id)));
     }
+
     setVaultItems(prev => prev.filter(i => i.id !== id));
     triggerVaultToast('Eintrag gelöscht.');
   };
