@@ -122,49 +122,83 @@ export function useSocial() {
 
   // Search users in Firestore by username or Telegram ID
   const searchUsers = useCallback(async (searchQuery) => {
-    if (!db || !searchQuery.trim() || !user) {
+    const term = searchQuery.trim();
+    if (!db || !term || !user) {
       setSearchResults([]);
       return;
     }
 
     setSearching(true);
     try {
-      const q = query(
-        collection(db, 'users'),
-        limit(100)
+      const resultsMap = new Map();
+      const queries = [];
+
+      // 1. Exact username query
+      queries.push(
+        query(
+          collection(db, 'users'),
+          where('profile.username', '==', term),
+          limit(10)
+        )
       );
 
-      const querySnapshot = await getDocs(q);
-      const results = [];
-      
-      const searchLower = searchQuery.toLowerCase().trim();
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (doc.id === user.uid) return; // don't search self
-        
-        const username = data.profile?.username || '';
-        const telegramId = data.profile?.telegramId ? String(data.profile.telegramId) : '';
-        const telegramUsername = data.profile?.telegramUser?.username || '';
+      // Capitalized version (e.g. "hann" -> "Hann", "hann369" -> "Hann369")
+      const capitalized = term.charAt(0).toUpperCase() + term.slice(1);
+      if (capitalized !== term) {
+        queries.push(
+          query(
+            collection(db, 'users'),
+            where('profile.username', '==', capitalized),
+            limit(10)
+          )
+        );
+      }
 
-        const matchUsername = username.toLowerCase().includes(searchLower);
-        const matchTelegramId = telegramId.toLowerCase().includes(searchLower);
-        const matchTelegramUser = telegramUsername.toLowerCase().includes(searchLower);
+      // 2. Telegram ID queries if input looks like a number
+      if (/^\d+$/.test(term)) {
+        const numVal = parseInt(term, 10);
+        queries.push(
+          query(
+            collection(db, 'users'),
+            where('profile.telegramId', '==', numVal),
+            limit(10)
+          )
+        );
+        queries.push(
+          query(
+            collection(db, 'users'),
+            where('profile.telegramId', '==', term),
+            limit(10)
+          )
+        );
+      }
 
-        if (matchUsername || matchTelegramId || matchTelegramUser) {
-          results.push({
-            uid: doc.id,
-            profile: data.profile || { username: username || 'Unnamed Hacker' }
-          });
-        }
-      });
+      await Promise.all(
+        queries.map(async (q) => {
+          try {
+            const snap = await getDocs(q);
+            snap.forEach((doc) => {
+              if (doc.id === user.uid) return; // skip self
+              const data = doc.data();
+              resultsMap.set(doc.id, {
+                uid: doc.id,
+                profile: data.profile || { username: data.profile?.username || 'Unnamed Hacker' }
+              });
+            });
+          } catch (e) {
+            console.warn("Individual search query failed (check firestore security rules):", e.message);
+          }
+        })
+      );
 
-      setSearchResults(results);
+      setSearchResults(Array.from(resultsMap.values()));
     } catch (err) {
-      console.error("searchUsers query failed:", err);
+      console.error("searchUsers failed:", err);
     } finally {
       setSearching(false);
     }
   }, [user]);
+
 
   // Send a friend request
   const sendFriendRequest = useCallback(async (targetUid) => {
