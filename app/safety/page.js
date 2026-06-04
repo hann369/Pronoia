@@ -48,6 +48,20 @@ export default function SafetyPage() {
                 </div>
               </div>
               <div className={styles.featureItem}>
+                <div className={styles.featureIcon}>📺</div>
+                <div className={styles.featureText}>
+                  <h4>YouTube Shorts Blocker (Neu)</h4>
+                  <p>Blendet ablenkende Shorts-Karussells und Navigationslinks aus. Direkte Kurzvideo-URLs werden sofort auf das Dashboard umgeleitet.</p>
+                </div>
+              </div>
+              <div className={styles.featureItem}>
+                <div className={styles.featureIcon}>🛑</div>
+                <div className={styles.featureText}>
+                  <h4>Echtzeit-Adblocker (Neu)</h4>
+                  <p>Filtert lästige Werbung, Banner und Datentracker auf DNS/Netzwerk-Ebene via MV3 declarativeNetRequest-Regelwerk.</p>
+                </div>
+              </div>
+              <div className={styles.featureItem}>
                 <div className={styles.featureIcon}>🔒</div>
                 <div className={styles.featureText}>
                   <h4>Manifest V3 & Local-First</h4>

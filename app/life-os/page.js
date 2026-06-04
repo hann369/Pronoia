@@ -29,14 +29,76 @@ const AVATAR_PRESETS = [
 ];
 
 const NAV_ITEMS = [
-  { id: 'dashboard',  icon: '⏳', label: 'Dashboard' },
-  { id: 'biometrics', icon: '📊', label: 'Biometrie' },
-  { id: 'skills',     icon: '🔬', label: 'Skill Lab' },
-  { id: 'store',      icon: '🛒', label: 'Ecosystem' },
-  { id: 'connectors', icon: '🔌', label: 'Konnektoren' },
-  { id: 'vault',      icon: '✦',  label: 'Vault' },
-  { id: 'agents',     icon: '🤖', label: 'Agenten' },
+  { id: 'dashboard',  label: 'Dashboard' },
+  { id: 'biometrics', label: 'Biometrie' },
+  { id: 'skills',     label: 'Skill Lab' },
+  { id: 'store',      label: 'Ecosystem' },
+  { id: 'connectors', label: 'Konnektoren' },
+  { id: 'vault',      label: 'Vault' },
+  { id: 'agents',     label: 'Agenten' },
 ];
+
+const renderNavIcon = (id, active) => {
+  const color = active ? 'var(--cobalt-bright)' : 'var(--text3)';
+  const strokeWidth = 2;
+  
+  switch (id) {
+    case 'dashboard':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      );
+    case 'biometrics':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+      );
+    case 'skills':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <path d="M10 2v6L4.2 18.5A2 2 0 0 0 6 21h12a2 2 0 0 0 1.8-2.5L14 8V2h-4z" />
+          <path d="M6 16h12" />
+        </svg>
+      );
+    case 'store':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <path d="M16 10a4 4 0 0 1-8 0" />
+        </svg>
+      );
+    case 'connectors':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      );
+    case 'vault':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+      );
+    case 'agents':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <path d="M12 2a10 10 0 0 1 10 10v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4A10 10 0 0 1 12 2z" />
+          <path d="M12 18v3" />
+          <path d="M8 21h8" />
+          <circle cx="9" cy="11" r="1" />
+          <circle cx="15" cy="11" r="1" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+};
 
 const TIERS = [
   {
@@ -171,6 +233,7 @@ function LifeOSDashboard() {
   const { user, loading: authLoading } = useAuth();
   const {
     blocks, blockIdx, timeLeft, totalTime, isRunning,
+    circadianMode, setCircadianMode, overrideActiveBlockDuration,
     profile, profileLoading, stack, frictionLogs, dataSources, agentMsg, isTyping, directives,
     calendar, selectedDate, currentMonth, formatDate, selectDate, prevMonth, nextMonth,
     addCalendarBlock, editCalendarBlock, deleteCalendarBlock,
@@ -180,6 +243,72 @@ function LifeOSDashboard() {
     consumeStackItem, addStackItem, removeStackItem, updateStackItem,
     saveProfile, linkTelegramId, logFriction, loadProtocolQueue, addCustomBlock, uploadDataSource
   } = useProtocol();
+
+  // Drag/Swipe gestures states on Chronometer
+  const [dragStartX, setDragStartX] = useState(null);
+  const [dragCurrentX, setDragCurrentX] = useState(null);
+
+  const handleDragStart = (x, e = null) => {
+    if (e && e.type === 'mousedown') {
+      e.preventDefault(); // Prevents selection and ghost-dragging of SVG
+    }
+    setDragStartX(x);
+    setDragCurrentX(x);
+  };
+
+  const handleDragMove = (x) => {
+    if (dragStartX !== null) {
+      setDragCurrentX(x);
+    }
+  };
+
+  const handleDragEnd = () => {
+    if (dragStartX === null || dragCurrentX === null) return;
+    const diff = dragCurrentX - dragStartX;
+    const threshold = 60;
+    if (diff > threshold) {
+      setCircadianMode(false); // Disable circadian auto-sync on manual navigation
+      prevBlock();
+    } else if (diff < -threshold) {
+      setCircadianMode(false); // Disable circadian auto-sync on manual navigation
+      skipBlock();
+    }
+    setDragStartX(null);
+    setDragCurrentX(null);
+  };
+
+  // Global window listeners for drag gestures to allow dragging outside circle boundary
+  useEffect(() => {
+    if (dragStartX === null) return;
+
+    const handleGlobalMouseMove = (e) => {
+      handleDragMove(e.clientX);
+    };
+
+    const handleGlobalMouseUp = () => {
+      handleDragEnd();
+    };
+
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [dragStartX, dragCurrentX]);
+
+  // Time manual edit states
+  const [showTimeEdit, setShowTimeEdit] = useState(false);
+  const [editTimeMinutes, setEditTimeMinutes] = useState('');
+
+  const handleTimeEditSubmit = (e) => {
+    e.preventDefault();
+    const mins = parseInt(editTimeMinutes);
+    if (!isNaN(mins) && mins > 0) {
+      overrideActiveBlockDuration(mins);
+    }
+    setShowTimeEdit(false);
+  };
 
   /* ─── Access Gate ─── */
   const [gateState, setGateState] = useState('loading');
@@ -395,7 +524,9 @@ function LifeOSDashboard() {
   }, [agentMsg]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollTop = chatEndRef.current.scrollHeight;
+    }
   }, [messages, isTyping]);
 
   useEffect(() => {
@@ -690,33 +821,172 @@ function LifeOSDashboard() {
 
               {/* CHRONOMETER */}
               <div className={styles.chronoSection}>
-                <div className={styles.chronoWrapper}>
-                  <svg width="240" height="240" className={styles.chronoSvg}>
-                    <defs>
-                      <linearGradient id="progGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="var(--theme-accent, #1A6AFF)" />
-                        <stop offset="100%" stopColor="var(--tan, #d5b893)" />
-                      </linearGradient>
-                    </defs>
-                    <circle cx="120" cy="120" r="115" className={styles.chronoOuter} />
-                    <circle cx="120" cy="120" r={radius} className={styles.chronoTrack} />
-                    <circle
-                      cx="120" cy="120" r={radius}
-                      className={styles.chronoProgress}
-                      strokeDasharray={circumference}
-                      strokeDashoffset={strokeDashoffset}
-                    />
-                  </svg>
-                  <div className={styles.chronoCenter}>
-                    <div className={styles.chronoTime}>{formatTime(timeLeft)}</div>
-                    <div className={styles.chronoStatus}>{isRunning ? 'AKTIV' : 'PAUSIERT'}</div>
-                    <button
-                      className={`${styles.chronoBtn} ${isRunning ? styles.chronoBtnPause : styles.chronoBtnStart}`}
-                      onClick={toggleTimer}
-                    >
-                      {isRunning ? 'PAUSE' : 'START'}
-                    </button>
+                <div className={styles.chronoControlLayout} style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', justifyContent: 'center', width: '100%', touchAction: 'none' }}>
+                  <button 
+                    className={styles.chronoArrowBtn} 
+                    onClick={prevBlock}
+                    title="Vorheriger Block"
+                    style={{
+                      background: 'none',
+                      border: '1px solid var(--border-s)',
+                      borderRadius: '50%',
+                      color: 'var(--text2)',
+                      width: '40px',
+                      height: '40px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      fontSize: '1.2rem',
+                      transition: 'all 0.3s ease',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--cobalt-bright)'; e.currentTarget.style.color = 'var(--text)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-s)'; e.currentTarget.style.color = 'var(--text2)'; }}
+                  >
+                    ←
+                  </button>
+
+                  <div 
+                    className={styles.chronoWrapper}
+                    onMouseDown={(e) => handleDragStart(e.clientX, e)}
+                    onTouchStart={(e) => handleDragStart(e.touches[0].clientX)}
+                    onTouchMove={(e) => handleDragMove(e.touches[0].clientX)}
+                    onTouchEnd={handleDragEnd}
+                    style={{
+                      cursor: 'grab',
+                      userSelect: 'none',
+                      transform: `translateX(${dragStartX !== null ? (dragCurrentX - dragStartX) * 0.35 : 0}px)`,
+                      transition: dragStartX !== null ? 'none' : 'transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)'
+                    }}
+                  >
+                    <svg width="240" height="240" className={styles.chronoSvg}>
+                      <defs>
+                        <linearGradient id="progGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="var(--theme-accent, #1A6AFF)" />
+                          <stop offset="100%" stopColor="var(--tan, #d5b893)" />
+                        </linearGradient>
+                      </defs>
+                      <circle cx="120" cy="120" r="115" className={styles.chronoOuter} />
+                      <circle cx="120" cy="120" r={radius} className={styles.chronoTrack} />
+                      <circle
+                        cx="120" cy="120" r={radius}
+                        className={styles.chronoProgress}
+                        strokeDasharray={circumference}
+                        strokeDashoffset={strokeDashoffset}
+                      />
+                    </svg>
+                    <div className={styles.chronoCenter}>
+                      {showTimeEdit ? (
+                        <form 
+                          onSubmit={handleTimeEditSubmit} 
+                          onClick={e => e.stopPropagation()} 
+                          onMouseDown={e => e.stopPropagation()} 
+                          onTouchStart={e => e.stopPropagation()} 
+                          style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center', alignItems: 'center' }}
+                        >
+                          <input
+                            type="number"
+                            min="1"
+                            max="480"
+                            className={styles.chronoTimeInput}
+                            value={editTimeMinutes}
+                            onChange={e => setEditTimeMinutes(e.target.value)}
+                            autoFocus
+                            style={{
+                              width: '70px',
+                              background: 'var(--bg3)',
+                              border: '1px solid var(--border-s)',
+                              color: 'var(--text)',
+                              fontSize: '1.4rem',
+                              textAlign: 'center',
+                              borderRadius: '6px',
+                              outline: 'none'
+                            }}
+                          />
+                          <button type="submit" className="btn btn-primary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>✓</button>
+                        </form>
+                      ) : (
+                        <div 
+                          className={styles.chronoTime}
+                          onClick={() => { setEditTimeMinutes(Math.round(timeLeft / 60).toString()); setShowTimeEdit(true); }}
+                          title="Dauer manuell anpassen"
+                          style={{ cursor: 'pointer', transition: 'color 0.2s' }}
+                          onMouseEnter={e => e.currentTarget.style.color = 'var(--cobalt-bright)'}
+                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text)'}
+                        >
+                          {formatTime(timeLeft)}
+                        </div>
+                      )}
+                      <div className={styles.chronoStatus}>
+                        {circadianMode ? 'ZIRKADIAN' : isRunning ? 'AKTIV' : 'PAUSIERT'}
+                      </div>
+                      {!circadianMode && (
+                        <button
+                          className={`${styles.chronoBtn} ${isRunning ? styles.chronoBtnPause : styles.chronoBtnStart}`}
+                          onClick={toggleTimer}
+                        >
+                          {isRunning ? 'PAUSE' : 'START'}
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  <button 
+                    className={styles.chronoArrowBtn} 
+                    onClick={skipBlock}
+                    title="Nächster Block"
+                    style={{
+                      background: 'none',
+                      border: '1px solid var(--border-s)',
+                      borderRadius: '50%',
+                      color: 'var(--text2)',
+                      width: '40px',
+                      height: '40px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      fontSize: '1.2rem',
+                      transition: 'all 0.3s ease',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--cobalt-bright)'; e.currentTarget.style.color = 'var(--text)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-s)'; e.currentTarget.style.color = 'var(--text2)'; }}
+                  >
+                    →
+                  </button>
+                </div>
+
+                {/* Zirkadian Mode Toggle Control */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem', marginBottom: '0.5rem' }}>
+                  <button
+                    onClick={() => setCircadianMode(!circadianMode)}
+                    style={{
+                      background: circadianMode ? 'rgba(26, 106, 255, 0.08)' : 'none',
+                      border: '1px solid',
+                      borderColor: circadianMode ? 'var(--cobalt-bright)' : 'var(--border-s)',
+                      borderRadius: '20px',
+                      color: circadianMode ? 'var(--cobalt-bright)' : 'var(--text3)',
+                      padding: '0.4rem 1rem',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.7rem',
+                      letterSpacing: '0.05em',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      transition: 'all 0.3s ease',
+                      boxShadow: circadianMode ? '0 0 12px rgba(26,106,255,0.15)' : 'none'
+                    }}
+                  >
+                    <span style={{ 
+                      width: '6px', 
+                      height: '6px', 
+                      borderRadius: '50%', 
+                      background: circadianMode ? 'var(--cobalt-bright)' : 'var(--text3)',
+                      display: 'inline-block'
+                    }} />
+                    ZIRKADIANER SYNC: {circadianMode ? 'AKTIV (ECHTZEIT)' : 'MANUELL'}
+                  </button>
                 </div>
 
                 {/* Progress markers */}
@@ -1903,7 +2173,7 @@ function LifeOSDashboard() {
               onClick={() => setActiveTab(item.id)}
               title={item.label}
             >
-              <span className={styles.sidebarBtnIcon}>{item.icon}</span>
+              <span className={styles.sidebarBtnIcon}>{renderNavIcon(item.id, activeTab === item.id)}</span>
               <span className={styles.sidebarBtnLabel}>{item.label}</span>
             </button>
           ))}
@@ -1950,8 +2220,6 @@ function LifeOSDashboard() {
               <span className={styles.focusScoreTag} style={{ color: focusColor, borderColor: focusColor }}>{focusLabel}</span>
             </div>
             <div className={styles.statusActions}>
-              <button className={styles.mainNavBtn} onClick={prevBlock}>←</button>
-              <button className={styles.mainNavBtn} onClick={skipBlock}>→</button>
               <button
                 className={styles.calendarOpenBtn}
                 onClick={() => setShowCalendarModal(true)}

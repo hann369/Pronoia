@@ -59,6 +59,45 @@ const FOOD_CATEGORIES = [
   }
 ];
 
+const POPULAR_CITIES = {
+  berlin: { lat: 52.5200, lon: 13.4050 },
+  münchen: { lat: 48.1351, lon: 11.5820 },
+  munich: { lat: 48.1351, lon: 11.5820 },
+  hamburg: { lat: 53.5511, lon: 9.9937 },
+  köln: { lat: 50.9375, lon: 6.9603 },
+  cologne: { lat: 50.9375, lon: 6.9603 },
+  frankfurt: { lat: 50.1109, lon: 8.6821 },
+  stuttgart: { lat: 48.7758, lon: 9.1829 },
+  düsseldorf: { lat: 51.2271, lon: 6.7735 },
+  dortmund: { lat: 51.5136, lon: 7.4653 },
+  essen: { lat: 51.4556, lon: 7.0116 },
+  leipzig: { lat: 51.3397, lon: 12.3731 },
+  bremen: { lat: 53.0793, lon: 8.8017 },
+  dresden: { lat: 51.0504, lon: 13.7373 },
+  hannover: { lat: 52.3759, lon: 9.7320 },
+  nürnberg: { lat: 49.4521, lon: 11.0767 },
+  nuremberg: { lat: 49.4521, lon: 11.0767 },
+  duisburg: { lat: 51.4344, lon: 6.7623 },
+  bochum: { lat: 51.4818, lon: 7.2162 },
+  wuppertal: { lat: 51.2562, lon: 7.1508 },
+  bielefeld: { lat: 52.0302, lon: 8.5325 },
+  bonn: { lat: 50.7374, lon: 7.0982 },
+  münster: { lat: 51.9607, lon: 7.6261 },
+  karlsruhe: { lat: 49.0069, lon: 8.4037 },
+  mannheim: { lat: 49.4875, lon: 8.4660 },
+  augsburg: { lat: 48.3705, lon: 10.8978 },
+  wiesbaden: { lat: 50.0782, lon: 8.2398 },
+  gelsenkirchen: { lat: 51.5177, lon: 7.0857 },
+  zürich: { lat: 47.3769, lon: 8.5417 },
+  wien: { lat: 48.2082, lon: 16.3738 },
+  vienna: { lat: 48.2082, lon: 16.3738 },
+  bern: { lat: 46.9480, lon: 7.4474 },
+  basel: { lat: 47.5596, lon: 7.5886 },
+  salzburg: { lat: 47.8095, lon: 13.0550 },
+  innsbruck: { lat: 47.2692, lon: 11.4041 },
+  graz: { lat: 47.0707, lon: 15.4395 }
+};
+
 /* ─── Bio Store Scanner Component ─── */
 function BioStoreScanner() {
   const [scanState, setScanState] = useState('idle'); // idle | scanning | results | error
@@ -66,6 +105,8 @@ function BioStoreScanner() {
   const [product, setProduct] = useState('');
   const [location, setLocation] = useState('Berlin');
   const [leafletLoaded, setLeafletLoaded] = useState(false);
+  const [userCoords, setUserCoords] = useState(null);
+  const [centerCoords, setCenterCoords] = useState(null);
 
   // Dynamic Leaflet Loading
   useEffect(() => {
@@ -146,35 +187,111 @@ function BioStoreScanner() {
     return R * c;
   };
 
-  const handleScan = async () => {
-    if (!product.trim()) return;
+  const handleGPSLocation = () => {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      alert("GPS-Standortbestimmung wird von deinem Browser nicht unterstützt.");
+      return;
+    }
+    setScanState('scanning');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        setUserCoords({ lat, lon });
+        
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+          if (res.ok) {
+            const data = await res.json();
+            const city = data.address.city || data.address.town || data.address.village || 'Aktueller Standort';
+            setLocation(city);
+            runScan(product, city, { lat, lon });
+          } else {
+            setLocation('Aktueller Standort');
+            runScan(product, 'Aktueller Standort', { lat, lon });
+          }
+        } catch (e) {
+          setLocation('Aktueller Standort');
+          runScan(product, 'Aktueller Standort', { lat, lon });
+        }
+      },
+      (err) => {
+        console.error("GPS-Ortungsfehler:", err);
+        alert("Fehler bei der GPS-Ortung: " + err.message);
+        setScanState('idle');
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    );
+  };
+
+  const handleScan = () => {
+    if (location === 'Aktueller Standort' && userCoords) {
+      runScan(product, location, userCoords);
+    } else {
+      setUserCoords(null);
+      runScan(product, location, null);
+    }
+  };
+
+  const runScan = async (searchProduct, searchLocation, coords = null) => {
+    if (!searchProduct.trim()) return;
     setScanState('scanning');
     setStores([]);
 
     try {
-      const cityQuery = location.trim() || 'Berlin';
-      // Geocoding city name via Nominatim
-      const geocodeRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cityQuery)}&limit=1`);
-      if (!geocodeRes.ok) throw new Error('Nominatim geocode failed');
-      const geocodeData = await geocodeRes.json();
+      let parsedLat, parsedLon;
+      const displayLocation = searchLocation;
+      
+      if (coords) {
+        parsedLat = coords.lat;
+        parsedLon = coords.lon;
+      } else {
+        const cityQuery = searchLocation.trim() || 'Berlin';
+        const cityLower = cityQuery.toLowerCase();
+        
+        if (POPULAR_CITIES[cityLower]) {
+          parsedLat = POPULAR_CITIES[cityLower].lat;
+          parsedLon = POPULAR_CITIES[cityLower].lon;
+        } else {
+          try {
+            const geocodeRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cityQuery)}&countrycodes=de,at,ch&limit=1`);
+            if (!geocodeRes.ok) throw new Error('Nominatim geocode failed');
+            const geocodeData = await geocodeRes.json();
 
-      if (geocodeData.length === 0) {
-        setScanState('error');
-        return;
+            if (geocodeData.length === 0) {
+              const geocodeResGeneric = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cityQuery)}&limit=1`);
+              if (!geocodeResGeneric.ok) throw new Error('Nominatim geocode failed');
+              const geocodeDataGeneric = await geocodeResGeneric.json();
+              if (geocodeDataGeneric.length === 0) {
+                setScanState('error');
+                return;
+              }
+              const { lat, lon } = geocodeDataGeneric[0];
+              parsedLat = parseFloat(lat);
+              parsedLon = parseFloat(lon);
+            } else {
+              const { lat, lon } = geocodeData[0];
+              parsedLat = parseFloat(lat);
+              parsedLon = parseFloat(lon);
+            }
+          } catch (err) {
+            console.warn('Geocoding error, falling back to Berlin center:', err);
+            parsedLat = 52.5200;
+            parsedLon = 13.4050;
+          }
+        }
       }
 
-      const { lat, lon } = geocodeData[0];
-      const parsedLat = parseFloat(lat);
-      const parsedLon = parseFloat(lon);
+      setCenterCoords({ lat: parsedLat, lon: parsedLon });
 
-      // Overpass query for organic & health food shops
+      // Overpass query for organic & health food shops (radius expanded to 10km)
       const overpassQuery = `
         [out:json][timeout:25];
         (
-          node["shop"="organic"](around:4000,${parsedLat},${parsedLon});
-          way["shop"="organic"](around:4000,${parsedLat},${parsedLon});
-          node["shop"="health_food"](around:4000,${parsedLat},${parsedLon});
-          way["shop"="health_food"](around:4000,${parsedLat},${parsedLon});
+          node["shop"="organic"](around:10000,${parsedLat},${parsedLon});
+          way["shop"="organic"](around:10000,${parsedLat},${parsedLon});
+          node["shop"="health_food"](around:10000,${parsedLat},${parsedLon});
+          way["shop"="health_food"](around:10000,${parsedLat},${parsedLon});
         );
         out body;
         >;
@@ -223,10 +340,10 @@ function BioStoreScanner() {
       // If Overpass returned no results or failed, apply coordinate-based local heuristics
       if (results.length === 0) {
         results = [
-          { name: 'BioCompany ' + cityQuery, address: `Hauptstraße 12, ${cityQuery}`, lat: parsedLat + 0.004, lon: parsedLon - 0.003, open: true, rating: 4.8 },
-          { name: 'Denns Biomarkt', address: `Bahnhofstraße 31, ${cityQuery}`, lat: parsedLat - 0.005, lon: parsedLon + 0.006, open: true, rating: 4.5 },
-          { name: 'Alnatura Super Natur', address: `Lindenallee 5, ${cityQuery}`, lat: parsedLat + 0.008, lon: parsedLon - 0.005, open: false, rating: 4.7 },
-          { name: 'Reformhaus ' + cityQuery, address: `Marktplatz 4, ${cityQuery}`, lat: parsedLat - 0.003, lon: parsedLon - 0.004, open: true, rating: 4.3 }
+          { name: 'BioCompany ' + displayLocation, address: `Hauptstraße 12, ${displayLocation}`, lat: parsedLat + 0.004, lon: parsedLon - 0.003, open: true, rating: 4.8 },
+          { name: 'Denns Biomarkt', address: `Bahnhofstraße 31, ${displayLocation}`, lat: parsedLat - 0.005, lon: parsedLon + 0.006, open: true, rating: 4.5 },
+          { name: 'Alnatura Super Natur', address: `Lindenallee 5, ${displayLocation}`, lat: parsedLat + 0.008, lon: parsedLon - 0.005, open: false, rating: 4.7 },
+          { name: 'Reformhaus ' + displayLocation, address: `Marktplatz 4, ${displayLocation}`, lat: parsedLat - 0.003, lon: parsedLon - 0.004, open: true, rating: 4.3 }
         ].map(store => {
           const dist = calculateDistance(parsedLat, parsedLon, store.lat, store.lon);
           return {
@@ -260,7 +377,7 @@ function BioStoreScanner() {
         </div>
       </div>
 
-      <div className={styles.scannerForm} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+      <div className={styles.scannerForm} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           type="text"
           className={styles.scannerInput}
@@ -269,15 +386,38 @@ function BioStoreScanner() {
           onChange={e => setProduct(e.target.value)}
           style={{ flex: 2, minWidth: '150px' }}
         />
-        <input
-          type="text"
-          className={styles.scannerInput}
-          placeholder="Stadt oder PLZ..."
-          value={location}
-          onChange={e => setLocation(e.target.value)}
-          style={{ flex: 1, minWidth: '100px' }}
-          onKeyDown={e => e.key === 'Enter' && handleScan()}
-        />
+        <div style={{ display: 'flex', flex: 1, minWidth: '150px', gap: '0.25rem', alignItems: 'center' }}>
+          <input
+            type="text"
+            className={styles.scannerInput}
+            placeholder="Stadt oder PLZ..."
+            value={location}
+            onChange={e => setLocation(e.target.value)}
+            style={{ flex: 1 }}
+            onKeyDown={e => e.key === 'Enter' && handleScan()}
+          />
+          <button
+            type="button"
+            onClick={handleGPSLocation}
+            title="Meinen Standort orten"
+            style={{
+              background: 'var(--bg2)',
+              border: '1px solid var(--border-s)',
+              borderRadius: '12px',
+              padding: '0.9rem',
+              color: 'var(--text2)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--cobalt-bright)'; e.currentTarget.style.color = 'var(--text)'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-s)'; e.currentTarget.style.color = 'var(--text2)'; }}
+          >
+            🎯
+          </button>
+        </div>
         <button
           className={styles.scannerBtn}
           onClick={handleScan}
@@ -308,25 +448,51 @@ function BioStoreScanner() {
           <div className={styles.scannerResultsHeader}>
             {stores.length} Bioläden in der Nähe mit „{product}“ in {location} gefunden:
           </div>
-          {stores.map((s, i) => (
-            <div key={i} className={styles.storeCard}>
-              <div className={styles.storeTop}>
-                <div>
-                  <div className={styles.storeName}>{s.name}</div>
-                  <div className={styles.storeAddress}>{s.address}</div>
+          {stores.map((s, i) => {
+            const originParam = userCoords 
+              ? `&origin=${userCoords.lat},${userCoords.lon}` 
+              : centerCoords 
+                ? `&origin=${centerCoords.lat},${centerCoords.lon}` 
+                : '';
+            const directionsUrl = `https://www.google.com/maps/dir/?api=1${originParam}&destination=${s.lat},${s.lon}&travelmode=driving`;
+            return (
+              <div key={i} className={styles.storeCard}>
+                <div className={styles.storeTop}>
+                  <div>
+                    <div className={styles.storeName}>{s.name}</div>
+                    <div className={styles.storeAddress}>{s.address}</div>
+                  </div>
+                  <div className={styles.storeRight}>
+                    <span className={`${styles.storeBadge} ${s.open ? styles.storeOpen : styles.storeClosed}`}>
+                      {s.open ? 'GEÖFFNET' : 'GESCHLOSSEN'}
+                    </span>
+                    <div className={styles.storeDistance}>{s.distance}</div>
+                  </div>
                 </div>
-                <div className={styles.storeRight}>
-                  <span className={`${styles.storeBadge} ${s.open ? styles.storeOpen : styles.storeClosed}`}>
-                    {s.open ? 'GEÖFFNET' : 'GESCHLOSSEN'}
-                  </span>
-                  <div className={styles.storeDistance}>{s.distance}</div>
+                <div className={styles.storeBottomRow} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem' }}>
+                  <div className={styles.storeRating}>
+                    {'★'.repeat(Math.round(s.rating))} {s.rating}
+                  </div>
+                  <a
+                    href={directionsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-secondary"
+                    style={{
+                      fontSize: '0.75rem',
+                      padding: '0.35rem 0.75rem',
+                      borderColor: 'var(--cobalt-bright)',
+                      color: 'var(--cobalt-bright)',
+                      textDecoration: 'none',
+                      borderRadius: '8px'
+                    }}
+                  >
+                    🗺️ Route anzeigen
+                  </a>
                 </div>
               </div>
-              <div className={styles.storeRating}>
-                {'★'.repeat(Math.round(s.rating))} {s.rating}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

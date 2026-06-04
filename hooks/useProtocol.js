@@ -11,6 +11,7 @@ export function useProtocol() {
   const [timeLeft, setTimeLeft] = useState(PROTOCOL_DATABASE.focus_optimization?.[0]?.duration || 0);
   const [totalTime, setTotalTime] = useState(PROTOCOL_DATABASE.focus_optimization?.[0]?.duration || 0);
   const [isRunning, setIsRunning] = useState(false);
+  const [circadianMode, setCircadianMode] = useState(true);
   const [profile, setProfile] = useState({
     xp: 0,
     skill: 'Programmieren',
@@ -98,6 +99,7 @@ export function useProtocol() {
         setProfileLoading(true);
         // Set up real-time listener on user's Firestore document
         unsubscribeDoc = onSnapshot(doc(db, 'users', currentUser.uid), (userDoc) => {
+          if (userDoc.metadata.hasPendingWrites) return;
           if (userDoc.exists()) {
             const data = userDoc.data();
 
@@ -113,6 +115,9 @@ export function useProtocol() {
             }
             if (data.isRunning !== undefined) {
               setIsRunning(prev => prev === data.isRunning ? prev : data.isRunning);
+            }
+            if (data.circadianMode !== undefined) {
+              setCircadianMode(prev => prev === data.circadianMode ? prev : data.circadianMode);
             }
             if (data.blocks && data.blocks.length > 0) {
               setBlocks(prev => {
@@ -179,6 +184,7 @@ export function useProtocol() {
             if (parsed.calendar) setCalendar(parsed.calendar);
             if (parsed.blocks) setBlocks(parsed.blocks);
             if (parsed.blockIdx !== undefined) setBlockIdx(parsed.blockIdx);
+            if (parsed.circadianMode !== undefined) setCircadianMode(parsed.circadianMode);
             if (parsed.stack) setStack(parsed.stack);
             if (parsed.frictionLogs) setFrictionLogs(parsed.frictionLogs);
             if (parsed.directives) setDirectives(parsed.directives);
@@ -209,7 +215,7 @@ export function useProtocol() {
       if (user?.email && profile.email !== user.email) {
         finalProfile = { ...profile, email: user.email };
       }
-      const stateObj = { profile: finalProfile, blocks, blockIdx, isRunning, stack, frictionLogs, directives, dataSources, calendar };
+      const stateObj = { profile: finalProfile, blocks, blockIdx, isRunning, circadianMode, stack, frictionLogs, directives, dataSources, calendar };
       if (user && db) {
         setDoc(doc(db, 'users', user.uid), stateObj, { merge: true });
       } else if (!user) {
@@ -217,7 +223,7 @@ export function useProtocol() {
       }
     }, 2000);
     return () => clearTimeout(timer);
-  }, [profile, blocks, blockIdx, isRunning, stack, frictionLogs, directives, dataSources, calendar, user]);
+  }, [profile, blocks, blockIdx, isRunning, circadianMode, stack, frictionLogs, directives, dataSources, calendar, user]);
 
   // Timer Logic
   const tick = useCallback(() => {
@@ -231,13 +237,120 @@ export function useProtocol() {
   }, [blockIdx, blocks]);
 
   useEffect(() => {
-    if (isRunning) {
+    if (isRunning && !circadianMode) {
       timerRef.current = setInterval(tick, 1000);
     } else {
       clearInterval(timerRef.current);
     }
     return () => clearInterval(timerRef.current);
-  }, [isRunning, tick]);
+  }, [isRunning, circadianMode, tick]);
+
+  // Circadian Sync Effect
+  useEffect(() => {
+    if (!circadianMode || blocks.length === 0) return;
+
+    const syncCircadian = () => {
+      const now = new Date();
+      const h = now.getHours();
+      const m = now.getMinutes();
+      const s = now.getSeconds();
+      const nowMin = h * 60 + m;
+
+      // 1. Build a virtual schedule ensuring all blocks have contiguous start/end times
+      const virtualBlocks = [];
+      let currentStartMin = 480; // Default to 08:00 if no blocks have start times
+
+      // Find first block with explicit start time to anchor the baseline
+      const firstWithStart = blocks.find(b => b.startTime);
+      if (firstWithStart) {
+        const [bh, bm] = firstWithStart.startTime.split(':').map(Number);
+        currentStartMin = bh * 60 + bm;
+      }
+
+      for (let i = 0; i < blocks.length; i++) {
+        const b = blocks[i];
+        let startMin = currentStartMin;
+        if (b.startTime) {
+          const [bh, bm] = b.startTime.split(':').map(Number);
+          startMin = bh * 60 + bm;
+        }
+        const durationMin = b.duration / 60;
+        const endMin = startMin + durationMin;
+
+        virtualBlocks.push({
+          ...b,
+          calculatedStartMin: startMin,
+          calculatedEndMin: endMin
+        });
+
+        // Contiguous chain: next block starts when current ends
+        currentStartMin = endMin;
+      }
+
+      // 2. Find the active block index based on current time
+      let foundIdx = -1;
+      for (let i = 0; i < virtualBlocks.length; i++) {
+        const vb = virtualBlocks[i];
+        if (nowMin >= vb.calculatedStartMin && nowMin < vb.calculatedEndMin) {
+          foundIdx = i;
+          break;
+        }
+      }
+
+      // 3. Handle out-of-bounds or gaps
+      if (foundIdx === -1) {
+        const firstStartMin = virtualBlocks[0].calculatedStartMin;
+        const lastEndMin = virtualBlocks[virtualBlocks.length - 1].calculatedEndMin;
+
+        if (nowMin < firstStartMin) {
+          // Pre-start: show first block
+          foundIdx = 0;
+        } else if (nowMin >= lastEndMin) {
+          // Post-end: show last block
+          foundIdx = virtualBlocks.length - 1;
+        } else {
+          // Inside a gap: find first upcoming block
+          let upcomingIdx = -1;
+          let minDiff = Infinity;
+          for (let i = 0; i < virtualBlocks.length; i++) {
+            const vb = virtualBlocks[i];
+            if (vb.calculatedStartMin > nowMin && (vb.calculatedStartMin - nowMin) < minDiff) {
+              minDiff = vb.calculatedStartMin - nowMin;
+              upcomingIdx = i;
+            }
+          }
+          foundIdx = upcomingIdx !== -1 ? upcomingIdx : 0;
+        }
+      }
+
+      // Update blockIdx if different
+      setBlockIdx(prev => (prev !== foundIdx ? foundIdx : prev));
+
+      const activeBlock = virtualBlocks[foundIdx];
+      if (activeBlock) {
+        const startMin = activeBlock.calculatedStartMin;
+        const endMin = activeBlock.calculatedEndMin;
+        
+        if (nowMin >= startMin && nowMin < endMin) {
+          // Currently active block range: show exact remaining seconds
+          const diffMin = endMin - nowMin;
+          const remainingSec = Math.max(0, Math.round(diffMin * 60 - s));
+          setTimeLeft(remainingSec);
+        } else if (nowMin < startMin) {
+          // Block is in the future: show full duration
+          setTimeLeft(activeBlock.duration);
+        } else {
+          // Block is in the past: show 0
+          setTimeLeft(0);
+        }
+        setTotalTime(activeBlock.duration);
+      }
+    };
+
+    syncCircadian();
+    const interval = setInterval(syncCircadian, 1000);
+    return () => clearInterval(interval);
+  }, [circadianMode, blocks]);
 
   const start = () => setIsRunning(true);
   const pause = () => setIsRunning(false);
@@ -251,6 +364,33 @@ export function useProtocol() {
       const multiplier = current.pillar === 'skills' ? 2 : 1;
       awardXP(baseXP * multiplier);
       setAgentMsg(`Block "${current.title}" abgeschlossen! (+${baseXP * multiplier} XP)`);
+    }
+  };
+
+  const overrideActiveBlockDuration = (minutes) => {
+    const activeBlock = blocks[blockIdx];
+    if (!activeBlock) return;
+    
+    const newDurationSec = minutes * 60;
+    
+    if (circadianMode && activeBlock.startTime) {
+      const now = new Date();
+      const [bh, bm] = activeBlock.startTime.split(':').map(Number);
+      const startMin = bh * 60 + bm;
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      
+      const newDurationMin = (nowMin - startMin) + minutes;
+      const newDurationSecCalculated = Math.max(1, newDurationMin) * 60;
+      
+      setBlocks(prev => prev.map((b, i) => i === blockIdx ? { ...b, duration: newDurationSecCalculated } : b));
+      setTotalTime(newDurationSecCalculated);
+      setTimeLeft(minutes * 60);
+      setAgentMsg(`Zirkadianer Block um ${minutes} Minuten angepasst.`);
+    } else {
+      setBlocks(prev => prev.map((b, i) => i === blockIdx ? { ...b, duration: newDurationSec } : b));
+      setTotalTime(newDurationSec);
+      setTimeLeft(newDurationSec);
+      setAgentMsg(`Block-Dauer manuell auf ${minutes} Minuten gesetzt.`);
     }
   };
 
@@ -272,24 +412,34 @@ export function useProtocol() {
   };
 
   const nextBlock = () => {
+    let msgSuffix = "";
+    if (circadianMode) {
+      setCircadianMode(false);
+      msgSuffix = " (Zirkadianer Sync pausiert)";
+    }
     if (blockIdx < blocks.length - 1) {
       const nextIdx = blockIdx + 1;
       setBlockIdx(nextIdx);
       setTimeLeft(blocks[nextIdx].duration);
       setTotalTime(blocks[nextIdx].duration);
-      setAgentMsg(`Nächster Block: ${blocks[nextIdx].title}`);
+      setAgentMsg(`Nächster Block: ${blocks[nextIdx].title}${msgSuffix}`);
     } else {
-      setAgentMsg("Tagesprotokoll vollständig abgeschlossen.");
+      setAgentMsg(`Tagesprotokoll vollständig abgeschlossen.${msgSuffix}`);
     }
   };
 
   const prevBlock = () => {
+    let msgSuffix = "";
+    if (circadianMode) {
+      setCircadianMode(false);
+      msgSuffix = " (Zirkadianer Sync pausiert)";
+    }
     if (blockIdx > 0) {
       const prevIdx = blockIdx - 1;
       setBlockIdx(prevIdx);
       setTimeLeft(blocks[prevIdx].duration);
       setTotalTime(blocks[prevIdx].duration);
-      setAgentMsg(`Vorheriger Block: ${blocks[prevIdx].title}`);
+      setAgentMsg(`Vorheriger Block: ${blocks[prevIdx].title}${msgSuffix}`);
     }
   };
 
@@ -655,6 +805,8 @@ export function useProtocol() {
     const lvl = profile.skillLevel || 1;
     setAgentMsg(`Generiere adaptive Lernmaterialien für Lvl ${lvl} ${skill}…`);
     setIsTyping(true);
+    let finalJsonStr = "";
+    
     try {
       const prompt = `Skill Focus: "${skill}" auf Level ${lvl}/10. 
       Erstelle exakt 3 personalisierte, tiefgreifende Lernmodule für eine anspruchsvolle Deliberate Practice Session im JSON-Format.
@@ -717,7 +869,7 @@ export function useProtocol() {
       const cleanJson = text.replace(/```json|```html|```/g, '').trim();
       // Verify parser validity
       JSON.parse(cleanJson);
-      return cleanJson;
+      finalJsonStr = cleanJson;
     } catch(e) {
       if (e.message !== "API Key missing or invalid") {
         console.error("[Skill Lab] Error generating materials, using fallback:", e);
@@ -736,7 +888,7 @@ export function useProtocol() {
               id: "m1",
               type: "video",
               title: "Next.js 15 Server Components & Server Actions Masterclass",
-              videoUrl: "https://www.youtube.com/embed/R2iiV4hC1L4",
+              videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
               summary: "Lerne den Unterschied zwischen Server und Client Components, das automatische Data Fetching und wie Server Actions eine direkte DB-Anbindung ohne API-Endpoints ermöglichen.",
               completed: false
             },
@@ -755,7 +907,7 @@ export function useProtocol() {
               steps: [
                 "Erstelle eine Server-Komponente, die Daten über eine async-Funktion lädt und als statische Liste rendert.",
                 "Implementiere ein interaktives Like-Button-Element als Client-Komponente ('use client') und binde sie in die Liste ein.",
-                "Nutze React Suspense, um ein detailliertes Loading-Skeleton für das Server-seitige Data-Fetching anzuzeigen, während die Daten geladen werden."
+                "Nutze React Suspense, um ein detailed Loading-Skeleton für das Server-seitige Data-Fetching anzuzeigen, während die Daten geladen werden."
               ],
               completedSteps: [],
               completed: false
@@ -771,7 +923,7 @@ export function useProtocol() {
               id: "m1",
               type: "video",
               title: "Python Concurrency Masterclass: Asyncio, Threads & Process Pools",
-              videoUrl: "https://www.youtube.com/embed/FsAPt_9Bf3U",
+              videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
               summary: "Verstehe das Zusammenspiel von Pythons Global Interpreter Lock (GIL). Lerne, wann du Asyncio für I/O-intensive Aufgaben und Threading/Multiprocessing für CPU-intensive Tasks einsetzt.",
               completed: false
             },
@@ -806,7 +958,7 @@ export function useProtocol() {
               id: "m1",
               type: "video",
               title: "Dr. Andrew Huberman: Master Your Sleep & Circadian Rhythm",
-              videoUrl: "https://www.youtube.com/embed/nm1TxQj9IIQ",
+              videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
               summary: "Verstehe den Einfluss von Licht, Temperatur und Timing auf deine Schlafqualität. Lerne, wie du morgendliches Sonnenlicht nutzt, um Cortisol- und Melatoninkurven perfekt zu synchronisieren.",
               completed: false
             },
@@ -826,6 +978,216 @@ export function useProtocol() {
                 "Morgensonne: Gehe innerhalb von 30 Minuten nach dem Aufwachen für 10 Minuten ins Freie (direktes Licht ohne Sonnenbrille).",
                 "Koffein-Delay: Konsumiere dein erstes Koffein frühestens 90-120 Minuten nach dem Aufwachen, um den natürlichen Adenosin-Abbau nicht zu stören.",
                 "Wind-down Phase: Dämme 2 Stunden vor dem Schlafen alle Deckenlichter und vermeide Blaulicht (Bildschirme) vollständig."
+              ],
+              completedSteps: [],
+              completed: false
+            }
+          ]
+        };
+      } else if (skillLower.includes("piano") || skillLower.includes("guitar") || skillLower.includes("gitarre") || skillLower.includes("musik") || skillLower.includes("music") || skillLower.includes("instrument") || skillLower.includes("singing") || skillLower.includes("gesang") || skillLower.includes("geige") || skillLower.includes("drums") || skillLower.includes("schlagzeug")) {
+        customFallback = {
+          skill,
+          level: lvl,
+          modules: [
+            {
+              id: "m1",
+              type: "video",
+              title: `Instrumental Practice: Deliberate Tempo & Hand Independence`,
+              videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+              summary: "Lerne die Wichtigkeit von verlangsamtem Üben (Half-Tempo) zur Festigung des Muskelgedächtnisses. Verstehe, wie man schwierige Rhythmen isoliert und die Koordination beider Hände durch rhythmische Verschiebungen trainiert.",
+              completed: false
+            },
+            {
+              id: "m2",
+              type: "theory",
+              title: `Neurologie des Musiklernens & Rhythmus-Deconstruction`,
+              content: `Das Erlernen eines Instruments erfordert die Koordination komplexer motorischer und auditiver Areale im Gehirn. Die wichtigste Methode, um fehlerfreie Läufe zu etablieren, ist das bewusste Verlangsamen. Wenn du eine Passage mit Fehlern im normalen Tempo spielst, festigt dein Gehirn diese Fehler.\n\nRegeln für effektives Üben:\n1. Metronom-Arbeit: Starte bei 50-60% des Zieltempos. Erhöhe das Tempo erst, wenn du die Passage 5-mal hintereinander fehlerfrei gespielt hast.\n2. Chunking: Zerlege das Stück in winzige Phrasen (z.B. 1-2 Takte). Übe diese Übergänge isoliert, bevor du sie zusammensetzt.\n3. Hände getrennt: Trainiere bei Tasten- oder Saiteninstrumenten die linke und rechte Hand separat, bis die Bewegungen automatisch ablaufen, bevor du beide zusammenführst.`,
+              completed: false
+            },
+            {
+              id: "m3",
+              type: "practice",
+              title: `Tempo-Halbierung & Fokus-Phrasen Challenge`,
+              instructions: "Isoliere eine schwierige 2-Takt-Passage deines aktuellen Musikstücks und wende deliberate practice an:",
+              steps: [
+                "Spiele die isolierte Passage 5 Minuten lang mit getrennten Händen bei extrem verlangsamtem Tempo (50% des Originals).",
+                "Setze das Metronom ein und spiele die Passage beidhändig/zusammenhängend 5-mal in Folge absolut fehlerfrei.",
+                "Erhöhe die Geschwindigkeit um 5 BPM und wiederhole den Prozess. Nimm ein kurzes Audio auf, um deinen Rhythmus zu kontrollieren."
+              ],
+              completedSteps: [],
+              completed: false
+            }
+          ]
+        };
+      } else if (skillLower.includes("spanisch") || skillLower.includes("englisch") || skillLower.includes("französisch") || skillLower.includes("deutsch") || skillLower.includes("sprache") || skillLower.includes("language") || skillLower.includes("vocab") || skillLower.includes("vokabeln") || skillLower.includes("linguistics")) {
+        customFallback = {
+          skill,
+          level: lvl,
+          modules: [
+            {
+              id: "m1",
+              type: "video",
+              title: "Language Acquisition: Comprehensible Input & Active Recall",
+              videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+              summary: "Verstehe, wie das Gehirn Sprachen über bedeutungsvollen Kontext (Comprehensible Input) lernt. Erfahre, warum aktives Sprechen und das Bilden eigener Sätze weitaus effektiver sind als passives Vokabellernen.",
+              completed: false
+            },
+            {
+              id: "m2",
+              type: "theory",
+              title: "Spaced Repetition & Kontextbasiertes Sprachenlernen",
+              content: `Vokabellisten auswendig zu lernen ist ineffizient, da Wörter ohne Kontext schnell aus dem Kurzzeitgedächtnis gelöscht werden. Das Gehirn benötigt Assoziationen, um neuronale Pfade zu festigen.\n\nBest Practices:\n- Comprehensible Input: Konsumiere Inhalte, die du zu etwa 70-80% verstehst (z.B. Podcasts mit Transkript oder einfache Kindersendungen). So lernst du neue Wörter automatisch aus dem Zusammenhang.\n- Active Recall: Statt Vokabeln nur zu lesen, übersetze aktiv Sätze aus deiner Muttersprache in die Zielsprache. Nutze Spaced Repetition Systeme (wie Anki), um Vokabeln genau dann zu wiederholen, wenn du sie fast vergessen hast.\n- Grammatik in Aktion: Lerne Grammatikregeln nicht theoretisch, sondern binde sie sofort in 3 eigene, persönliche Beispielsätze ein.`,
+              completed: false
+            },
+            {
+              id: "m3",
+              type: "practice",
+              title: "Sprach-Output & Assoziations-Challenge",
+              instructions: "Wende die Prinzipien des aktiven Sprach-Outputs auf dein aktuelles Sprachniveau an:",
+              steps: [
+                "Verfasse einen kurzen Text (50-80 Wörter) über deinen heutigen Tag komplett in deiner Zielsprache ohne Translator.",
+                "Lies den Text laut vor und nimm deine Stimme auf, um die Phoneme und Betonung bewusst zu analysieren.",
+                "Suche dir 5 neue Vokabeln und erstelle für jede Vokabel einen Satz, der eine emotionale oder persönliche Bedeutung für dich hat."
+              ],
+              completedSteps: [],
+              completed: false
+            }
+          ]
+        };
+      } else if (skillLower.includes("design") || skillLower.includes("ui") || skillLower.includes("ux") || skillLower.includes("drawing") || skillLower.includes("art") || skillLower.includes("zeichnen") || skillLower.includes("malen") || skillLower.includes("grafik") || skillLower.includes("figma") || skillLower.includes("sketching")) {
+        customFallback = {
+          skill,
+          level: lvl,
+          modules: [
+            {
+              id: "m1",
+              type: "video",
+              title: "Visual Design Fundamentals: Spacing, Contrast & Grids",
+              videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+              summary: "Lerne die universellen Gesetze des visuellen Designs. Verstehe, wie du durch konsistente Abstände (8pt-Raster), visuelle Hierarchie und bewussten Kontrast harmonische und professionelle Layouts erstellst.",
+              completed: false
+            },
+            {
+              id: "m2",
+              type: "theory",
+              title: "Gestaltgesetze & Visuelle Hierarchie im Detail",
+              content: `Gutes Design folgt klaren psychologischen und visuellen Regeln. Das Auge des Betrachters scannt eine Seite nach Mustern und Hierarchien.\n\nSchlüsselprinzipien:\n1. Das Gesetz der Nähe: Elemente, die nah beieinander stehen, werden als zusammengehörig wahrgenommen. Nutze konsistente Abstände (Padding/Margin) zur Gruppierung.\n2. Typografische Skala: Verwende klare Kontraste zwischen Überschriften und Fließtext (z.B. 32px Bold vs. 16px Regular). Zu viele verschiedene Schriftgrößen wirken unruhig.\n3. Kontrast und Farbe: Nutze Kontrast strategisch, um Aufmerksamkeit zu lenken. Wichtige Buttons (CTAs) müssen den höchsten Kontrastwert der Seite aufweisen.\n4. Weißraum (White Space): Gib Elementen Luft zum Atmen. Zu enge Layouts wirken billig und unübersichtlich.`,
+              completed: false
+            },
+            {
+              id: "m3",
+              type: "practice",
+              title: "Interface Deconstruction & Redesign Challenge",
+              instructions: "Analysiere und optimiere ein bestehendes Design (digital oder physisch):",
+              steps: [
+                "Wähle eine schlechte Website oder App-Interface aus und skizziere das Layout grob (Wireframe).",
+                "Definiere ein festes 8px-Raster und positioniere die Elemente neu, um Ausrichtung und Hierarchie zu verbessern.",
+                "Erstelle ein neues Farbschema mit maximal 3 Farben (60% Hauptfarbe, 30% Sekundärfarbe, 10% Akzentfarbe) und wende es an."
+              ],
+              completedSteps: [],
+              completed: false
+            }
+          ]
+        };
+      } else if (skillLower.includes("business") || skillLower.includes("marketing") || skillLower.includes("sales") || skillLower.includes("vertrieb") || skillLower.includes("copywriting") || skillLower.includes("seo") || skillLower.includes("finanzen") || skillLower.includes("finance") || skillLower.includes("startup") || skillLower.includes("investieren")) {
+        customFallback = {
+          skill,
+          level: lvl,
+          modules: [
+            {
+              id: "m1",
+              type: "video",
+              title: "High-Converting Copywriting: Hooks, Headlines & Persuasion",
+              videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+              summary: "Erfahre, wie du Texte schreibst, die Leser fesseln und zum Handeln bewegen. Lerne das AIDA-Modell und psychologische Trigger kennen, die aus einfachen Besuchern treue Kunden machen.",
+              completed: false
+            },
+            {
+              id: "m2",
+              type: "theory",
+              title: "Das AIDA-Framework & Die Psychologie der Conversion",
+              content: `Egal ob Landingpage, E-Mail-Marketing oder Werbeanzeige — erfolgreiche Texte folgen einer klaren Verkaufspsychologie. Das bekannteste Modell ist AIDA:\n\n- Attention (Aufmerksamkeit): Deine Headline muss den Leser in 2 Sekunden fesseln. Nutze Neugier, Schmerzpunkte oder klare Nutzenversprechen.\n- Interest (Interesse): Halte den Leser durch relevante Informationen und Geschichten. Zeige, dass du sein Problem verstehst.\n- Desire (Begehren): Erzeuge das Verlangen nach deinem Produkt oder deiner Lösung. Fokussiere dich auf den Nutzen (Benefits), nicht nur auf Features (Eigenschaften).\n- Action (Handlung): Führe den Leser zu einer einzigen, klaren Handlung (Call to Action). Vermeide Verwirrung durch zu viele Auswahlmöglichkeiten.`,
+              completed: false
+            },
+            {
+              id: "m3",
+              type: "practice",
+              title: "Landing Page Headline & Hook Copywriting Challenge",
+              instructions: "Schreibe verkaufsstarke Headlines für ein fiktives oder echtes Produkt deiner Wahl:",
+              steps: [
+                "Formuliere 5 unterschiedliche Hooks für die Headline (z.B. fragebasiert, schmerzbasiert, nutzenbasiert).",
+                "Wähle die stärkste Headline und schreibe eine prägnante Subheadline (maximal 2 Sätze), die das Angebot verdeutlicht.",
+                "Erstelle 3 überzeugende Call-To-Action (CTA) Button-Texte, die über das langweilige 'Hier klicken' hinausgehen."
+              ],
+              completedSteps: [],
+              completed: false
+            }
+          ]
+        };
+      } else if (skillLower.includes("communication") || skillLower.includes("rhetorik") || skillLower.includes("speaking") || skillLower.includes("social") || skillLower.includes("selbstbewusstsein") || skillLower.includes("verhandlung") || skillLower.includes("kommunikation") || skillLower.includes("dating")) {
+        customFallback = {
+          skill,
+          level: lvl,
+          modules: [
+            {
+              id: "m1",
+              type: "video",
+              title: "Rhetoric & Storytelling: The STAR Framework & Vocal Control",
+              videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+              summary: "Lerne die Kunst der überzeugenden Kommunikation. Verstehe, wie du deine Stimme (Tempo, Pausen, Modulation) kontrollierst und Geschichten mithilfe des STAR-Frameworks strukturiert erzählst.",
+              completed: false
+            },
+            {
+              id: "m2",
+              type: "theory",
+              title: "Die STAR-Methode & Stimme als rhetorisches Werkzeug",
+              content: `In Meetings, Pitches oder Präsentationen entscheidet nicht nur das 'Was', sondern vor allem das 'Wie'. Deine Stimme und deine Körpersprache tragen über 50% der übermittelten Botschaft.\n\nDie STAR-Methode für präzise Antworten und Storytelling:\n- Situation: Beschreibe den Kontext kurz und verständlich.\n- Task (Aufgabe): Welches konkrete Problem musste gelöst werden?\n- Action (Aktion): Was hast DU getan, um das Problem zu lösen? (Fokus auf deine Handlungen).\n- Result (Ergebnis): Was war das messbare Resultat deiner Aktion?\n\nStimmmodulation:\nSprich langsamer als gewöhnlich, um Souveränität auszustrahlen. Setze gezielte Pausen vor und nach wichtigen Kernaussagen, um ihnen Gewicht zu verleihen. Vermeide Füllwörter (wie 'äh', 'sozusagen'), indem du stattdessen schweigst und atmest.`,
+              completed: false
+            },
+            {
+              id: "m3",
+              type: "practice",
+              title: "STAR-Pitch & Füllwort-Analyse Challenge",
+              instructions: "Bereite eine kurze, überzeugende Story (z.B. über ein gelöstes Projekt) vor und präsentiere sie:",
+              steps: [
+                "Schreibe eine persönliche Story strukturiert nach dem STAR-Schema auf (maximal 200 Wörter).",
+                "Nimm ein 2-minütiges Video oder Audio auf, in dem du diese Story frei und mit bewussten Sprechpausen vorträgst.",
+                "Höre dir die Aufnahme an, zähle alle Füllwörter und bewerte dein Sprechtempo sowie deine Betonung auf einer Skala von 1-10."
+              ],
+              completedSteps: [],
+              completed: false
+            }
+          ]
+        };
+      } else if (skillLower.includes("chess") || skillLower.includes("schach") || skillLower.includes("strategy") || skillLower.includes("gaming") || skillLower.includes("pokern") || skillLower.includes("poker") || skillLower.includes("starcraft") || skillLower.includes("lol")) {
+        customFallback = {
+          skill,
+          level: lvl,
+          modules: [
+            {
+              id: "m1",
+              type: "video",
+              title: "Chess & Strategy: Positional Play & Tactical Calculation",
+              videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+              summary: "Verstehe den Unterschied zwischen Taktik und Strategie. Lerne, wie du Positionsvorteile aufbaust, Schwachstellen im gegnerischen Lager provozierst und Varianten systematisch berechnest.",
+              completed: false
+            },
+            {
+              id: "m2",
+              type: "theory",
+              title: "Eröffnungsprinzipien, Bauernstrukturen & Visualisierung",
+              content: `Erfolgreiches Strategiespiel basiert auf der Kombination aus langfristiger Planung (Strategie) und kurzfristiger Berechnung (Taktik).\n\nEröffnungs- und Positionsregeln:\n1. Zentrumskontrolle: Besetze oder kontrolliere das Zentrum. Es gibt deinen Figuren maximale Bewegungsfreiheit.\n2. Figurenentwicklung: Bringe deine Figuren schnell ins Spiel und bringe deinen König in Sicherheit (z.B. Rochade im Schach).\n3. Taktische Muster: Trainiere dein Gehirn auf Motive wie Fesselung (Pin), Gabel (Fork), Abzugsangriff und Hinlenkung. Diese Muster wiederholen sich in fast jedem Spiel.\n4. Variantenberechnung: Berechne Züge nach dem Prinzip: 'Schachgebote, Schläge, Drohungen' (Checks, Captures, Threats). Visualisiere die Stellung nach jedem Zug, bevor du den physischen Zug altersgemäß ausführst.`,
+              completed: false
+            },
+            {
+              id: "m3",
+              type: "practice",
+              title: "Visualisierungs- & Fehleranalyse-Challenge",
+              instructions: "Trainiere deine strategische Analysefähigkeit an einer Partie:",
+              steps: [
+                "Löse 5 taktische Rätsel/Puzzles und schreibe für jedes Rätsel den gesamten Gewinnweg auf, bevor du die Lösung eingibst.",
+                "Spiele eine Partie und analysiere sie danach im Detail selbst (ohne Computer-Engine). Halte fest, welcher Zug ungenau war und warum.",
+                "Notiere dir 3 konkrete strategische Ziele, die du in deiner nächsten Partie von Anfang an verfolgen willst."
               ],
               completedSteps: [],
               completed: false
@@ -872,10 +1234,32 @@ export function useProtocol() {
         };
       }
 
-      return JSON.stringify(customFallback);
+      finalJsonStr = JSON.stringify(customFallback);
     } finally {
       setIsTyping(false);
     }
+
+    // Dynamic Youtube Scraper API fetch to replace fallback links
+    try {
+      const parsed = JSON.parse(finalJsonStr);
+      const videoModule = parsed.modules?.find(m => m.type === 'video');
+      if (videoModule) {
+        setAgentMsg(`Durchsuche Web-APIs nach Lehrvideo für „${videoModule.title}“…`);
+        const searchRes = await fetch(`/api/youtube-search?q=${encodeURIComponent(skill + ' ' + videoModule.title)}`);
+        if (searchRes.ok) {
+          const searchData = await searchRes.json();
+          if (searchData.videoUrl) {
+            videoModule.videoUrl = searchData.videoUrl;
+            finalJsonStr = JSON.stringify(parsed);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("[Skill Search Fallback] Dynamic URL lookup failed, utilizing template defaults:", err);
+    }
+
+    setAgentMsg(`Lernmaterialien für ${skill} erfolgreich bereitgestellt.`);
+    return finalJsonStr;
   };
 
   const completeSkillSession = (xp = 150) => {
@@ -1085,6 +1469,9 @@ export function useProtocol() {
     timeLeft,
     totalTime,
     isRunning,
+    circadianMode,
+    setCircadianMode,
+    overrideActiveBlockDuration,
     profile,
     profileLoading,
     stack,

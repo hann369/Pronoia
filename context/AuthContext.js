@@ -6,6 +6,9 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  sendPasswordResetEmail,
   GoogleAuthProvider,
   signOut,
 } from 'firebase/auth';
@@ -22,6 +25,17 @@ export function AuthProvider({ children }) {
       setLoading(false);
       return;
     }
+    // Retrieve redirect login result when returning to the page
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          setUser(result.user);
+        }
+      })
+      .catch((err) => {
+        console.error("Google redirect sign-in failed:", err);
+      });
+
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
@@ -39,7 +53,23 @@ export function AuthProvider({ children }) {
   };
   const loginWithGoogle = () => {
     if (!auth) return Promise.reject(new Error("Google Login offline: Firebase ist nicht konfiguriert. Bitte füge die Umgebungsvariablen in Vercel hinzu."));
-    return signInWithPopup(auth, new GoogleAuthProvider());
+    const provider = new GoogleAuthProvider();
+    // Try popup first. If blocked or closed, fall back to redirect.
+    return signInWithPopup(auth, provider).catch((err) => {
+      if (
+        err.code === 'auth/popup-blocked' ||
+        err.code === 'auth/popup-closed-by-user' ||
+        err.code === 'auth/cancelled-popup-request'
+      ) {
+        console.warn("Popup blocked or closed, falling back to signInWithRedirect...");
+        return signInWithRedirect(auth, provider);
+      }
+      throw err;
+    });
+  };
+  const resetPassword = (email) => {
+    if (!auth) return Promise.reject(new Error("Passwort-Reset offline: Firebase ist nicht konfiguriert."));
+    return sendPasswordResetEmail(auth, email);
   };
   const logout = () => {
     if (!auth) return Promise.resolve();
@@ -47,7 +77,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, loginWithGoogle, resetPassword, logout }}>
       {children}
     </AuthContext.Provider>
   );
