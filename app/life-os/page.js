@@ -608,12 +608,26 @@ function LifeOSDashboard() {
 
         clearInterval(progressInterval);
 
+        const resText = await res.text();
+
         if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.error || 'Server error during upload');
+          let errMsg = 'Server error during upload';
+          try {
+            const errData = JSON.parse(resText);
+            errMsg = errData.error || errMsg;
+          } catch (e) {
+            errMsg = resText || errMsg;
+          }
+          throw new Error(errMsg);
         }
 
-        const data = await res.json();
+        let data;
+        try {
+          data = JSON.parse(resText);
+        } catch (e) {
+          throw new Error("Ungültige Serverantwort (kein JSON): " + resText.substring(0, 150));
+        }
+
         setUploadProgress(100);
         
         setVaultForm(f => ({
