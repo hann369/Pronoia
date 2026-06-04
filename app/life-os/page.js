@@ -704,6 +704,12 @@ function LifeOSDashboard() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const formatMinToTime = (min) => {
+    const h = Math.floor((min % (24 * 60)) / 60);
+    const m = Math.floor(min % 60);
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
   const currentBlock = blocks[blockIdx] || {
     title: 'Kein aktiver Block', type: 'Focus', pillar: 'focus',
     rec: 'Keine Empfehlungen geladen.', insight: 'Initialisiere das Pronoia System.'
@@ -815,7 +821,13 @@ function LifeOSDashboard() {
             <div className={styles.tabContentMainCol}>
               {/* Block label under status bar */}
               <div className={styles.blockLabel}>
-                <span className={styles.mainHeaderBadge}>{currentBlock.type}</span>
+                <span className={styles.mainHeaderBadge}>
+                  {circadianMode && currentBlock.calculatedStartMin !== undefined && currentBlock.calculatedEndMin !== undefined ? (
+                    `${formatMinToTime(currentBlock.calculatedStartMin)} – ${formatMinToTime(currentBlock.calculatedEndMin)} · ${currentBlock.type}`
+                  ) : (
+                    currentBlock.type
+                  )}
+                </span>
                 <h1 className={styles.mainHeaderTitle}>{currentBlock.title}</h1>
               </div>
 
@@ -1176,7 +1188,13 @@ function LifeOSDashboard() {
                         <span className={styles.queueNum}>{idx + 1}</span>
                         <div className={styles.queueInfo}>
                           <div className={styles.queueTitle}>{block.title}</div>
-                          <div className={styles.queueMeta}>{Math.round(block.duration / 60)} Min · {block.type}</div>
+                          <div className={styles.queueMeta}>
+                            {circadianMode && block.calculatedStartMin !== undefined && block.calculatedEndMin !== undefined ? (
+                              `${formatMinToTime(block.calculatedStartMin)} – ${formatMinToTime(block.calculatedEndMin)} (${Math.round((block.virtualDuration || block.duration) / 60)} Min) · ${block.type}`
+                            ) : (
+                              `${Math.round(block.duration / 60)} Min · ${block.type}`
+                            )}
+                          </div>
                         </div>
                         {idx === blockIdx && <span className={styles.queueActiveDot} />}
                       </div>

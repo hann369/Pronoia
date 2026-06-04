@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -251,6 +251,9 @@ export function useProtocol() {
   const [profileLoading, setProfileLoading] = useState(true);
 
   const [manualPeekIdx, setManualPeekIdx] = useState(null);
+  const virtualBlocks = useMemo(() => {
+    return calculateVirtualTimeline(blocks);
+  }, [blocks]);
   const [pendingQueueOverride, setPendingQueueOverride] = useState(null);
   const peekTimerRef = useRef(null);
   const timerRef = useRef(null);
@@ -437,7 +440,7 @@ export function useProtocol() {
 
   // Circadian Sync Effect
   useEffect(() => {
-    if (!circadianMode || blocks.length === 0) return;
+    if (!circadianMode || virtualBlocks.length === 0) return;
 
     const syncCircadian = () => {
       const now = new Date();
@@ -445,9 +448,6 @@ export function useProtocol() {
       const m = now.getMinutes();
       const s = now.getSeconds();
       const nowMin = h * 60 + m;
-
-      // 1. Build a virtual schedule ensuring all blocks have contiguous start/end times
-      const virtualBlocks = calculateVirtualTimeline(blocks);
 
       // 2. Find the active block index based on current time
       let foundIdx = -1;
@@ -507,7 +507,7 @@ export function useProtocol() {
     syncCircadian();
     const interval = setInterval(syncCircadian, 1000);
     return () => clearInterval(interval);
-  }, [circadianMode, blocks, manualPeekIdx]);
+  }, [circadianMode, virtualBlocks, manualPeekIdx]);
 
   // Snap-Back Effect for manual navigation in circadian mode
   useEffect(() => {
@@ -1744,7 +1744,7 @@ export function useProtocol() {
   };
 
   return {
-    blocks,
+    blocks: virtualBlocks,
     blockIdx,
     timeLeft,
     totalTime,
