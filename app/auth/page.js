@@ -158,7 +158,7 @@ export default function AuthPage() {
         <div className={styles.toggle}>
           {mode === 'login' && (
             <span>
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <button
                 type="button"
                 className={styles.toggleBtn}

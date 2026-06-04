@@ -22,7 +22,9 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!auth) {
-      setLoading(false);
+      Promise.resolve().then(() => {
+        setLoading(false);
+      });
       return;
     }
     // Retrieve redirect login result when returning to the page

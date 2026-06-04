@@ -10,6 +10,10 @@ import styles from './page.module.css';
 
 import { collection, query, orderBy, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import SocialHub from '@/components/social/SocialHub';
+import PronoiaLab from '@/components/lab/PronoiaLab';
+import { useChat } from '@/hooks/useChat';
+
 
 /* ─── Constants ─── */
 const AGENTS = [
@@ -29,13 +33,7 @@ const AVATAR_PRESETS = [
 ];
 
 const NAV_ITEMS = [
-  { id: 'dashboard',  label: 'Dashboard' },
-  { id: 'biometrics', label: 'Biometrie' },
-  { id: 'skills',     label: 'Skill Lab' },
-  { id: 'store',      label: 'Ecosystem' },
-  { id: 'connectors', label: 'Konnektoren' },
-  { id: 'vault',      label: 'Vault' },
-  { id: 'agents',     label: 'Agenten' },
+  { id: 'apps',       label: 'Apps' },
 ];
 
 const renderNavIcon = (id, active) => {
@@ -43,6 +41,15 @@ const renderNavIcon = (id, active) => {
   const strokeWidth = 2;
   
   switch (id) {
+    case 'apps':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="14" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+        </svg>
+      );
     case 'dashboard':
       return (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
@@ -93,6 +100,20 @@ const renderNavIcon = (id, active) => {
           <path d="M8 21h8" />
           <circle cx="9" cy="11" r="1" />
           <circle cx="15" cy="11" r="1" />
+        </svg>
+      );
+    case 'social':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      );
+    case 'lab':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <path d="M4.7 19h14.6" />
+          <path d="M9 3h6" />
+          <path d="M10 3v5L5.8 17.6A2 2 0 0 0 7.6 20h8.8a2 2 0 0 0 1.8-2.4L14 8V3h-4z" />
         </svg>
       );
     default:
@@ -231,6 +252,7 @@ function GateScreen({ reason }) {
 ═══════════════════════════════════════════════════════ */
 function LifeOSDashboard() {
   const { user, loading: authLoading } = useAuth();
+  const { chatUnreadCount } = useChat();
   const {
     blocks, blockIdx, timeLeft, totalTime, isRunning,
     circadianMode, setCircadianMode, overrideActiveBlockDuration,
@@ -316,8 +338,13 @@ function LifeOSDashboard() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { setGateState('auth'); return; }
-    setGateState('ok');
+    Promise.resolve().then(() => {
+      if (!user) {
+        setGateState('auth');
+      } else {
+        setGateState('ok');
+      }
+    });
   }, [authLoading, user]);
 
   useEffect(() => {
@@ -341,11 +368,13 @@ function LifeOSDashboard() {
 
   /* ─── Tab Navigation ─── */
   const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('apps');
 
   useEffect(() => {
     if (tabParam) {
-      setActiveTab(tabParam);
+      Promise.resolve().then(() => {
+        setActiveTab(tabParam);
+      });
     }
   }, [tabParam]);
 
@@ -397,6 +426,107 @@ function LifeOSDashboard() {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
+  // --- App Launcher States & Handlers ---
+  const defaultApps = useMemo(() => [
+    { id: 'dashboard',  name: 'Dashboard',   desc: 'Kognitiver Taktgeber & System-Chronometer', icon: 'dashboard' },
+    { id: 'biometrics', name: 'Biometrie',   desc: 'Bio-Stack & Biometrische Indikatoren',     icon: 'biometrics' },
+    { id: 'skills',     name: 'Skill Lab',   desc: 'Agentic Deliberate Practice Lab',          icon: 'skills' },
+    { id: 'store',      name: 'Ecosystem',   desc: 'Abonnements & Auto-Replenishment',         icon: 'store' },
+    { id: 'connectors', name: 'Konnektoren', desc: 'Schnittstellen zu Wearables & Notion',     icon: 'connectors' },
+    { id: 'vault',      name: 'Vault',       desc: 'Wissens-Repository & Dokumente',           icon: 'vault' },
+    { id: 'agents',     name: 'Agenten',     desc: 'Kognitive Sub-Agenten consensus status',   icon: 'agents' },
+    { id: 'social',     name: 'Social Hub',  desc: 'Freunde, Chats & Community Channel',       icon: 'social' },
+    { id: 'lab',        name: 'Pronoia Lab', desc: 'Nootropics Library & Stack Builder',      icon: 'lab' },
+  ], []);
+
+  const appsList = useMemo(() => profile?.appConfig?.apps || defaultApps, [profile?.appConfig?.apps, defaultApps]);
+  const [editingAppId, setEditingAppId] = useState(null);
+  const [editAppName, setEditAppName] = useState('');
+  const [editAppDesc, setEditAppDesc] = useState('');
+  const [uploadingAppIcon, setUploadingAppIcon] = useState(null);
+
+  const handleEditAppClick = (app, e) => {
+    e.stopPropagation();
+    setEditingAppId(app.id);
+    setEditAppName(app.name);
+    setEditAppDesc(app.desc || '');
+  };
+
+  const handleSaveAppEdit = (e) => {
+    e?.preventDefault();
+    if (!editAppName.trim()) return;
+    const updatedApps = appsList.map(app => 
+      app.id === editingAppId ? { ...app, name: editAppName.trim(), desc: editAppDesc.trim() } : app
+    );
+    saveProfile({ appConfig: { ...(profile?.appConfig || {}), apps: updatedApps } });
+    setEditingAppId(null);
+  };
+
+  const handleAppIconFileChange = async (appId, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAppIcon(appId);
+    
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (supabaseUrl && supabaseAnonKey) {
+      const fileName = `app-icon-${appId}-${new Date().getTime()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const userId = user?.uid || 'local';
+      const uploadUrl = `${supabaseUrl}/storage/v1/object/vault/${userId}/${fileName}`;
+
+      try {
+        const res = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Content-Type': file.type
+          },
+          body: file
+        });
+        if (res.ok) {
+          const publicURL = `${supabaseUrl}/storage/v1/object/public/vault/${userId}/${fileName}`;
+          const updatedApps = appsList.map(app => 
+            app.id === appId ? { ...app, image: publicURL } : app
+          );
+          saveProfile({ appConfig: { ...(profile?.appConfig || {}), apps: updatedApps } });
+          setUploadingAppIcon(null);
+          return;
+        }
+      } catch (err) {
+        console.warn("Supabase app icon upload failed, falling back to data URL...", err);
+      }
+    }
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result;
+        if (dataUrl.length > 250 * 1024) {
+          alert("Das Bild ist zu groß für Offline-Speicherung. Bitte wähle ein Bild unter 150KB oder konfiguriere Supabase.");
+          setUploadingAppIcon(null);
+          return;
+        }
+        const updatedApps = appsList.map(app => 
+          app.id === appId ? { ...app, image: dataUrl } : app
+        );
+        saveProfile({ appConfig: { ...(profile?.appConfig || {}), apps: updatedApps } });
+        setUploadingAppIcon(null);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("App icon load failed:", err);
+      setUploadingAppIcon(null);
+    }
+  };
+
+  const handleResetApps = () => {
+    if (confirm("Möchtest du alle App-Icons und Namen auf Standard zurücksetzen?")) {
+      saveProfile({ appConfig: null });
+    }
+  };
+
   const chatEndRef = useRef(null);
   
   // Connectors Terminal Logs
@@ -418,8 +548,9 @@ function LifeOSDashboard() {
       setTerminalLogs(prev => [...prev, `[WHOOP] Querying /v2/activity/sleep and /v2/recovery...`]);
     }, 1200);
     setTimeout(() => {
-      const mockHrv = Math.round(70 + Math.random() * 22);
-      const mockSleep = Math.round(76 + Math.random() * 20);
+      const timeVal = new Date().getTime();
+      const mockHrv = Math.round(70 + ((timeVal % 220) / 10));
+      const mockSleep = Math.round(76 + (((timeVal >> 2) % 200) / 10));
       setTerminalLogs(prev => [...prev, `[WHOOP] Received metrics: HRV=${mockHrv}ms Sleep=${mockSleep}%`]);
       setTerminalLogs(prev => [...prev, `[SYS] Syncing biometric telemetry index...`]);
       saveProfile({ metrics: { hrv: mockHrv, sleep: mockSleep } });
@@ -449,7 +580,8 @@ function LifeOSDashboard() {
 
   /* ─── Ecosystem Shop Checkout & Stripe WebSocket client ─── */
   const handleOrderProduct = (product) => {
-    const orderId = `PRN-OS-${Math.floor(100000 + Math.random() * 900000)}`;
+    const timeVal = new Date().getTime();
+    const orderId = `PRN-OS-${Math.floor(100000 + (timeVal % 900000))}`;
     setActiveInvoice({
       item: product.name,
       cost: product.price,
@@ -510,16 +642,20 @@ function LifeOSDashboard() {
   /* ─── Effects ─── */
   useEffect(() => {
     if (profile?.metrics) {
-      setEditHrv(profile.metrics.hrv?.toString() || '72');
-      setEditSleep(profile.metrics.sleep?.toString() || '84');
+      Promise.resolve().then(() => {
+        setEditHrv(profile.metrics.hrv?.toString() || '72');
+        setEditSleep(profile.metrics.sleep?.toString() || '84');
+      });
     }
   }, [profile]);
 
   useEffect(() => {
     if (agentMsg) {
-      setMessages(prev => {
-        if (prev[prev.length - 1]?.text === agentMsg) return prev;
-        return [...prev, { role: 'agent', text: agentMsg }];
+      Promise.resolve().then(() => {
+        setMessages(prev => {
+          if (prev[prev.length - 1]?.text === agentMsg) return prev;
+          return [...prev, { role: 'agent', text: agentMsg }];
+        });
       });
     }
   }, [agentMsg]);
@@ -540,34 +676,36 @@ function LifeOSDashboard() {
   // Auto-open UI tabs during onboarding tour
   useEffect(() => {
     if (tutorialStep === 0) return;
-    switch (tutorialStep) {
-      case 1:
-        setActiveTab('dashboard');
-        setShowCalendarModal(false);
-        break;
-      case 2:
-        setShowCalendarModal(true);
-        break;
-      case 3:
-        setActiveTab('biometrics');
-        setShowCalendarModal(false);
-        break;
-      case 4:
-      case 5:
-        setActiveTab('dashboard');
-        setShowCalendarModal(false);
-        break;
-      case 6:
-        setActiveTab('biometrics'); // Bio-Stack is now inside the biometrics tab
-        setShowCalendarModal(false);
-        break;
-      case 7:
-        setActiveTab('agents');
-        setShowCalendarModal(false);
-        break;
-      default:
-        break;
-    }
+    Promise.resolve().then(() => {
+      switch (tutorialStep) {
+        case 1:
+          setActiveTab('dashboard');
+          setShowCalendarModal(false);
+          break;
+        case 2:
+          setShowCalendarModal(true);
+          break;
+        case 3:
+          setActiveTab('biometrics');
+          setShowCalendarModal(false);
+          break;
+        case 4:
+        case 5:
+          setActiveTab('dashboard');
+          setShowCalendarModal(false);
+          break;
+        case 6:
+          setActiveTab('biometrics'); // Bio-Stack is now inside the biometrics tab
+          setShowCalendarModal(false);
+          break;
+        case 7:
+          setActiveTab('agents');
+          setShowCalendarModal(false);
+          break;
+        default:
+          break;
+      }
+    });
   }, [tutorialStep]);
 
   /* ─── Vault CRUD ─── */
@@ -587,7 +725,7 @@ function LifeOSDashboard() {
       // Fallback/mock upload simulator if Supabase is not configured
       setUploadingFile(true);
       setUploadProgress(0);
-      const fileName = `${Date.now()}_${file.name}`;
+      const fileName = `${new Date().getTime()}_${file.name}`;
       let currentProgress = 0;
       const interval = setInterval(() => {
         currentProgress += 10;
@@ -610,7 +748,7 @@ function LifeOSDashboard() {
     setUploadingFile(true);
     setUploadProgress(0);
 
-    const fileName = `${Date.now()}_${file.name}`;
+    const fileName = `${new Date().getTime()}_${file.name}`;
     const userId = user?.uid || 'local';
     const uploadUrl = `${supabaseUrl}/storage/v1/object/vault/${userId}/${fileName}`;
 
@@ -717,7 +855,11 @@ function LifeOSDashboard() {
     setVaultItems(JSON.parse(localStorage.getItem('px_vault') || '[]'));
     setVaultLoading(false);
   };
-  useEffect(() => { loadVaultItems(); }, [user]);
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      loadVaultItems();
+    });
+  }, [user]);
 
   const triggerVaultToast = (msg) => { setVaultToast(msg); setTimeout(() => setVaultToast(''), 3000); };
 
@@ -759,7 +901,7 @@ function LifeOSDashboard() {
 
     if (!saved) {
       const local = JSON.parse(localStorage.getItem('px_vault') || '[]');
-      localStorage.setItem('px_vault', JSON.stringify([{ id: Date.now().toString(), ...payload }, ...local]));
+      localStorage.setItem('px_vault', JSON.stringify([{ id: new Date().getTime().toString(), ...payload }, ...local]));
     }
 
     await loadVaultItems();
@@ -934,7 +1076,7 @@ function LifeOSDashboard() {
     const isSkills = currentBlock.pillar === 'skills';
     const isRecovery = currentBlock.pillar === 'recovery';
     const isHealth = currentBlock.pillar === 'health';
-    const recentFriction = frictionLogs.length > 0 && (Date.now() - frictionLogs[frictionLogs.length - 1].timestamp < 60000);
+    const recentFriction = frictionLogs.length > 0 && (liveTime.getTime() - frictionLogs[frictionLogs.length - 1].timestamp < 60000);
     const lastFrictionStatus = frictionLogs.length > 0 ? frictionLogs[frictionLogs.length - 1].status : null;
     switch (agentId) {
       case 'A.01': return isFocus ? { status: 'LEADING', text: 'Kognitiver Fokus-Index: 94% — Notification-Filter aktiv.' } : { status: 'MONITORING', text: 'Bereitschaft hoch. Überwacht kognitive Baseline.' };
@@ -995,6 +1137,109 @@ function LifeOSDashboard() {
   ═══════════════════════════════════════════════════════ */
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'apps':
+        return (
+          <div className={styles.launcherShell}>
+            <div className={styles.launcherHeader}>
+              <div className={styles.launcherMeta}>SYSTEM APPS // LAUNCHER NODE</div>
+              <h2 className={styles.launcherTitle}>Willkommen im Pronoia Life OS</h2>
+              <p className={styles.launcherSub}>
+                Wähle ein Modul, um es als Anwendung in Life OS zu laden. Du kannst App-Icons und Namen über das Zahnrad-Symbol bearbeiten.
+              </p>
+            </div>
+
+            <div className={styles.appsGrid}>
+              {appsList.map(app => {
+                const isEditing = editingAppId === app.id;
+                return (
+                  <div
+                    key={app.id}
+                    className={styles.appCard}
+                    onClick={() => {
+                      if (!isEditing) {
+                        setActiveTab(app.id);
+                      }
+                    }}
+                  >
+                    {/* App icon or custom image */}
+                    <div className={styles.appCardIconWrapper}>
+                      {app.image ? (
+                        <img src={app.image} alt={app.name} className={styles.appCardCustomImg} />
+                      ) : (
+                        <span className={styles.appCardIconSymbol}>
+                          {renderNavIcon(app.icon || app.id, true)}
+                        </span>
+                      )}
+                      
+                      {app.id === 'social' && chatUnreadCount > 0 && (
+                        <div className={styles.appCardBadge}>{chatUnreadCount}</div>
+                      )}
+                      
+                      {/* Edit overlay button */}
+                      <button
+                        className={styles.appCardEditBtn}
+                        onClick={(e) => handleEditAppClick(app, e)}
+                        title="App bearbeiten"
+                      >
+                        ⚙️
+                      </button>
+                    </div>
+
+                    {isEditing ? (
+                      <div className={styles.appCardEditForm} onClick={e => e.stopPropagation()}>
+                        <input
+                          type="text"
+                          className={styles.appCardInput}
+                          value={editAppName}
+                          onChange={e => setEditAppName(e.target.value)}
+                          placeholder="App Name"
+                          required
+                        />
+                        <input
+                          type="text"
+                          className={styles.appCardInput}
+                          value={editAppDesc}
+                          onChange={e => setEditAppDesc(e.target.value)}
+                          placeholder="Beschreibung"
+                        />
+                        <div className={styles.appCardUploadRow}>
+                          <label className={styles.appCardUploadLabel}>
+                            {uploadingAppIcon === app.id ? 'Lädt...' : 'Icon hochladen'}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              style={{ display: 'none' }}
+                              onChange={(e) => handleAppIconFileChange(app.id, e)}
+                            />
+                          </label>
+                        </div>
+                        <div className={styles.appCardEditActions}>
+                          <button className={styles.appCardSaveBtn} onClick={handleSaveAppEdit}>✓</button>
+                          <button className={styles.appCardCancelBtn} onClick={() => setEditingAppId(null)}>✕</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={styles.appCardInfo}>
+                        <div className={styles.appCardName}>{app.name}</div>
+                        <div className={styles.appCardDesc}>{app.desc}</div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className={styles.launcherFooter}>
+              <button className={styles.resetAppsBtn} onClick={handleResetApps}>
+                Standard-Apps wiederherstellen
+              </button>
+            </div>
+          </div>
+        );
+      case 'social':
+        return <SocialHub setActiveTab={setActiveTab} />;
+      case 'lab':
+        return <PronoiaLab setActiveTab={setActiveTab} />;
       case 'dashboard':
         return (
           <div className={styles.tabContentGrid}>
@@ -1294,7 +1539,7 @@ function LifeOSDashboard() {
                 {pendingQueueOverride && (
                   <div className={styles.alertCard} style={{ borderColor: 'var(--amber)', background: 'rgba(245, 166, 35, 0.05)', marginBottom: '1rem' }}>
                     <strong>⚠️ Kalender-Blöcke vorhanden</strong>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.25rem 0' }}>Für heute sind bereits Kalender-Blöcke geplant. Möchtest du sie wirklich mit dem Protokoll "{pendingQueueOverride}" überschreiben?</p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.25rem 0' }}>Für heute sind bereits Kalender-Blöcke geplant. Möchtest du sie wirklich mit dem Protokoll &quot;{pendingQueueOverride}&quot; überschreiben?</p>
                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                       <button className={styles.alertBtn} onClick={confirmQueueOverride} style={{ background: 'var(--cobalt-bright)', color: 'white', padding: '0.4rem 0.8rem', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', border: 'none' }}>Ja</button>
                       <button className={styles.alertBtn} onClick={() => setPendingQueueOverride(null)} style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-s)', color: 'var(--text2)', padding: '0.4rem 0.8rem', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer' }}>Nein</button>
@@ -1623,7 +1868,7 @@ function LifeOSDashboard() {
                                     <div className={styles.terminalHeader}><span className={styles.termDot}/><span className={styles.termDot}/><span className={styles.termDot}/></div>
                                     <div className={styles.terminalCode}>
                                       <span className={styles.codeCyan}>const</span> <span className={styles.codeBlue}>practice</span> = () =&gt; &#123;<br/>
-                                      &nbsp;&nbsp;console.<span className={styles.codeGreen}>log</span>(<span className={styles.codeAmber}>"Focus..."</span>);<br/>
+                                      &nbsp;&nbsp;console.<span className={styles.codeGreen}>log</span>(<span className={styles.codeAmber}>&quot;Focus...&quot;</span>);<br/>
                                       &#125;;
                                     </div>
                                   </div>

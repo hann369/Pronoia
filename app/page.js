@@ -468,7 +468,7 @@ function ReplenishmentVisualizer() {
 
         <div>
           <span className="label-mono" style={{ color: 'var(--tan)', marginBottom: '1.5rem', display: 'block' }}>Zero Friction Logistics</span>
-          <h2 className={styles.replenishHeadline}>Your stack knows when it's running low.</h2>
+          <h2 className={styles.replenishHeadline}>Your stack knows when it&apos;s running low.</h2>
           <p className={styles.replenishText}>
             Pronoia links stack metrics to protocol timers. When your PX-V1 supplies reach the critical 7-day reserve mark, the system automatically triggers replenishment through Stripe invoicing. No checkout screens, no checkout carts, no decision fatigue.
           </p>
@@ -487,7 +487,7 @@ function ManifestoAndFooter() {
       <section className={styles.manifestoSection}>
         <div className={styles.manifestoInner}>
           <blockquote className={styles.manifestoQuote}>
-            "Die meisten Menschen scheitern nicht an Talent. Sie scheitern an Friction. Wir bauen das System, das <em>Friction entfernt</em>. Der Rest bist du."
+            &quot;Die meisten Menschen scheitern nicht an Talent. Sie scheitern an Friction. Wir bauen das System, das <em>Friction entfernt</em>. Der Rest bist du.&quot;
           </blockquote>
           <div className={styles.manifestoBtnGroup}>
             <Link href="/auth" className="btn btn-primary btn-lg">Begin System Assessment</Link>

@@ -3998,3 +3998,302 @@
   }
 }
 
+/* ─── App Launcher Homescreen ─── */
+.launcherShell {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+  padding: 1rem 0;
+}
+
+.launcherHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.launcherMeta {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--theme-accent, var(--cobalt-bright));
+  background: var(--theme-accent-dim, rgba(26, 106, 255, 0.12));
+  border: 1px solid var(--theme-accent, var(--cobalt-bright));
+  border-radius: 100px;
+  padding: 0.2rem 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  width: fit-content;
+  font-weight: 700;
+}
+
+.launcherTitle {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 400;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.launcherSub {
+  font-size: 0.95rem;
+  color: var(--text2);
+  line-height: 1.6;
+  max-width: 700px;
+}
+
+.appsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+.appCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.appCard:hover {
+  transform: translateY(-4px);
+  border-color: var(--theme-accent, var(--cobalt-bright));
+  box-shadow: 0 10px 25px var(--theme-accent-glow, rgba(26, 106, 255, 0.15)), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.appCardIconWrapper {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-s);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.appCard:hover .appCardIconWrapper {
+  border-color: var(--theme-accent, var(--cobalt-bright));
+  background: var(--theme-accent-dim, rgba(26, 106, 255, 0.12));
+}
+
+.appCardIconSymbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  color: var(--text2);
+  transition: color 0.3s ease;
+}
+
+.appCard:hover .appCardIconSymbol {
+  color: var(--theme-accent, var(--cobalt-bright));
+}
+
+.appCardCustomImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 15px;
+}
+
+.appCardEditBtn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg3);
+  border: 1px solid var(--border-s);
+  color: var(--text3);
+  font-size: 0.7rem;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.appCardIconWrapper:hover .appCardEditBtn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.appCardEditBtn:hover {
+  background: var(--bg2);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.appCardInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex-grow: 1;
+}
+
+.appCardName {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+
+.appCardDesc {
+  font-size: 0.72rem;
+  color: var(--text3);
+  line-height: 1.4;
+  margin-top: 0.25rem;
+}
+
+.appCardEditForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.appCardInput {
+  background: var(--bg3);
+  border: 1px solid var(--border-s);
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  color: var(--text);
+  font-size: 0.75rem;
+  width: 100%;
+  font-family: inherit;
+  outline: none;
+}
+
+.appCardInput:focus {
+  border-color: var(--theme-accent, var(--cobalt-bright));
+}
+
+.appCardUploadRow {
+  margin: 0.25rem 0;
+}
+
+.appCardUploadLabel {
+  display: block;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed var(--border-s);
+  border-radius: 6px;
+  padding: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  cursor: pointer;
+  text-align: center;
+  color: var(--text3);
+  transition: all 0.2s ease;
+}
+
+.appCardUploadLabel:hover {
+  border-color: var(--theme-accent, var(--cobalt-bright));
+  color: var(--text2);
+  background: var(--theme-accent-dim, rgba(26, 106, 255, 0.05));
+}
+
+.appCardEditActions {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: center;
+  margin-top: 0.25rem;
+}
+
+.appCardSaveBtn {
+  background: var(--green);
+  border: none;
+  border-radius: 6px;
+  width: 32px;
+  height: 24px;
+  color: white;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.appCardCancelBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-s);
+  border-radius: 6px;
+  width: 32px;
+  height: 24px;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.launcherFooter {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.resetAppsBtn {
+  background: transparent;
+  border: 1px solid var(--border-s);
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.resetAppsBtn:hover {
+  background: rgba(255, 77, 77, 0.05);
+  border-color: rgba(255, 77, 77, 0.2);
+  color: var(--red);
+}
+
+.stubContainer {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.appCardBadge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--red, #ff4949);
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: bold;
+  font-family: var(--font-mono);
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 1.5px solid var(--bg-card);
+  box-shadow: 0 0 10px rgba(255, 73, 73, 0.4);
+  z-index: 10;
+}
+
+

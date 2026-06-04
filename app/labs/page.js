@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import styles from './page.module.css';
 
@@ -24,7 +24,6 @@ export default function LabsPage() {
   const [cognitiveLoad, setCognitiveLoad] = useState(50);
   const [physicalStress, setPhysicalStress] = useState(30);
   const [sleepDeficit, setSleepDeficit] = useState(20);
-  const [calculatedDoses, setCalculatedDoses] = useState({});
 
   // Batch Check States
   const [batchSearch, setBatchSearch] = useState('#001');
@@ -36,19 +35,17 @@ export default function LabsPage() {
   };
 
   // Calculate synergy dosages dynamically based on user parameters
-  useEffect(() => {
+  const calculatedDoses = useMemo(() => {
     const cogFactor = cognitiveLoad / 100;
     const physFactor = physicalStress / 100;
     const sleepFactor = sleepDeficit / 100;
 
-    const doses = {
+    return {
       C01: (3.0 + cogFactor * 1.5 + physFactor * 1.5).toFixed(2), // Creatine (max 6.0g)
       C02: (1.0 + cogFactor * 1.5 + sleepFactor * 0.5).toFixed(2), // Taurine (max 3.0g)
       C03: Math.round(25 + cogFactor * 30 + physFactor * 20),      // Bromantane (max 75mg)
       C04: Math.round(200 + physFactor * 150 + sleepFactor * 150)  // Magnesium (max 500mg)
     };
-
-    setCalculatedDoses(doses);
   }, [cognitiveLoad, physicalStress, sleepDeficit]);
 
   const handleBatchSearch = (e) => {

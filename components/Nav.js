@@ -25,7 +25,9 @@ export default function Nav() {
 
   useEffect(() => {
     const saved = localStorage.getItem('px_theme') || 'light';
-    setTheme(saved);
+    Promise.resolve().then(() => {
+      setTheme(saved);
+    });
     document.documentElement.setAttribute('data-theme', saved);
   }, []);
 

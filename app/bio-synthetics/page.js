@@ -130,7 +130,9 @@ function BioStoreScanner() {
       script.onload = () => setLeafletLoaded(true);
       document.body.appendChild(script);
     } else {
-      setLeafletLoaded(true);
+      Promise.resolve().then(() => {
+        setLeafletLoaded(true);
+      });
     }
   }, []);
 
