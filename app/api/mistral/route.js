@@ -131,9 +131,11 @@ export async function PUT(req) {
                   if (fileRes.ok) {
                     const arrayBuffer = await fileRes.arrayBuffer();
                     const buffer = Buffer.from(arrayBuffer);
-                    const pdfParser = require('pdf-parse');
-                    const pdfData = await pdfParser(buffer);
-                    fileContent = pdfData.text;
+                    const { PDFParse } = require('pdf-parse');
+                    const parser = new PDFParse({ data: buffer });
+                    await parser.load();
+                    const parsedData = await parser.getText();
+                    fileContent = parsedData.text;
                     fileContent = fileContent.replace(/\s+/g, ' ').substring(0, 50000); // limit to 50000 chars to cover full PDF documents
                   }
                 }
