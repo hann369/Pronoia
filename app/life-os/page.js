@@ -580,56 +580,45 @@ function LifeOSDashboard() {
       return;
     }
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      // Fallback/mock upload simulator if Supabase is not configured
+      setUploadingFile(true);
+      setUploadProgress(0);
+      const fileName = `${Date.now()}_${file.name}`;
+      let currentProgress = 0;
+      const interval = setInterval(() => {
+        currentProgress += 10;
+        setUploadProgress(currentProgress);
+        if (currentProgress >= 100) {
+          clearInterval(interval);
+          const simulatedURL = `https://supabase-mock-bucket.co/storage/v1/object/public/vault/${user?.uid || 'local'}/${fileName}`;
+          setVaultForm(f => ({
+            ...f,
+            title: f.title ? f.title : file.name,
+            content: simulatedURL
+          }));
+          triggerVaultToast("Datei hochgeladen (Simuliert).");
+          setUploadingFile(false);
+        }
+      }, 150);
+      return;
+    }
+
     setUploadingFile(true);
     setUploadProgress(0);
 
     const fileName = `${Date.now()}_${file.name}`;
     const userId = user?.uid || 'local';
+    const uploadUrl = `${supabaseUrl}/storage/v1/object/vault/${userId}/${fileName}`;
 
     try {
-      // 1. Get presigned upload URL from the server
-      const presignRes = await fetch('/api/vault/presign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileName,
-          fileType: file.type,
-          userId
-        })
-      });
-
-      if (!presignRes.ok) {
-        const errText = await presignRes.text();
-        throw new Error("Failed to get upload signature: " + errText);
-      }
-
-      const presignData = await presignRes.json();
-
-      if (presignData.mock) {
-        // Fallback/mock upload simulator if Supabase is not configured
-        let currentProgress = 0;
-        const interval = setInterval(() => {
-          currentProgress += 10;
-          setUploadProgress(currentProgress);
-          if (currentProgress >= 100) {
-            clearInterval(interval);
-            setVaultForm(f => ({
-              ...f,
-              title: f.title ? f.title : file.name,
-              content: presignData.signedUrl
-            }));
-            triggerVaultToast("Datei hochgeladen (Simuliert).");
-            setUploadingFile(false);
-          }
-        }, 150);
-        return;
-      }
-
-      const signedUrl = presignData.signedUrl;
-
-      // 2. Perform direct binary upload from browser to Supabase Storage using XHR to track progress
       const xhr = new XMLHttpRequest();
-      xhr.open('PUT', signedUrl, true);
+      xhr.open('POST', uploadUrl, true);
+      xhr.setRequestHeader('apikey', supabaseAnonKey);
+      xhr.setRequestHeader('Authorization', `Bearer ${supabaseAnonKey}`);
       xhr.setRequestHeader('Content-Type', file.type);
 
       xhr.upload.addEventListener('progress', (event) => {
@@ -641,10 +630,7 @@ function LifeOSDashboard() {
 
       xhr.onload = () => {
         if (xhr.status === 200 || xhr.status === 201) {
-          // Success: construct public access URL
-          const baseUrl = signedUrl.split('/storage/v1/')[0];
-          const publicURL = `${baseUrl}/storage/v1/object/public/vault/${userId}/${fileName}`;
-
+          const publicURL = `${supabaseUrl}/storage/v1/object/public/vault/${userId}/${fileName}`;
           setVaultForm(f => ({
             ...f,
             title: f.title ? f.title : file.name,

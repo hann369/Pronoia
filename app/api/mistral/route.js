@@ -76,7 +76,42 @@ export async function PUT(req) {
         items = items.slice(0, 5); // get top 5 items
 
         if (items.length > 0) {
-          vaultContext = items.map(item => `- [${item.type.toUpperCase()}] ${item.title}: ${item.content} (Tags: ${(item.tags || []).join(', ')})`).join('\n');
+          // Fetch text content for RAG if file type is text/md/json/csv/pdf
+          const processedItems = await Promise.all(items.map(async (item) => {
+            let fileContent = "";
+            if (item.type === 'file' && item.content && item.content.startsWith('http')) {
+              try {
+                const urlLower = item.content.toLowerCase();
+                const isText = urlLower.endsWith('.txt') || urlLower.endsWith('.md') || 
+                               urlLower.endsWith('.json') || urlLower.endsWith('.csv') || 
+                               urlLower.endsWith('.html');
+                const isPdf = urlLower.endsWith('.pdf');
+                
+                if (isText) {
+                  const fileRes = await fetch(item.content, { signal: AbortSignal.timeout(3000) });
+                  if (fileRes.ok) {
+                    fileContent = await fileRes.text();
+                    fileContent = fileContent.substring(0, 1500); // limit to 1500 chars to save token space
+                  }
+                } else if (isPdf) {
+                  const fileRes = await fetch(item.content, { signal: AbortSignal.timeout(6000) }); // longer timeout for PDF
+                  if (fileRes.ok) {
+                    const arrayBuffer = await fileRes.arrayBuffer();
+                    const buffer = Buffer.from(arrayBuffer);
+                    const pdfParser = require('pdf-parse');
+                    const pdfData = await pdfParser(buffer);
+                    fileContent = pdfData.text;
+                    fileContent = fileContent.replace(/\s+/g, ' ').substring(0, 1500); // limit to 1500 chars
+                  }
+                }
+              } catch (e) {
+                console.warn(`Failed to retrieve file contents for RAG item ${item.title}:`, e);
+              }
+            }
+            return `- [${item.type.toUpperCase()}] ${item.title}: ${item.content} ${fileContent ? `(Inhalt der Datei: "${fileContent}")` : ''} (Tags: ${(item.tags || []).join(', ')})`;
+          }));
+          
+          vaultContext = processedItems.join('\n');
         }
       } catch (err) {
         console.warn("Error retrieving vault items for RAG:", err);
