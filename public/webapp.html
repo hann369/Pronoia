@@ -923,6 +923,24 @@
             <svg viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="4" x2="19" y2="20" stroke="currentColor" stroke-width="2"/></svg>
           </div>
         </div>
+
+        <!-- Circadian Sync Toggle -->
+        <div class="circadian-sync-row" style="margin-top: 15px; display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg3); transition: all 0.2s;" onclick="toggleCircadianMode()">
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);" id="circadianLabel">Zirkadianer Sync: Aktiv</span>
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green);" id="circadianDot"></div>
+        </div>
+      </div>
+
+      <!-- Friction Logs Panel -->
+      <div class="glass-card" style="padding: 1rem;">
+        <div class="card-title" style="font-size: 14px; margin-bottom: 0.25rem;">Reibungsverlust erfassen</div>
+        <div class="card-subtitle" style="font-size: 8px; margin-bottom: 0.75rem;">Fokus-Qualität protokollieren</div>
+        
+        <div style="display: flex; gap: 6px;">
+          <button class="btn-outline" style="flex: 1; padding: 8px; font-size: 10px; border-color: rgba(0, 196, 140, 0.3); color: var(--green); text-transform: uppercase; font-weight: bold; border-radius: 8px;" onclick="submitFrictionLog('ok')">🟢 Stabil</button>
+          <button class="btn-outline" style="flex: 1; padding: 8px; font-size: 10px; border-color: rgba(245, 166, 35, 0.3); color: var(--amber); text-transform: uppercase; font-weight: bold; border-radius: 8px;" onclick="submitFrictionLog('warn')">🟡 Ablenkung</button>
+          <button class="btn-outline" style="flex: 1; padding: 8px; font-size: 10px; border-color: rgba(255, 85, 85, 0.3); color: #ff5555; text-transform: uppercase; font-weight: bold; border-radius: 8px;" onclick="submitFrictionLog('miss')">🔴 Blockade</button>
+        </div>
       </div>
 
       <!-- 7-Day Mini Calendar -->
@@ -1058,6 +1076,7 @@ let timeLeft = 5400;
 let isTimerRunning = false;
 let timerInterval = null;
 let currentBlockIdx = null;
+let isCircadianMode = true;
 
 // ── Sliders live update ──
 const hrvSlider = document.getElementById("hrvSlider");
@@ -1246,9 +1265,40 @@ function appendTyping() {
 function startLocalTimerTicker() {
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = setInterval(() => {
-    if (isTimerRunning && timeLeft > 0) {
-      timeLeft--;
+    if (isCircadianMode) {
+      // Sync remaining time to wall-clock if activeBlock has a startTime
+      const activeTitle = document.getElementById("activeBlockTitle").textContent;
+      const todayStr = formatDateStr(new Date());
+      const dayData = userCalendar[todayStr];
+      const activeBlockFromCal = dayData?.blocks?.find(b => b.title === activeTitle);
+      
+      const blockToUse = activeBlockFromCal || { startTime: null, duration: currentBlockDuration };
+      
+      if (blockToUse.startTime) {
+        const [bh, bm] = blockToUse.startTime.split(':').map(Number);
+        const startMin = bh * 60 + bm;
+        const durationMin = currentBlockDuration / 60;
+        const endMin = startMin + durationMin;
+        
+        const now = new Date();
+        const nowMin = now.getHours() * 60 + now.getMinutes();
+        const s = now.getSeconds();
+        
+        if (nowMin >= startMin && nowMin < endMin) {
+          const diffMin = endMin - nowMin;
+          timeLeft = Math.max(0, Math.round(diffMin * 60 - s));
+        } else {
+          timeLeft = 0; // if block range passed, it will show 0 until next block sync
+        }
+      } else {
+        if (timeLeft > 0) timeLeft--;
+      }
       updateTimerUI();
+    } else {
+      if (isTimerRunning && timeLeft > 0) {
+        timeLeft--;
+        updateTimerUI();
+      }
     }
   }, 1000);
 }
@@ -1314,6 +1364,31 @@ async function prevBlock() {
   }
 }
 
+async function toggleCircadianMode() {
+  isCircadianMode = !isCircadianMode;
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("medium");
+
+  const data = await sendToWebsite({
+    event: "circadian_toggle",
+    mode: isCircadianMode
+  });
+  if (data && data.status) {
+    updateCompanionState(data.status, data.debug);
+  }
+}
+
+async function submitFrictionLog(status) {
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("medium");
+  
+  const data = await sendToWebsite({
+    event: "friction_log",
+    status
+  });
+  if (data && data.status) {
+    updateCompanionState(data.status, data.debug);
+  }
+}
+
 function updateCompanionState(status, debug = null) {
   // Handle debug console display
   const debugEl = document.getElementById("debugConsole");
@@ -1354,6 +1429,26 @@ function updateCompanionState(status, debug = null) {
     }
     updateTimerUI();
   }
+  
+  if (status.circadianMode !== undefined) {
+    isCircadianMode = status.circadianMode;
+    const label = document.getElementById("circadianLabel");
+    const dot = document.getElementById("circadianDot");
+    if (status.circadianMode) {
+      label.textContent = "Zirkadianer Sync: Aktiv";
+      dot.style.background = varColorString("--green");
+      dot.style.boxShadow = `0 0 6px ${varColorString("--green")}`;
+      document.getElementById("playPauseBtn").style.opacity = 0.5;
+      document.getElementById("playPauseBtn").style.pointerEvents = "none";
+    } else {
+      label.textContent = "Zirkadianer Sync: Manuell";
+      dot.style.background = varColorString("--amber");
+      dot.style.boxShadow = `0 0 6px ${varColorString("--amber")}`;
+      document.getElementById("playPauseBtn").style.opacity = 1;
+      document.getElementById("playPauseBtn").style.pointerEvents = "auto";
+    }
+  }
+
   if (status.hrv) {
     hrvSlider.value = status.hrv;
     hrvValueDisplay.textContent = status.hrv + " ms";
@@ -1370,6 +1465,7 @@ function updateCompanionState(status, debug = null) {
   }
   if (status.stack) {
     userStack = status.stack;
+    renderStack();
   }
   if (status.email) {
     document.getElementById("userEmail").textContent = "EMAIL: " + status.email;
@@ -1510,16 +1606,40 @@ async function addCalendarBlockSubmit() {
 // ── Stack Tab ──
 function renderStack() {
   const container = document.getElementById("stackItems");
-  container.innerHTML = userStack.map(s => `
-    <div class="stack-item">
+  container.innerHTML = userStack.map((s, idx) => `
+    <div class="stack-item" style="padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border);">
       <div class="si-info">
         <div class="name">${s.name}</div>
-        <div class="dose">${s.dose}</div>
+        <div class="dose" style="font-size: 10px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; margin-top: 3px;">
+          ${s.dose} ${s.supply !== undefined ? `(${s.supply}% Vorrat)` : '(100% Vorrat)'}
+        </div>
       </div>
-      <div class="badge ${s.time}">${s.time === "am" ? "morgen" : "nacht"}</div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button class="btn-outline" style="padding: 4px 8px; font-size: 9px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; border-radius: 6px; cursor: pointer; display: inline-flex; width: auto;" onclick="consumeStackItem(${idx})">Nehmen</button>
+        <div class="badge ${s.time}">${s.time === "am" ? "morgen" : "nacht"}</div>
+      </div>
     </div>
   `).join("");
   document.getElementById("stackSubtitle").textContent = `Geladen: ${userStack.length} Supplements`;
+}
+
+async function consumeStackItem(idx) {
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("medium");
+  
+  const item = userStack[idx];
+  const currentSupply = item.supply !== undefined ? item.supply : 100;
+  const newSupply = Math.max(0, currentSupply - 5);
+  item.supply = newSupply;
+  
+  renderStack();
+  
+  const data = await sendToWebsite({
+    event: "stack_consume",
+    idx
+  });
+  if (data && data.status) {
+    updateCompanionState(data.status, data.debug);
+  }
 }
 
 async function syncToWebsite() {
@@ -1626,6 +1746,138 @@ if (tg) {
   tg.onEvent("themeChanged", applyTelegramTheme);
 }
 applyTelegramTheme();
+
+// ── Chronometer Swipe & Drag Micro-interactions ──
+(function() {
+  const chronoDisplay = document.querySelector(".chrono-display");
+  if (!chronoDisplay) return;
+
+  let startX = 0;
+  let startY = 0;
+  let diffX = 0;
+  let diffY = 0;
+  let isDragging = false;
+  let directionLocked = null; // 'horizontal', 'vertical', or null
+  let isAnimatingSwipe = false;
+
+  // Ensure card has smooth transition by default
+  chronoDisplay.style.transition = "transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.3s ease, box-shadow 0.3s ease";
+  chronoDisplay.style.cursor = "grab";
+
+  function onStart(clientX, clientY, target) {
+    if (isAnimatingSwipe) return;
+    // Avoid dragging on interactive elements
+    if (target.closest("button, .tc-btn, .circadian-sync-row, a")) {
+      return;
+    }
+    isDragging = true;
+    startX = clientX;
+    startY = clientY;
+    diffX = 0;
+    diffY = 0;
+    directionLocked = null;
+    chronoDisplay.style.transition = "none";
+    chronoDisplay.style.cursor = "grabbing";
+  }
+
+  function onMove(clientX, clientY, e) {
+    if (!isDragging) return;
+    diffX = clientX - startX;
+    diffY = clientY - startY;
+
+    if (!directionLocked) {
+      const absX = Math.abs(diffX);
+      const absY = Math.abs(diffY);
+      if (absX > 10 || absY > 10) {
+        if (absY > absX) {
+          directionLocked = "vertical";
+          isDragging = false;
+          chronoDisplay.style.transition = "transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)";
+          chronoDisplay.style.transform = "";
+          chronoDisplay.style.cursor = "grab";
+        } else {
+          directionLocked = "horizontal";
+        }
+      }
+    }
+
+    if (directionLocked === "horizontal") {
+      if (e.cancelable) e.preventDefault();
+      // Tinder-like card deck swipe rotation & translation
+      const rotation = diffX * 0.05;
+      chronoDisplay.style.transform = `translateX(${diffX}px) rotate(${rotation}deg)`;
+      chronoDisplay.style.boxShadow = `0 10px 30px rgba(0,0,0,0.3), ${diffX * 0.1}px 10px 20px rgba(0,0,0,0.1)`;
+    }
+  }
+
+  async function onEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    chronoDisplay.style.cursor = "grab";
+    chronoDisplay.style.transition = "transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.3s ease, box-shadow 0.3s ease";
+
+    const threshold = 100; // Swipe threshold in pixels
+    if (directionLocked === "horizontal" && Math.abs(diffX) > threshold) {
+      isAnimatingSwipe = true;
+      if (diffX > 0) {
+        // Swipe Right -> Prev Block
+        chronoDisplay.style.transform = "translateX(120%) rotate(15deg)";
+        chronoDisplay.style.opacity = "0";
+        if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("medium");
+        await prevBlock();
+      } else {
+        // Swipe Left -> Next Block
+        chronoDisplay.style.transform = "translateX(-120%) rotate(-15deg)";
+        chronoDisplay.style.opacity = "0";
+        if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("medium");
+        await nextBlock();
+      }
+      
+      // Animate card back in from opposite direction
+      setTimeout(() => {
+        chronoDisplay.style.transition = "none";
+        chronoDisplay.style.transform = diffX > 0 ? "translateX(-120%) rotate(-15deg)" : "translateX(120%) rotate(15deg)";
+        chronoDisplay.offsetHeight; // Force reflow
+        chronoDisplay.style.transition = "transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.3s ease, box-shadow 0.3s ease";
+        chronoDisplay.style.transform = "";
+        chronoDisplay.style.opacity = "1";
+        chronoDisplay.style.boxShadow = "";
+        isAnimatingSwipe = false;
+      }, 350);
+    } else {
+      // Snap back if swipe threshold wasn't met
+      chronoDisplay.style.transform = "";
+      chronoDisplay.style.boxShadow = "";
+    }
+    directionLocked = null;
+  }
+
+  // Mouse listeners
+  chronoDisplay.addEventListener("mousedown", (e) => {
+    onStart(e.clientX, e.clientY, e.target);
+  });
+  window.addEventListener("mousemove", (e) => {
+    onMove(e.clientX, e.clientY, e);
+  });
+  window.addEventListener("mouseup", () => {
+    onEnd();
+  });
+
+  // Touch listeners
+  chronoDisplay.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 1) {
+      onStart(e.touches[0].clientX, e.touches[0].clientY, e.target);
+    }
+  }, { passive: true });
+  chronoDisplay.addEventListener("touchmove", (e) => {
+    if (e.touches.length === 1) {
+      onMove(e.touches[0].clientX, e.touches[0].clientY, e);
+    }
+  }, { passive: false });
+  chronoDisplay.addEventListener("touchend", () => {
+    onEnd();
+  });
+})();
 
 // Start up
 loadInitialStatus();

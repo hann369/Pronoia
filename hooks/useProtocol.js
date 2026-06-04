@@ -632,6 +632,7 @@ export function useProtocol() {
       setBlockIdx(0);
       setTimeLeft(normalizedBlocks[0].duration);
       setTotalTime(normalizedBlocks[0].duration);
+      setCircadianMode(true);
       setAgentMsg(`Protokoll geladen: ${queueKey.toUpperCase()}`);
     }
   };
@@ -781,6 +782,7 @@ export function useProtocol() {
           setBlockIdx(0);
           setTimeLeft(normalizedBlocks[0]?.duration || 0);
           setTotalTime(normalizedBlocks[0]?.duration || 0);
+          setCircadianMode(true);
         }
         
         setAgentMsg(`Protokoll für ${dateStr} erfolgreich synchronisiert.`);
@@ -808,6 +810,7 @@ export function useProtocol() {
         setBlockIdx(0);
         setTimeLeft(fallback.blocks[0]?.duration || 0);
         setTotalTime(fallback.blocks[0]?.duration || 0);
+        setCircadianMode(true);
       }
       
       setAgentMsg(`Tagesprotokoll für ${dateStr} geladen (Heuristisches Backup).`);
@@ -921,6 +924,7 @@ export function useProtocol() {
           setBlockIdx(0);
           setTimeLeft(normalizedBlocks[0]?.duration || 0);
           setTotalTime(normalizedBlocks[0]?.duration || 0);
+          setCircadianMode(true);
         }
         setAgentMsg(`Plan erfolgreich angepasst.`);
       }
@@ -944,6 +948,7 @@ export function useProtocol() {
     setBlockIdx(0);
     setTimeLeft(normalizedBlocks[0].duration);
     setTotalTime(normalizedBlocks[0].duration);
+    setCircadianMode(true);
     setAgentMsg(`Kalender-Protokoll vom ${dateStr} geladen.`);
   };
 

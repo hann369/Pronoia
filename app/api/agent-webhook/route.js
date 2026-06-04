@@ -64,6 +64,27 @@ export async function POST(req) {
     return NextResponse.json({ ok: true, status, debug });
   }
 
+  if (event === "circadian_toggle") {
+    const { mode } = payload;
+    const blockStatus = await handleCircadianToggle({ telegramId, mode });
+    const { debug } = await getUserStatusWithDebug(telegramId);
+    return NextResponse.json({ ok: true, status: blockStatus, debug });
+  }
+
+  if (event === "friction_log") {
+    const { status } = payload;
+    const blockStatus = await handleFrictionLog({ telegramId, status });
+    const { debug } = await getUserStatusWithDebug(telegramId);
+    return NextResponse.json({ ok: true, status: blockStatus, debug });
+  }
+
+  if (event === "stack_consume") {
+    const { idx } = payload;
+    const blockStatus = await handleStackConsume({ telegramId, idx });
+    const { debug } = await getUserStatusWithDebug(telegramId);
+    return NextResponse.json({ ok: true, status: blockStatus, debug });
+  }
+
   return NextResponse.json({ ok: true, event, timestamp: new Date().toISOString() });
 }
 
@@ -333,14 +354,15 @@ async function getUserStatus(telegramId) {
     activeBlock: { title: "Fokus Arbeit", duration: 5400, pillar: "focus" },
     blockIdx: 0,
     isRunning: false,
+    circadianMode: true,
     hrv: 72,
     sleep: 84,
     stack: [
-      { name: 'Creatin Monohydrat', dose: '5g täglich', time: 'am' },
-      { name: 'Taurin', dose: '2g täglich', time: 'am' },
-      { name: 'Bromantane', dose: '50mg 5on/2off', time: 'am' },
-      { name: 'Magnesium Glycinat', dose: '400mg', time: 'pm' },
-      { name: 'D3 + K2', dose: '5000IU + 200mcg', time: 'am' }
+      { name: 'Creatin Monohydrat', dose: '5g täglich', time: 'am', supply: 100 },
+      { name: 'Taurin', dose: '2g täglich', time: 'am', supply: 100 },
+      { name: 'Bromantane', dose: '50mg 5on/2off', time: 'am', supply: 100 },
+      { name: 'Magnesium Glycinat', dose: '400mg', time: 'pm', supply: 100 },
+      { name: 'D3 + K2', dose: '5000IU + 200mcg', time: 'am', supply: 100 }
     ],
     calendar: {}
   };
@@ -356,12 +378,14 @@ async function getUserStatus(telegramId) {
       const mappedStack = (data.stack || []).map(s => ({
         name: s.name,
         dose: s.dose,
-        time: s.timing === "evening" ? "pm" : "am"
+        time: s.timing === "evening" ? "pm" : "am",
+        supply: s.supply !== undefined ? s.supply : 100
       }));
       return {
         activeBlock,
         blockIdx: data.blockIdx || 0,
         isRunning: !!data.isRunning,
+        circadianMode: data.circadianMode !== undefined ? !!data.circadianMode : true,
         hrv: data.profile?.metrics?.hrv || 72,
         sleep: data.profile?.metrics?.sleep || 84,
         stack: mappedStack.length > 0 ? mappedStack : status.stack,
@@ -487,15 +511,21 @@ async function handleBlockControl({ telegramId, action }) {
         newRunning = !newRunning;
       }
 
-      await restUpdateUser(userDoc.docId, {
+      const updateFields = {
         blockIdx: newIdx,
         isRunning: newRunning
-      });
+      };
+      if (action === "next" || action === "prev") {
+        updateFields.circadianMode = false;
+      }
+
+      await restUpdateUser(userDoc.docId, updateFields);
       
       updatedState = {
         activeBlock: blocks[newIdx] || null,
         blockIdx: newIdx,
-        isRunning: newRunning
+        isRunning: newRunning,
+        circadianMode: (action === "next" || action === "prev") ? false : (data.circadianMode !== undefined ? data.circadianMode : true)
       };
     }
   } catch (e) {
@@ -541,6 +571,9 @@ async function handleBlockControl({ telegramId, action }) {
             current_block: blocks[blockIdx] || null,
             updated_at: new Date().toISOString()
           };
+          if (action === "next" || action === "prev") {
+            updateBody.circadian_mode = false;
+          }
 
           await fetch(`${process.env.SUPABASE_URL}/rest/v1/pronoia_users`, {
             method: "POST",
@@ -557,7 +590,8 @@ async function handleBlockControl({ telegramId, action }) {
             updatedState = {
               activeBlock: blocks[blockIdx] || null,
               blockIdx,
-              isRunning
+              isRunning,
+              circadianMode: (action === "next" || action === "prev") ? false : true
             };
           }
         }
@@ -572,7 +606,8 @@ async function handleBlockControl({ telegramId, action }) {
     updatedState = {
       activeBlock: { title: "Fokus Arbeit", duration: 5400, pillar: "focus" },
       blockIdx: 0,
-      isRunning: action === "toggle"
+      isRunning: action === "toggle",
+      circadianMode: (action === "next" || action === "prev") ? false : true
     };
   }
 
@@ -652,14 +687,15 @@ async function getUserStatusWithDebug(telegramId) {
     activeBlock: { title: "Fokus Arbeit", duration: 5400, pillar: "focus" },
     blockIdx: 0,
     isRunning: false,
+    circadianMode: true,
     hrv: 72,
     sleep: 84,
     stack: [
-      { name: 'Creatin Monohydrat', dose: '5g täglich', time: 'am' },
-      { name: 'Taurin', dose: '2g täglich', time: 'am' },
-      { name: 'Bromantane', dose: '50mg 5on/2off', time: 'am' },
-      { name: 'Magnesium Glycinat', dose: '400mg', time: 'pm' },
-      { name: 'D3 + K2', dose: '5000IU + 200mcg', time: 'am' }
+      { name: 'Creatin Monohydrat', dose: '5g täglich', time: 'am', supply: 100 },
+      { name: 'Taurin', dose: '2g täglich', time: 'am', supply: 100 },
+      { name: 'Bromantane', dose: '50mg 5on/2off', time: 'am', supply: 100 },
+      { name: 'Magnesium Glycinat', dose: '400mg', time: 'pm', supply: 100 },
+      { name: 'D3 + K2', dose: '5000IU + 200mcg', time: 'am', supply: 100 }
     ],
     calendar: {}
   };
@@ -688,13 +724,15 @@ async function getUserStatusWithDebug(telegramId) {
       const mappedStack = (data.stack || []).map(s => ({
         name: s.name,
         dose: s.dose,
-        time: s.timing === "evening" ? "pm" : "am"
+        time: s.timing === "evening" ? "pm" : "am",
+        supply: s.supply !== undefined ? s.supply : 100
       }));
       
       status = {
         activeBlock,
         blockIdx: data.blockIdx || 0,
         isRunning: !!data.isRunning,
+        circadianMode: data.circadianMode !== undefined ? !!data.circadianMode : true,
         hrv: data.profile?.metrics?.hrv || 72,
         sleep: data.profile?.metrics?.sleep || 84,
         stack: mappedStack.length > 0 ? mappedStack : status.stack,
@@ -710,4 +748,137 @@ async function getUserStatusWithDebug(telegramId) {
   }
 
   return { status, debug };
+}
+
+async function handleCircadianToggle({ telegramId, mode }) {
+  let updatedState = null;
+  if (!telegramId) return updatedState;
+
+  // 1. Update Firestore
+  try {
+    const userDoc = await restGetTelegramUser(telegramId);
+    if (userDoc) {
+      const data = userDoc.data;
+      const blocks = data.blocks || [];
+      const isRunning = !!data.isRunning;
+
+      await restUpdateUser(userDoc.docId, {
+        circadianMode: mode
+      });
+
+      const activeBlock = blocks[data.blockIdx || 0] || null;
+      updatedState = {
+        activeBlock,
+        blockIdx: data.blockIdx || 0,
+        isRunning,
+        circadianMode: mode
+      };
+    }
+  } catch (e) {
+    console.error("[Pronoia Webhook] handleCircadianToggle Firestore error:", e);
+  }
+
+  // 2. Update Supabase
+  try {
+    if (process.env.SUPABASE_URL) {
+      await fetch(`${process.env.SUPABASE_URL}/rest/v1/pronoia_users`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: process.env.SUPABASE_SERVICE_KEY,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+          Prefer: "resolution=merge-duplicates"
+        },
+        body: JSON.stringify({
+          telegram_id: telegramId,
+          circadian_mode: mode,
+          updated_at: new Date().toISOString()
+        })
+      });
+    }
+  } catch (e) {
+    console.error("[Pronoia Webhook] handleCircadianToggle Supabase error:", e);
+  }
+
+  return updatedState;
+}
+
+async function handleFrictionLog({ telegramId, status }) {
+  let updatedState = null;
+  if (!telegramId) return updatedState;
+
+  // 1. Update Firestore
+  try {
+    const userDoc = await restGetTelegramUser(telegramId);
+    if (userDoc) {
+      const data = userDoc.data;
+      const currentBlock = data.blocks?.[data.blockIdx || 0];
+      const newLog = {
+        ts: new Date().toLocaleTimeString(),
+        status, // 'ok', 'warn', 'miss'
+        blockTitle: currentBlock ? currentBlock.title : 'Freier Block'
+      };
+      
+      const frictionLogs = data.frictionLogs || [];
+      const updatedLogs = [newLog, ...frictionLogs].slice(0, 15);
+
+      await restUpdateUser(userDoc.docId, {
+        frictionLogs: updatedLogs
+      });
+
+      const activeBlock = currentBlock || null;
+      updatedState = {
+        activeBlock,
+        blockIdx: data.blockIdx || 0,
+        isRunning: !!data.isRunning,
+        frictionLogs: updatedLogs
+      };
+    }
+  } catch (e) {
+    console.error("[Pronoia Webhook] handleFrictionLog Firestore error:", e);
+  }
+
+  return updatedState;
+}
+
+async function handleStackConsume({ telegramId, idx }) {
+  let updatedState = null;
+  if (!telegramId) return updatedState;
+
+  // 1. Update Firestore
+  try {
+    const userDoc = await restGetTelegramUser(telegramId);
+    if (userDoc) {
+      const data = userDoc.data;
+      const stack = data.stack || [];
+      if (stack[idx]) {
+        const item = stack[idx];
+        const newSupply = Math.max(0, (item.supply !== undefined ? item.supply : 100) - 5);
+        stack[idx] = { ...item, supply: newSupply };
+
+        await restUpdateUser(userDoc.docId, {
+          stack
+        });
+      }
+
+      const activeBlock = data.blocks?.[data.blockIdx || 0] || null;
+      const mappedStack = stack.map(s => ({
+        name: s.name,
+        dose: s.dose,
+        time: s.timing === "evening" ? "pm" : "am",
+        supply: s.supply !== undefined ? s.supply : 100
+      }));
+
+      updatedState = {
+        activeBlock,
+        blockIdx: data.blockIdx || 0,
+        isRunning: !!data.isRunning,
+        stack: mappedStack
+      };
+    }
+  } catch (e) {
+    console.error("[Pronoia Webhook] handleStackConsume Firestore error:", e);
+  }
+
+  return updatedState;
 }
