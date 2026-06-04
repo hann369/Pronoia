@@ -100,6 +100,9 @@ export default function HomePage() {
       {/* ═══ BIOMETRIC TELEMETRY TICKER ═══ */}
       <TickerTape direction="left" items={TELEMETRY_ITEMS} />
 
+      {/* ═══ TRUST BAR (CHEMICAL TRANSPARENCY) ═══ */}
+      <TrustBar />
+
       {/* ═══ PARADIGM SHIFT (FRICTION VS. SYSTEM) ═══ */}
       <ParadigmShift />
 
@@ -112,8 +115,17 @@ export default function HomePage() {
       {/* ═══ THE 5 PILLARS ECOSYSTEM GRID ═══ */}
       <EcosystemGrid />
 
+      {/* ═══ STAGE DIAGNOSIS QUIZ ═══ */}
+      <DiagnosisQuiz />
+
+      {/* ═══ EVOLUTION STAGES ═══ */}
+      <StagesSection />
+
       {/* ═══ AUTO-REPLENISHMENT VISUALIZER ═══ */}
       <ReplenishmentVisualizer />
+
+      {/* ═══ FREQUENTLY ASKED QUESTIONS ═══ */}
+      <FaqSection />
 
       {/* ═══ MANIFESTO & FOOTER ═══ */}
       <ManifestoAndFooter />
@@ -496,5 +508,297 @@ function ManifestoAndFooter() {
         </div>
       </footer>
     </>
+  );
+}
+
+function TrustBar() {
+  return (
+    <div className={styles.trustBar}>
+      <div className={styles.trustInner}>
+        <div className={styles.trustMetric}>
+          <span className={styles.metricValue}>99.85%</span>
+          <span className={styles.metricLabel}>VERIFIED PURITY (HPLC)</span>
+        </div>
+        <div className={styles.trustMetric}>
+          <span className={styles.metricValue}>&lt; 0.05 PPM</span>
+          <span className={styles.metricLabel}>HEAVY METALS (ICP-MS)</span>
+        </div>
+        <div className={styles.trustMetric}>
+          <span className={styles.metricValue}>GC-MS ND</span>
+          <span className={styles.metricLabel}>RESIDUAL SOLVENTS</span>
+        </div>
+        <div className={styles.trustMetric}>
+          <span className={styles.metricValue}>#PX-2026-B01</span>
+          <span className={styles.metricLabel}>BATCH TRACEABILITY</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DiagnosisQuiz() {
+  const [currentStep, setCurrentStep] = useState(0); // 0: intro, 1-5: questions, 6: result
+  const [scores, setScores] = useState([]);
+  const [systemLogs, setSystemLogs] = useState(['> INITIALIZING NEURAL AUDIT...']);
+
+  const questions = [
+    {
+      pillar: 'HEALTH',
+      q: 'Wie stark kontrollierst du deine unmittelbare physische Umgebung (Luftfilterung, gefiltertes Wasser, EMF-Abschirmung)?',
+      options: [
+        { text: 'Gar nicht – Standard-Leitungswasser und ungefilterte Stadtluft.', score: 0 },
+        { text: 'Teilweise – Ich filtere mein Trinkwasser und lüfte regelmäßig.', score: 1 },
+        { text: 'Systematisch – 3-Stufen-Luftfilterung, strukturiertes Aktivkohle-Wasser, EMF-Schutz im Schlafbereich.', score: 2 }
+      ]
+    },
+    {
+      pillar: 'FITNESS',
+      q: 'Wie steuerst du deine körperliche Leistungsfähigkeit und Regeneration?',
+      options: [
+        { text: 'Reaktiv – Gelegentliches Training nach Gefühl ohne strukturierte Erfassung.', score: 0 },
+        { text: 'Strukturiert – Regelmäßiges Training (3-4x/Woche) mit einfacher Pulsmessung.', score: 1 },
+        { text: 'Präzise – HRV-gesteuertes Training, Laktat-Messungen, CNS-Stimulation.', score: 2 }
+      ]
+    },
+    {
+      pillar: 'FOCUS',
+      q: 'Wie schützt und unterstützt du deine kognitiven Deep Work Fenster?',
+      options: [
+        { text: 'Reaktiv – Ständige Ablenkungen, paralleler Medienkonsum, unregelmäßiger Fokus.', score: 0 },
+        { text: 'Manuell – Stummschalten des Telefons, Pomodoro-Timer bei Bedarf.', score: 1 },
+        { text: 'Algorithmisch – Zirkadian getaktete Blöcke, systemweite Notification-Sperre, neurochemische Unterstützung (PX-V1).', score: 2 }
+      ]
+    },
+    {
+      pillar: 'SOCIAL',
+      q: 'Nach welchen Kriterien bewertest und sortierst du dein soziales Umfeld?',
+      options: [
+        { text: 'Zufällig – Kontakte basieren auf räumlicher Nähe oder historischer Gewohnheit.', score: 0 },
+        { text: 'Selektiv – Ich distanziere mich bewusst von offensichtlich negativen Einflüssen.', score: 1 },
+        { text: 'Synergetisch – Kuratiertes Umfeld mit komplementären Zielen und wöchentlichem kognitiven Austausch.', score: 2 }
+      ]
+    },
+    {
+      pillar: 'SKILLS',
+      q: 'Wie verankerst du neues Wissen oder komplexe Fähigkeiten in deinem Gedächtnis?',
+      options: [
+        { text: 'Passiv – Lesen von Büchern, Hören von Podcasts, Konsumieren von Tutorials.', score: 0 },
+        { text: 'Aktiv – Notizen schreiben, Zusammenfassungen erstellen, Mind-Mapping.', score: 1 },
+        { text: 'Myelinisierend – Deliberate Practice, Active Recall, praktische Hard-Coding Phasen unter Zeitdruck.', score: 2 }
+      ]
+    }
+  ];
+
+  const addLog = (msg) => {
+    setSystemLogs(prev => [...prev, msg].slice(-4));
+  };
+
+  const handleAnswer = (score) => {
+    const nextScores = [...scores, score];
+    setScores(nextScores);
+    
+    if (currentStep < 5) {
+      addLog(`> PILLAR_${questions[currentStep - 1]?.pillar || 'INIT'}_AUDITED: SCORE_${score}`);
+      setCurrentStep(prev => prev + 1);
+    } else {
+      addLog(`> PILLAR_SKILLS_AUDITED: SCORE_${score}`);
+      addLog(`> COMPUTING SYSTEM STAGE RANK...`);
+      setCurrentStep(6);
+    }
+  };
+
+  const getResult = () => {
+    const total = scores.reduce((a, b) => a + b, 0);
+    if (total <= 2) {
+      return {
+        stage: '00',
+        name: 'BLIND',
+        desc: 'Du bist reaktiv und den unkontrollierten Einflüssen deines Umfelds ausgesetzt. Kognitiver und biologischer Standard-Zustand.',
+        tip: 'Fokus auf Grundlagen: Filtere dein Trinkwasser, etabliere feste Schlafenszeiten und führe erste bildschirmfreie Arbeitsblöcke ein.'
+      };
+    } else if (total <= 5) {
+      return {
+        stage: '01',
+        name: 'AWARE',
+        desc: 'Du erkennst kognitive Friction und biologische Blockaden, hast jedoch noch kein stabiles Regelkreis-System implementiert.',
+        tip: 'Strukturiere deine Arbeitsblöcke mit festen Timern. Beginne mit einem einfachen Bio-Stack und logge deine HRV.'
+      };
+    } else if (total <= 7) {
+      return {
+        stage: '02',
+        name: 'BUILDING',
+        desc: 'Du wendest zirkadiane Taktungen an und trackst deine Biomarker. Das System läuft stabil, ist bei hohem Stress aber noch fragil.',
+        tip: 'Optimiere deinen Bio-Stack mit reinsten Substanzen (HPLC-verifiziert). Schließe Lücken im zirkadianen Rhythmus.'
+      };
+    } else if (total <= 9) {
+      return {
+        stage: '03',
+        name: 'COMPOUNDING',
+        desc: 'Deine Systeme greifen synergetisch ineinander. Kognitive Kapazität und körperliche Regeneration verstärken sich exponentiell.',
+        tip: 'Automatisiere deine Abläufe. Nutze den Knowledge Vault als RAG-Kontext zur automatisierten Protokoll-Generierung.'
+      };
+    } else {
+      return {
+        stage: '04',
+        name: 'TEACHING (MASTER)',
+        desc: 'Vollkommene biologische und kognitive Integration. Du beherrschst das System vollständig und optimierst es adaptiv.',
+        tip: 'Teile deine custom Blocksets und Bio-Synthetics Konfigurationen mit dem Netzwerk. Führe Audits für andere durch.'
+      };
+    }
+  };
+
+  const restartQuiz = () => {
+    setScores([]);
+    setCurrentStep(0);
+    setSystemLogs(['> INITIALIZING NEURAL AUDIT...']);
+  };
+
+  const currentQuestion = questions[currentStep - 1];
+
+  return (
+    <section id="diagnosis" className={styles.diagSection}>
+      <div className="container">
+        <span className="label-mono" style={{ color: 'var(--tan)', marginBottom: '1rem', display: 'block' }}>System Initialization</span>
+        <h2 className={styles.diagSectionTitle}>Identification & Strategy</h2>
+
+        <div className={styles.diagGrid}>
+          <div className={styles.diagQuizBox}>
+            {currentStep === 0 ? (
+              <div className={styles.quizStart}>
+                <p className={styles.quizIntroText}>
+                  Wir beginnen mit einer ehrlichen Kartierung deines Ist-Zustands über die 5 Pronoia-Säulen. 
+                  Das System ermittelt deine aktuelle Mastery-Stufe (Stage 00 – 04) und liefert dir konkrete Handlungsempfehlungen.
+                </p>
+                <button className={`${styles.diagBtn} ${styles.diagBtnSolid}`} onClick={() => { setCurrentStep(1); addLog('> AUDIT_STARTED: STANDBY...'); }}>
+                  AUDIT INITIALISIEREN
+                </button>
+              </div>
+            ) : currentStep <= 5 ? (
+              <div className={styles.quizQuestion}>
+                <div className={styles.quizProgress}>
+                  <span>SÄULE {currentStep} / 5</span>
+                  <div className={styles.quizProgressBarBg}>
+                    <div className={styles.quizProgressBarFill} style={{ width: `${(currentStep / 5) * 100}%` }}></div>
+                  </div>
+                </div>
+                <h3 className={styles.quizQuestionTitle}>{currentQuestion.q}</h3>
+                <div className={styles.quizOptionsGrid}>
+                  {currentQuestion.options.map((opt, i) => (
+                    <button key={i} className={styles.quizOptionBtn} onClick={() => handleAnswer(opt.score)}>
+                      {opt.text}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className={styles.quizResult}>
+                <span className={styles.resultStageLabel}>ERGEBNIS: STAGE {getResult().stage}</span>
+                <h3 className={styles.resultStageName}>{getResult().name}</h3>
+                <p className={styles.resultDesc}>{getResult().desc}</p>
+                <div className={styles.resultTipBox}>
+                  <strong>STRATEGISCHER SCHRITT:</strong>
+                  <p>{getResult().tip}</p>
+                </div>
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', flexWrap: 'wrap' }}>
+                  <Link href="/auth" className={`${styles.diagBtn} ${styles.diagBtnSolid}`}>
+                    SYSTEM ZUGANG BEANTRAGEN
+                  </Link>
+                  <button className={`${styles.diagBtn} ${styles.diagBtnOutline}`} onClick={restartQuiz}>
+                    NEUSTART
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className={styles.diagScannerCol}>
+            <div className={styles.scannerWrapper}>
+              <div className={styles.scannerLine} style={{ animationPlayState: currentStep > 0 && currentStep <= 5 ? 'running' : 'paused' }} />
+              <div className={styles.scannerContent}>
+                <div className={styles.logList}>
+                  {systemLogs.map((log, idx) => (
+                    <div key={idx} className={styles.logLine}>{log}</div>
+                  ))}
+                </div>
+                <div className={styles.pulseIndicator}>
+                  <div className={styles.pulseRing}></div>
+                  <div className={styles.pulseDot}></div>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--tan)' }}>BIOMETRIC SYNC RATE: {80 + (scores.length * 3.5)}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const STAGES_DATA = [
+  { id: '00', name: 'Blind', desc: 'Du weißt nicht, was du nicht weißt. Der reaktive Zustand der Masse.' },
+  { id: '01', name: 'Aware', desc: 'Du siehst die kognitive Friction, kennst das System aber noch nicht.' },
+  { id: '02', name: 'Building', desc: 'Du implementierst erste Protokolle. Das System läuft, ist aber fragil.' },
+  { id: '03', name: 'Compounding', desc: 'Synergien entstehen. Kognitive Kapazität wächst exponentiell.' },
+  { id: '04', name: 'Teaching', desc: 'Vollkommene Systembeherrschung. Biologische Integration abgeschlossen.' }
+];
+
+function StagesSection() {
+  return (
+    <section id="stages" className={styles.stagesSection}>
+      <div className="container">
+        <span className="label-mono" style={{ color: 'var(--tan)', marginBottom: '1rem', display: 'block' }}>Die Evolution</span>
+        <h2 className={styles.stagesTitle}>Die 5 Stufen der <em>Meisterschaft.</em></h2>
+        <div className={styles.stagesGrid}>
+          {STAGES_DATA.map((stage) => (
+            <div key={stage.id} className={styles.stageCard}>
+              <span className={styles.stageNum}>STAGE {stage.id}</span>
+              <h3 className={styles.stageName}>{stage.name}</h3>
+              <p className={styles.stageDesc}>{stage.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const FAQ_DATA = [
+  { q: 'Warum "Pronoia"?', a: 'Das Gegenteil von Paranoia. Die radikale Annahme, dass das Universum darauf ausgelegt ist, dir zu helfen. Nicht durch Esoterik, sondern durch anwendbare Biologie und Physik.' },
+  { q: 'Was ist PX-V1 konkret?', a: 'Eine präzise formulierte Neuro-Supplementation: Creatin, Taurin, Glycin, Magnesiumglycinat, Bromantane. Keine proprietären Blends, keine versteckten Dosierungen. Alles transparent dokumentiert.' },
+  { q: 'Ist Pronoia ein Supplement-Brand?', a: 'Nein. PX-V1 ist ein Element des Systems. Pronoia ist das System selbst — fünf Säulen, die ineinandergreifen. Supplements sind Verstärker von Grundlagen, keine Abkürzungen.' },
+  { q: 'Wo liegt der Unterschied zu anderen Plattformen?', a: 'Wir verkaufen keine Motivation. Kein Hype, keine 30-Tage-Challenges. Pronoia ist ein System für Menschen, die verstehen, dass Kompetenz durch Struktur entsteht — nicht durch Inspiration.' },
+  { q: 'Wie erhalte ich Zugang?', a: 'Der Zugang zum Pronoia-System ist limitiert. Er beginnt mit der Identifikation deines Ist-Zustands über den Diagnose-Audit. Qualität erfordert Selektion.' }
+];
+
+function FaqSection() {
+  const [openIdx, setOpenIdx] = useState(null);
+
+  const toggleOpen = (idx) => {
+    setOpenIdx(prev => (prev === idx ? null : idx));
+  };
+
+  return (
+    <section id="faq" className={styles.faqSection}>
+      <div className="container" style={{ maxWidth: '800px', margin: '0 auto' }}>
+        <span className="label-mono" style={{ color: 'var(--tan)', marginBottom: '1rem', display: 'block', textAlign: 'center' }}>Häufige Fragen</span>
+        <h2 className={styles.faqTitle} style={{ textAlign: 'center' }}>Fragen zur <em>Pronoia.</em></h2>
+        <div className={styles.faqList}>
+          {FAQ_DATA.map((item, idx) => {
+            const isOpen = openIdx === idx;
+            return (
+              <div key={idx} className={`${styles.faqItem} ${isOpen ? styles.faqItemOpen : ''}`}>
+                <button className={styles.faqQuestionBtn} onClick={() => toggleOpen(idx)}>
+                  <span>{item.q}</span>
+                  <span className={styles.faqArrow}>{isOpen ? '↑' : '↓'}</span>
+                </button>
+                <div className={styles.faqAnswer} style={{ maxHeight: isOpen ? '200px' : '0' }}>
+                  <div className={styles.faqAnswerContent}>{item.a}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
   );
 }

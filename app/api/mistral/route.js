@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 // ── Bestehender Endpoint (unveränder) ─────────────────────────
 export async function POST(req) {
@@ -59,6 +61,28 @@ export async function PUT(req) {
     const telegramId = telegramUser?.id || null;
     const linkUrl = telegramId ? `https://pronoia-3g6y.vercel.app/life-os?tg_id=${telegramId}` : "https://pronoia-3g6y.vercel.app/life-os";
 
+    // Retrieve Knowledge Vault Items (RAG Context)
+    let vaultContext = "";
+    if (db) {
+      try {
+        const userId = profile?.uid || profile?.userId || profile?.id || 'local';
+        const vaultRef = collection(db, 'vault_items');
+        const q = query(vaultRef, where('user_id', '==', userId));
+        const snap = await getDocs(q);
+        let items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Sort in memory by created_at desc to avoid requiring composite Firestore indexes
+        items.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+        items = items.slice(0, 5); // get top 5 items
+
+        if (items.length > 0) {
+          vaultContext = items.map(item => `- [${item.type.toUpperCase()}] ${item.title}: ${item.content} (Tags: ${(item.tags || []).join(', ')})`).join('\n');
+        }
+      } catch (err) {
+        console.warn("Error retrieving vault items for RAG:", err);
+      }
+    }
+
     const systemPrompt = `Du bist der Pronoia Assistant — direkter KI-Berater für Self-Optimization.
 
 ÜBER PRONOIA:
@@ -72,6 +96,11 @@ VERKNÜPFUNGS-INFO:
 - Der aktuelle Telegram-User hat die Telegram-ID: ${telegramId || 'Unbekannt'}.
 - Der Verknüpfungs-Link für diesen Nutzer lautet: ${linkUrl}.
 - Wenn der Nutzer nach einer Verknüpfung fragt (z.B. "Konto verbinden", "wie verbinde ich", "/link"), gib ihm genau diesen Link.
+
+${vaultContext ? `KNOWLEDGE VAULT (RAG CONTEXT - BENUTZER-EINTRÄGE):
+Nutze diesen Kontext aus dem Knowledge Vault des Nutzers für personalisierte, kontextbasierte Antworten:
+${vaultContext}
+` : ''}
 
 HANDLUNGEN AUSFÜHREN:
 Du kannst Aktionen direkt im System ausführen lassen, indem du das "action"-Objekt befüllst:

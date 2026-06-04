@@ -719,3 +719,438 @@
   }
 }
 
+/* --- Diagnostic Onboarding Quiz Section --- */
+.diagSection {
+  padding: 10rem 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.diagSectionTitle {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  line-height: 1.1;
+  margin-bottom: 3.5rem;
+}
+
+.diagGrid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 5rem;
+  align-items: stretch;
+}
+
+.diagQuizBox {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 3.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.quizIntroText {
+  font-size: 1.15rem;
+  line-height: 1.8;
+  color: var(--text2);
+  margin-bottom: 2.5rem;
+}
+
+.diagBtn {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 1rem 2.2rem;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.diagBtnSolid {
+  background: var(--tan);
+  color: var(--bg);
+  border: 1px solid var(--tan);
+}
+
+.diagBtnSolid:hover {
+  background: var(--text);
+  border-color: var(--text);
+  transform: translateY(-2px);
+}
+
+.diagBtnOutline {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+}
+
+.diagBtnOutline:hover {
+  border-color: var(--text);
+  background: rgba(255, 255, 255, 0.02);
+  transform: translateY(-2px);
+}
+
+.quizProgress {
+  margin-bottom: 2rem;
+}
+
+.quizProgress span {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text3);
+  letter-spacing: 0.1em;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.quizProgressBarBg {
+  height: 4px;
+  background: var(--bg3);
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.quizProgressBarFill {
+  height: 100%;
+  background: var(--tan);
+  border-radius: 100px;
+  transition: width 0.4s ease;
+}
+
+.quizQuestionTitle {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
+  font-weight: 400;
+  line-height: 1.35;
+  margin-bottom: 2.5rem;
+  color: var(--text);
+}
+
+.quizOptionsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.quizOptionBtn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  text-align: left;
+  padding: 1.25rem 1.5rem;
+  border-radius: 12px;
+  cursor: pointer;
+  line-height: 1.5;
+  transition: all 0.25s ease;
+}
+
+.quizOptionBtn:hover {
+  background: rgba(213, 184, 147, 0.04);
+  border-color: var(--tan);
+  color: var(--text);
+  transform: translateX(4px);
+}
+
+.quizResult {
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.5s ease;
+}
+
+.resultStageLabel {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--tan);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.resultStageName {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 400;
+  line-height: 1.1;
+  margin-bottom: 1.5rem;
+  color: var(--text);
+}
+
+.resultDesc {
+  font-size: 1.1rem;
+  line-height: 1.8;
+  color: var(--text2);
+  margin-bottom: 2rem;
+}
+
+.resultTipBox {
+  background: rgba(213, 184, 147, 0.03);
+  border-left: 2px solid var(--tan);
+  padding: 1.5rem;
+  border-radius: 0 12px 12px 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.resultTipBox strong {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--tan);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.diagScannerCol {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 300px;
+}
+
+.scannerWrapper {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.scannerLine {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(to right, transparent, var(--tan), transparent);
+  box-shadow: 0 0 8px var(--tan);
+  animation: scanAnim 4s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes scanAnim {
+  0%   { top: 0%; }
+  50%  { top: 100%; }
+  100% { top: 0%; }
+}
+
+.logList {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--tan);
+  opacity: 0.85;
+  line-height: 1.8;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 2rem;
+}
+
+.logLine {
+  white-space: pre-wrap;
+}
+
+.pulseIndicator {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1.5rem;
+}
+
+.pulseDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tan);
+}
+
+.pulseRing {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--tan);
+  border-radius: 50%;
+  animation: pulseRingAnim 2s cubic-bezier(0.215, 0.610, 0.355, 1) infinite;
+  opacity: 0;
+}
+
+@keyframes pulseRingAnim {
+  0% { transform: scale(0.5); opacity: 0; }
+  50% { opacity: 0.5; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 900px) {
+  .diagGrid {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+}
+
+/* --- Stages of Mastery Section --- */
+.stagesSection {
+  padding: 10rem 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+}
+
+.stagesTitle {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
+  line-height: 1.1;
+  margin-bottom: 5rem;
+}
+
+.stagesTitle em {
+  font-style: italic;
+  font-family: var(--font-accent);
+}
+
+.stagesGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1.5rem;
+}
+
+.stageCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2.5rem 2rem;
+  transition: all 0.3s ease;
+}
+
+.stageCard:hover {
+  border-color: var(--tan);
+  transform: translateY(-4px);
+}
+
+.stageNum {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--tan);
+  letter-spacing: 0.1em;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.stageName {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 400;
+  margin-bottom: 1rem;
+  color: var(--text);
+}
+
+.stageDesc {
+  font-size: 0.88rem;
+  color: var(--text2);
+  line-height: 1.6;
+}
+
+@media (max-width: 1024px) {
+  .stagesGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .stagesGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- FAQ Section --- */
+.faqSection {
+  padding: 10rem 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.faqTitle {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  line-height: 1.1;
+  margin-bottom: 5rem;
+}
+
+.faqTitle em {
+  font-style: italic;
+  font-family: var(--font-accent);
+}
+
+.faqList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.faqItem {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.faqItemOpen {
+  border-color: var(--tan);
+}
+
+.faqQuestionBtn {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 400;
+  text-align: left;
+  padding: 1.75rem 2rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.faqArrow {
+  font-family: var(--font-mono);
+  color: var(--tan);
+  font-size: 1rem;
+}
+
+.faqAnswer {
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.faqAnswerContent {
+  padding: 0 2rem 2rem 2rem;
+  font-size: 0.95rem;
+  color: var(--text2);
+  line-height: 1.7;
+}
+
+

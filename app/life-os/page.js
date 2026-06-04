@@ -9,7 +9,8 @@ import TelemetryVisualizer from '@/components/TelemetryVisualizer';
 import styles from './page.module.css';
 
 import { collection, query, orderBy, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '@/lib/firebase';
 
 /* ─── Constants ─── */
 const AGENTS = [
@@ -394,6 +395,8 @@ function LifeOSDashboard() {
   const [vaultForm, setVaultForm] = useState({ type: 'note', title: '', content: '', tags: '' });
   const [vaultSaving, setVaultSaving] = useState(false);
   const [vaultToast, setVaultToast] = useState('');
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const chatEndRef = useRef(null);
   
@@ -569,6 +572,68 @@ function LifeOSDashboard() {
   }, [tutorialStep]);
 
   /* ─── Vault CRUD ─── */
+  const handleVaultFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingFile(true);
+    setUploadProgress(0);
+
+    const fileName = `${Date.now()}_${file.name}`;
+    
+    if (storage) {
+      try {
+        const fileRef = ref(storage, `vault/${user?.uid || 'shared'}/${fileName}`);
+        const uploadTask = uploadBytesResumable(fileRef, file);
+
+        uploadTask.on(
+          'state_changed',
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(Math.round(progress));
+          },
+          (error) => {
+            console.error("Upload error:", error);
+            triggerVaultToast("Upload fehlgeschlagen: " + error.message);
+            setUploadingFile(false);
+          },
+          async () => {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            setVaultForm(f => ({
+              ...f,
+              title: f.title ? f.title : file.name,
+              content: downloadURL
+            }));
+            triggerVaultToast("Datei erfolgreich hochgeladen.");
+            setUploadingFile(false);
+          }
+        );
+      } catch (err) {
+        console.error("Upload error:", err);
+        triggerVaultToast("Upload-Fehler: " + err.message);
+        setUploadingFile(false);
+      }
+    } else {
+      // Fallback/mock upload simulator if storage is null (e.g. build time or missing credentials)
+      let currentProgress = 0;
+      const interval = setInterval(() => {
+        currentProgress += 10;
+        setUploadProgress(currentProgress);
+        if (currentProgress >= 100) {
+          clearInterval(interval);
+          const simulatedURL = `https://firebasestorage.googleapis.com/v0/b/mock-bucket/o/vault%2F${user?.uid || 'shared'}%2F${fileName}?alt=media`;
+          setVaultForm(f => ({
+            ...f,
+            title: f.title ? f.title : file.name,
+            content: simulatedURL
+          }));
+          triggerVaultToast("Datei hochgeladen (Simuliert).");
+          setUploadingFile(false);
+        }
+      }, 150);
+    }
+  };
+
   const loadVaultItems = async () => {
     setVaultLoading(true);
     try {
@@ -1927,6 +1992,25 @@ function LifeOSDashboard() {
                     <option value="youtube">YouTube Video</option>
                     <option value="file">File Reference</option>
                   </select>
+                  {vaultForm.type === 'file' && (
+                    <div style={{ marginTop: '1rem' }}>
+                      <label className={styles.formLabel}>Datei hochladen</label>
+                      <input 
+                        type="file" 
+                        onChange={handleVaultFileUpload} 
+                        disabled={uploadingFile}
+                        style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--text)' }} 
+                      />
+                      {uploadingFile && (
+                        <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--theme-accent)' }}>
+                          Upload-Status: {uploadProgress}%
+                          <div style={{ width: '100%', height: '4px', backgroundColor: 'var(--border)', borderRadius: '2px', marginTop: '4px', overflow: 'hidden' }}>
+                            <div style={{ width: `${uploadProgress}%`, height: '100%', backgroundColor: 'var(--theme-accent)', transition: 'width 0.1s ease' }} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <label className={styles.formLabel} style={{ marginTop: '1rem', display: 'block' }}>Titel</label>
                   <input type="text" className={styles.formInput} placeholder="Titel…" value={vaultForm.title} onChange={e => setVaultForm(f => ({ ...f, title: e.target.value }))} />
                   <label className={styles.formLabel} style={{ marginTop: '1rem', display: 'block' }}>Inhalt / URL</label>
