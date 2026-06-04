@@ -575,8 +575,8 @@ function LifeOSDashboard() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 4.2 * 1024 * 1024) {
-      triggerVaultToast("Fehler: Datei ist zu groß (Limit: 4.2 MB für Supabase-Upload via Server).");
+    if (file.size > 100 * 1024 * 1024) {
+      triggerVaultToast("Fehler: Datei ist zu groß (Limit: 100 MB für Supabase-Upload).");
       return;
     }
 
@@ -584,78 +584,92 @@ function LifeOSDashboard() {
     setUploadProgress(0);
 
     const fileName = `${Date.now()}_${file.name}`;
-    
-    // Read the file as base64 in the browser and upload to Supabase via server-side endpoint
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const base64Data = reader.result.split(',')[1];
-        
-        let progressVal = 30;
-        setUploadProgress(progressVal);
-        const progressInterval = setInterval(() => {
-          progressVal = Math.min(95, progressVal + 15);
-          setUploadProgress(progressVal);
-        }, 150);
+    const userId = user?.uid || 'local';
 
-        const res = await fetch('/api/vault/upload', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            fileName,
-            fileType: file.type,
-            base64Data,
-            userId: user?.uid || 'local'
-          })
-        });
+    try {
+      // 1. Get presigned upload URL from the server
+      const presignRes = await fetch('/api/vault/presign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName,
+          fileType: file.type,
+          userId
+        })
+      });
 
-        clearInterval(progressInterval);
-
-        const resText = await res.text();
-
-        if (!res.ok) {
-          let errMsg = 'Server error during upload';
-          try {
-            const errData = JSON.parse(resText);
-            errMsg = errData.error || errMsg;
-          } catch (e) {
-            errMsg = resText || errMsg;
-          }
-          throw new Error(errMsg);
-        }
-
-        let data;
-        try {
-          data = JSON.parse(resText);
-        } catch (e) {
-          throw new Error("Server antwortete nicht mit JSON: " + resText.substring(0, 100));
-        }
-
-        setUploadProgress(100);
-        
-        setVaultForm(f => ({
-          ...f,
-          title: f.title ? f.title : file.name,
-          content: data.downloadURL
-        }));
-
-        triggerVaultToast(data.mock ? "Datei hochgeladen (Simuliert)." : "Datei erfolgreich in Supabase Storage geladen.");
-      } catch (err) {
-        console.error("Supabase upload failed:", err);
-        triggerVaultToast("Upload fehlgeschlagen: " + err.message);
-      } finally {
-        setUploadingFile(false);
+      if (!presignRes.ok) {
+        const errText = await presignRes.text();
+        throw new Error("Failed to get upload signature: " + errText);
       }
-    };
 
-    reader.onerror = () => {
-      triggerVaultToast("Fehler beim Lesen der Datei.");
+      const presignData = await presignRes.json();
+
+      if (presignData.mock) {
+        // Fallback/mock upload simulator if Supabase is not configured
+        let currentProgress = 0;
+        const interval = setInterval(() => {
+          currentProgress += 10;
+          setUploadProgress(currentProgress);
+          if (currentProgress >= 100) {
+            clearInterval(interval);
+            setVaultForm(f => ({
+              ...f,
+              title: f.title ? f.title : file.name,
+              content: presignData.signedUrl
+            }));
+            triggerVaultToast("Datei hochgeladen (Simuliert).");
+            setUploadingFile(false);
+          }
+        }, 150);
+        return;
+      }
+
+      const signedUrl = presignData.signedUrl;
+
+      // 2. Perform direct binary upload from browser to Supabase Storage using XHR to track progress
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', signedUrl, true);
+      xhr.setRequestHeader('Content-Type', file.type);
+
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+          const progress = (event.loaded / event.total) * 100;
+          setUploadProgress(Math.round(progress));
+        }
+      });
+
+      xhr.onload = () => {
+        if (xhr.status === 200 || xhr.status === 201) {
+          // Success: construct public access URL
+          const baseUrl = signedUrl.split('/storage/v1/')[0];
+          const publicURL = `${baseUrl}/storage/v1/object/public/vault/${userId}/${fileName}`;
+
+          setVaultForm(f => ({
+            ...f,
+            title: f.title ? f.title : file.name,
+            content: publicURL
+          }));
+          triggerVaultToast("Datei erfolgreich in Supabase Storage geladen.");
+        } else {
+          console.error("Direct upload error status:", xhr.status, xhr.responseText);
+          triggerVaultToast(`Upload fehlgeschlagen: HTTP ${xhr.status}`);
+        }
+        setUploadingFile(false);
+      };
+
+      xhr.onerror = () => {
+        triggerVaultToast("Netzwerkfehler während des Uploads.");
+        setUploadingFile(false);
+      };
+
+      xhr.send(file);
+
+    } catch (err) {
+      console.error("Upload error:", err);
+      triggerVaultToast("Upload-Fehler: " + err.message);
       setUploadingFile(false);
-    };
-
-    reader.readAsDataURL(file);
+    }
   };
 
   const loadVaultItems = async () => {
