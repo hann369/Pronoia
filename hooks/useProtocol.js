@@ -610,6 +610,13 @@ export function useProtocol() {
     setCalendar(prev => {
       const dayData = prev[dateStr] || { blocks: [] };
       const updatedBlocks = [...(dayData.blocks || []), newBlock].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+      
+      // Auto-sync to active blocks if editing today
+      const todayStr = formatDate(new Date());
+      if (dateStr === todayStr) {
+        setBlocks(updatedBlocks);
+      }
+      
       return { ...prev, [dateStr]: { ...dayData, blocks: updatedBlocks } };
     });
     setAgentMsg(`Block "${title}" zu Kalendertag ${dateStr} hinzugefügt.`);
@@ -621,6 +628,13 @@ export function useProtocol() {
       const dayData = prev[dateStr];
       if (!dayData || !dayData.blocks) return prev;
       const updatedBlocks = dayData.blocks.map((b, i) => i === idx ? { ...b, ...updatedFields } : b).sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+      
+      // Auto-sync to active blocks if editing today
+      const todayStr = formatDate(new Date());
+      if (dateStr === todayStr) {
+        setBlocks(updatedBlocks);
+      }
+
       return { ...prev, [dateStr]: { ...dayData, blocks: updatedBlocks } };
     });
   };
@@ -631,6 +645,13 @@ export function useProtocol() {
       const dayData = prev[dateStr];
       if (!dayData || !dayData.blocks) return prev;
       const updatedBlocks = dayData.blocks.filter((_, i) => i !== idx);
+      
+      // Auto-sync to active blocks if editing today
+      const todayStr = formatDate(new Date());
+      if (dateStr === todayStr) {
+        setBlocks(updatedBlocks);
+      }
+
       return { ...prev, [dateStr]: { ...dayData, blocks: updatedBlocks } };
     });
     setAgentMsg(`Block entfernt.`);
@@ -658,6 +679,16 @@ export function useProtocol() {
       const parsed = JSON.parse(cleaned);
       if (parsed && parsed.blocks) {
         setCalendar(prev => ({ ...prev, [dateStr]: parsed }));
+        
+        // Auto-load to active blocks if it's today
+        const todayStr = formatDate(new Date());
+        if (dateStr === todayStr) {
+          setBlocks(parsed.blocks);
+          setBlockIdx(0);
+          setTimeLeft(parsed.blocks[0].duration);
+          setTotalTime(parsed.blocks[0].duration);
+        }
+        
         setAgentMsg(`Protokoll für ${dateStr} erfolgreich synchronisiert.`);
       } else {
         throw new Error("Invalid structure returned");
@@ -675,6 +706,16 @@ export function useProtocol() {
         ]
       };
       setCalendar(prev => ({ ...prev, [dateStr]: fallback }));
+      
+      // Auto-load to active blocks if it's today
+      const todayStr = formatDate(new Date());
+      if (dateStr === todayStr) {
+        setBlocks(fallback.blocks);
+        setBlockIdx(0);
+        setTimeLeft(fallback.blocks[0].duration);
+        setTotalTime(fallback.blocks[0].duration);
+      }
+      
       setAgentMsg(`Tagesprotokoll für ${dateStr} geladen (Heuristisches Backup).`);
     } finally {
       setIsTyping(false);
