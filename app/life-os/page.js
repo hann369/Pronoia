@@ -241,7 +241,8 @@ function LifeOSDashboard() {
     generateSkillMaterials, completeSkillSession,
     toggleTimer, nextBlock, prevBlock, skipBlock, handleCommand, setAgentMsg,
     consumeStackItem, addStackItem, removeStackItem, updateStackItem,
-    saveProfile, linkTelegramId, logFriction, loadProtocolQueue, addCustomBlock, uploadDataSource
+    saveProfile, linkTelegramId, logFriction, loadProtocolQueue, addCustomBlock, uploadDataSource,
+    manualPeekIdx, setManualPeekIdx, pendingQueueOverride, setPendingQueueOverride, confirmQueueOverride, restoreCalendarBlocks
   } = useProtocol();
 
   // Drag/Swipe gestures states on Chronometer
@@ -267,10 +268,8 @@ function LifeOSDashboard() {
     const diff = dragCurrentX - dragStartX;
     const threshold = 60;
     if (diff > threshold) {
-      setCircadianMode(false); // Disable circadian auto-sync on manual navigation
       prevBlock();
     } else if (diff < -threshold) {
-      setCircadianMode(false); // Disable circadian auto-sync on manual navigation
       skipBlock();
     }
     setDragStartX(null);
@@ -787,6 +786,7 @@ function LifeOSDashboard() {
   const dateStrToday = formatDate(new Date());
   const selectedDateStr = formatDate(selectedDate);
   const daySchedule = calendar[selectedDateStr] || { blocks: [] };
+  const hasTodayCalBlocks = calendar[dateStrToday]?.blocks?.length > 0;
 
   /* ─── Gate Renders ─── */
   if (gateState === 'loading') {
@@ -918,8 +918,27 @@ function LifeOSDashboard() {
                         </div>
                       )}
                       <div className={styles.chronoStatus}>
-                        {circadianMode ? 'ZIRKADIAN' : isRunning ? 'AKTIV' : 'PAUSIERT'}
+                        {circadianMode ? (manualPeekIdx !== null ? 'PEEK (TEMP)' : 'ZIRKADIAN') : isRunning ? 'AKTIV' : 'PAUSIERT'}
                       </div>
+                      {circadianMode && manualPeekIdx !== null && (
+                        <button
+                          style={{
+                            background: 'rgba(26, 106, 255, 0.15)',
+                            color: 'var(--cobalt-bright)',
+                            border: '1px solid var(--cobalt-bright)',
+                            borderRadius: '12px',
+                            padding: '2px 8px',
+                            fontSize: '0.65rem',
+                            marginTop: '4px',
+                            cursor: 'pointer',
+                            fontFamily: 'var(--font-mono)',
+                            letterSpacing: '0.05em'
+                          }}
+                          onClick={() => setManualPeekIdx(null)}
+                        >
+                          ↩ LIVE BLOCK
+                        </button>
+                      )}
                       {!circadianMode && (
                         <button
                           className={`${styles.chronoBtn} ${isRunning ? styles.chronoBtnPause : styles.chronoBtnStart}`}
@@ -1080,6 +1099,45 @@ function LifeOSDashboard() {
                 <h3 className={styles.panelTitle}>⏳ Ablauf-Queue</h3>
               </div>
               <div className={styles.panelBody}>
+                {pendingQueueOverride && (
+                  <div className={styles.alertCard} style={{ borderColor: 'var(--amber)', background: 'rgba(245, 166, 35, 0.05)', marginBottom: '1rem' }}>
+                    <strong>⚠️ Kalender-Blöcke vorhanden</strong>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.25rem 0' }}>Für heute sind bereits Kalender-Blöcke geplant. Möchtest du sie wirklich mit dem Protokoll "{pendingQueueOverride}" überschreiben?</p>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      <button className={styles.alertBtn} onClick={confirmQueueOverride} style={{ background: 'var(--cobalt-bright)', color: 'white', padding: '0.4rem 0.8rem', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', border: 'none' }}>Ja</button>
+                      <button className={styles.alertBtn} onClick={() => setPendingQueueOverride(null)} style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-s)', color: 'var(--text2)', padding: '0.4rem 0.8rem', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer' }}>Nein</button>
+                    </div>
+                  </div>
+                )}
+
+                {hasTodayCalBlocks && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <button 
+                      className={styles.alertBtn} 
+                      onClick={restoreCalendarBlocks} 
+                      style={{ 
+                        width: '100%', 
+                        background: 'rgba(0, 196, 140, 0.1)', 
+                        borderColor: 'var(--green)',
+                        color: 'var(--green)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        padding: '0.6rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        letterSpacing: '0.05em',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        border: '1px solid var(--green)'
+                      }}
+                    >
+                      📅 HEUTIGEN KALENDER WIEDERHERSTELLEN
+                    </button>
+                  </div>
+                )}
+
                 {/* Protocol presets */}
                 <div className={styles.panelGroup}>
                   <div className={styles.panelGroupLabel}>Protokoll laden</div>

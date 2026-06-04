@@ -154,6 +154,9 @@ export function useProtocol() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [profileLoading, setProfileLoading] = useState(true);
 
+  const [manualPeekIdx, setManualPeekIdx] = useState(null);
+  const [pendingQueueOverride, setPendingQueueOverride] = useState(null);
+  const peekTimerRef = useRef(null);
   const timerRef = useRef(null);
 
   // Date Formatter Helper (YYYY-MM-DD)
@@ -414,10 +417,15 @@ export function useProtocol() {
         }
       }
 
-      // Update blockIdx if different
-      setBlockIdx(prev => (prev !== foundIdx ? foundIdx : prev));
+      // If manualPeekIdx is active and valid, use it; otherwise use foundIdx
+      const activeIdx = (manualPeekIdx !== null && manualPeekIdx >= 0 && manualPeekIdx < virtualBlocks.length)
+        ? manualPeekIdx
+        : foundIdx;
 
-      const activeBlock = virtualBlocks[foundIdx];
+      // Update blockIdx if different
+      setBlockIdx(prev => (prev !== activeIdx ? activeIdx : prev));
+
+      const activeBlock = virtualBlocks[activeIdx];
       if (activeBlock) {
         const startMin = activeBlock.calculatedStartMin;
         const endMin = activeBlock.calculatedEndMin;
@@ -441,7 +449,19 @@ export function useProtocol() {
     syncCircadian();
     const interval = setInterval(syncCircadian, 1000);
     return () => clearInterval(interval);
-  }, [circadianMode, blocks]);
+  }, [circadianMode, blocks, manualPeekIdx]);
+
+  // Snap-Back Effect for manual navigation in circadian mode
+  useEffect(() => {
+    if (manualPeekIdx === null) return;
+    if (peekTimerRef.current) clearTimeout(peekTimerRef.current);
+    peekTimerRef.current = setTimeout(() => {
+      setManualPeekIdx(null);
+    }, 8000);
+    return () => {
+      if (peekTimerRef.current) clearTimeout(peekTimerRef.current);
+    };
+  }, [manualPeekIdx]);
 
   const start = () => setIsRunning(true);
   const pause = () => setIsRunning(false);
@@ -503,34 +523,44 @@ export function useProtocol() {
   };
 
   const nextBlock = () => {
-    let msgSuffix = "";
     if (circadianMode) {
-      setCircadianMode(false);
-      msgSuffix = " (Zirkadianer Sync pausiert)";
-    }
-    if (blockIdx < blocks.length - 1) {
-      const nextIdx = blockIdx + 1;
-      setBlockIdx(nextIdx);
-      setTimeLeft(blocks[nextIdx].duration);
-      setTotalTime(blocks[nextIdx].duration);
-      setAgentMsg(`Nächster Block: ${blocks[nextIdx].title}${msgSuffix}`);
+      if (blockIdx < blocks.length - 1) {
+        const nextIdx = blockIdx + 1;
+        setManualPeekIdx(nextIdx);
+        setAgentMsg(`Vorschau: ${blocks[nextIdx].title} (Zirkadianer Sync aktiv, springt gleich zurück)`);
+      } else {
+        setAgentMsg(`Keine weiteren Blöcke vorhanden.`);
+      }
     } else {
-      setAgentMsg(`Tagesprotokoll vollständig abgeschlossen.${msgSuffix}`);
+      if (blockIdx < blocks.length - 1) {
+        const nextIdx = blockIdx + 1;
+        setBlockIdx(nextIdx);
+        setTimeLeft(blocks[nextIdx].duration);
+        setTotalTime(blocks[nextIdx].duration);
+        setAgentMsg(`Nächster Block: ${blocks[nextIdx].title}`);
+      } else {
+        setAgentMsg(`Tagesprotokoll vollständig abgeschlossen.`);
+      }
     }
   };
 
   const prevBlock = () => {
-    let msgSuffix = "";
     if (circadianMode) {
-      setCircadianMode(false);
-      msgSuffix = " (Zirkadianer Sync pausiert)";
-    }
-    if (blockIdx > 0) {
-      const prevIdx = blockIdx - 1;
-      setBlockIdx(prevIdx);
-      setTimeLeft(blocks[prevIdx].duration);
-      setTotalTime(blocks[prevIdx].duration);
-      setAgentMsg(`Vorheriger Block: ${blocks[prevIdx].title}${msgSuffix}`);
+      if (blockIdx > 0) {
+        const prevIdx = blockIdx - 1;
+        setManualPeekIdx(prevIdx);
+        setAgentMsg(`Vorschau: ${blocks[prevIdx].title} (Zirkadianer Sync aktiv, springt gleich zurück)`);
+      } else {
+        setAgentMsg(`Erster Block bereits erreicht.`);
+      }
+    } else {
+      if (blockIdx > 0) {
+        const prevIdx = blockIdx - 1;
+        setBlockIdx(prevIdx);
+        setTimeLeft(blocks[prevIdx].duration);
+        setTotalTime(blocks[prevIdx].duration);
+        setAgentMsg(`Vorheriger Block: ${blocks[prevIdx].title}`);
+      }
     }
   };
 
@@ -626,6 +656,12 @@ export function useProtocol() {
 
   // Calendar switches (predefined queues)
   const loadProtocolQueue = (queueKey) => {
+    const todayStr = formatDate(new Date());
+    if (calendar[todayStr]?.blocks?.length > 0 && pendingQueueOverride !== queueKey) {
+      setPendingQueueOverride(queueKey);
+      setAgentMsg("Kalender-Blöcke für heute vorhanden. Möchtest du sie wirklich überschreiben?");
+      return;
+    }
     if (PROTOCOL_DATABASE[queueKey]) {
       const normalizedBlocks = normalizeBlockList(PROTOCOL_DATABASE[queueKey]);
       setBlocks(normalizedBlocks);
@@ -633,7 +669,40 @@ export function useProtocol() {
       setTimeLeft(normalizedBlocks[0].duration);
       setTotalTime(normalizedBlocks[0].duration);
       setCircadianMode(true);
+      setManualPeekIdx(null);
+      setPendingQueueOverride(null);
       setAgentMsg(`Protokoll geladen: ${queueKey.toUpperCase()}`);
+    }
+  };
+
+  const confirmQueueOverride = () => {
+    if (pendingQueueOverride && PROTOCOL_DATABASE[pendingQueueOverride]) {
+      const queueKey = pendingQueueOverride;
+      const normalizedBlocks = normalizeBlockList(PROTOCOL_DATABASE[queueKey]);
+      setBlocks(normalizedBlocks);
+      setBlockIdx(0);
+      setTimeLeft(normalizedBlocks[0].duration);
+      setTotalTime(normalizedBlocks[0].duration);
+      setCircadianMode(true);
+      setManualPeekIdx(null);
+      setPendingQueueOverride(null);
+      setAgentMsg(`Protokoll geladen und Kalender überschrieben: ${queueKey.toUpperCase()}`);
+    }
+  };
+
+  const restoreCalendarBlocks = () => {
+    const todayStr = formatDate(new Date());
+    const dayData = calendar[todayStr];
+    if (dayData?.blocks?.length > 0) {
+      const normalized = normalizeBlockList(dayData.blocks);
+      setBlocks(normalized);
+      setBlockIdx(0);
+      setCircadianMode(true);
+      setManualPeekIdx(null);
+      setPendingQueueOverride(null);
+      setAgentMsg("Kalender-Blöcke für heute wiederhergestellt.");
+    } else {
+      setAgentMsg("Keine Kalender-Blöcke für heute vorhanden.");
     }
   };
 
@@ -1666,6 +1735,12 @@ export function useProtocol() {
     logFriction,
     loadProtocolQueue,
     addCustomBlock,
-    uploadDataSource
+    uploadDataSource,
+    manualPeekIdx,
+    setManualPeekIdx,
+    pendingQueueOverride,
+    setPendingQueueOverride,
+    confirmQueueOverride,
+    restoreCalendarBlocks
   };
 }

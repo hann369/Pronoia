@@ -515,9 +515,6 @@ async function handleBlockControl({ telegramId, action }) {
         blockIdx: newIdx,
         isRunning: newRunning
       };
-      if (action === "next" || action === "prev") {
-        updateFields.circadianMode = false;
-      }
 
       await restUpdateUser(userDoc.docId, updateFields);
       
@@ -525,7 +522,7 @@ async function handleBlockControl({ telegramId, action }) {
         activeBlock: blocks[newIdx] || null,
         blockIdx: newIdx,
         isRunning: newRunning,
-        circadianMode: (action === "next" || action === "prev") ? false : (data.circadianMode !== undefined ? data.circadianMode : true)
+        circadianMode: data.circadianMode !== undefined ? !!data.circadianMode : true
       };
     }
   } catch (e) {
@@ -571,9 +568,6 @@ async function handleBlockControl({ telegramId, action }) {
             current_block: blocks[blockIdx] || null,
             updated_at: new Date().toISOString()
           };
-          if (action === "next" || action === "prev") {
-            updateBody.circadian_mode = false;
-          }
 
           await fetch(`${process.env.SUPABASE_URL}/rest/v1/pronoia_users`, {
             method: "POST",
@@ -591,7 +585,7 @@ async function handleBlockControl({ telegramId, action }) {
               activeBlock: blocks[blockIdx] || null,
               blockIdx,
               isRunning,
-              circadianMode: (action === "next" || action === "prev") ? false : true
+              circadianMode: user.circadian_mode !== undefined ? !!user.circadian_mode : true
             };
           }
         }
@@ -730,6 +724,7 @@ async function getUserStatusWithDebug(telegramId) {
       
       status = {
         activeBlock,
+        blocks: data.blocks || [],
         blockIdx: data.blockIdx || 0,
         isRunning: !!data.isRunning,
         circadianMode: data.circadianMode !== undefined ? !!data.circadianMode : true,
@@ -737,7 +732,8 @@ async function getUserStatusWithDebug(telegramId) {
         sleep: data.profile?.metrics?.sleep || 84,
         stack: mappedStack.length > 0 ? mappedStack : status.stack,
         calendar: data.calendar || {},
-        email: data.profile?.email || null
+        email: data.profile?.email || null,
+        customization: data.profile?.customization || { accent: 'blue', mode: 'serious' }
       };
     } else {
       debug.error = "No document found matching this Telegram ID";
