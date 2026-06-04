@@ -9,8 +9,7 @@ import TelemetryVisualizer from '@/components/TelemetryVisualizer';
 import styles from './page.module.css';
 
 import { collection, query, orderBy, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 
 /* ─── Constants ─── */
 const AGENTS = [
@@ -581,57 +580,63 @@ function LifeOSDashboard() {
 
     const fileName = `${Date.now()}_${file.name}`;
     
-    if (storage) {
+    // Read the file as base64 in the browser
+    const reader = new FileReader();
+    reader.onload = async () => {
       try {
-        const fileRef = ref(storage, `vault/${user?.uid || 'shared'}/${fileName}`);
-        const uploadTask = uploadBytesResumable(fileRef, file);
+        const base64Data = reader.result.split(',')[1];
+        
+        // Progress ticker to simulate network upload progress visually
+        let progressVal = 0;
+        const progressInterval = setInterval(() => {
+          progressVal = Math.min(90, progressVal + 15);
+          setUploadProgress(progressVal);
+        }, 150);
 
-        uploadTask.on(
-          'state_changed',
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(Math.round(progress));
+        const res = await fetch('/api/vault/upload', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
           },
-          (error) => {
-            console.error("Upload error:", error);
-            triggerVaultToast("Upload fehlgeschlagen: " + error.message);
-            setUploadingFile(false);
-          },
-          async () => {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            setVaultForm(f => ({
-              ...f,
-              title: f.title ? f.title : file.name,
-              content: downloadURL
-            }));
-            triggerVaultToast("Datei erfolgreich hochgeladen.");
-            setUploadingFile(false);
-          }
-        );
+          body: JSON.stringify({
+            fileName,
+            fileType: file.type,
+            base64Data,
+            userId: user?.uid || 'local'
+          })
+        });
+
+        clearInterval(progressInterval);
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || 'Server error during upload');
+        }
+
+        const data = await res.json();
+        setUploadProgress(100);
+        
+        setVaultForm(f => ({
+          ...f,
+          title: f.title ? f.title : file.name,
+          content: data.downloadURL
+        }));
+
+        triggerVaultToast(data.mock ? "Datei hochgeladen (Simuliert)." : "Datei erfolgreich hochgeladen.");
       } catch (err) {
         console.error("Upload error:", err);
         triggerVaultToast("Upload-Fehler: " + err.message);
+      } finally {
         setUploadingFile(false);
       }
-    } else {
-      // Fallback/mock upload simulator if storage is null (e.g. build time or missing credentials)
-      let currentProgress = 0;
-      const interval = setInterval(() => {
-        currentProgress += 10;
-        setUploadProgress(currentProgress);
-        if (currentProgress >= 100) {
-          clearInterval(interval);
-          const simulatedURL = `https://firebasestorage.googleapis.com/v0/b/mock-bucket/o/vault%2F${user?.uid || 'shared'}%2F${fileName}?alt=media`;
-          setVaultForm(f => ({
-            ...f,
-            title: f.title ? f.title : file.name,
-            content: simulatedURL
-          }));
-          triggerVaultToast("Datei hochgeladen (Simuliert).");
-          setUploadingFile(false);
-        }
-      }, 150);
-    }
+    };
+
+    reader.onerror = () => {
+      triggerVaultToast("Fehler beim Lesen der Datei.");
+      setUploadingFile(false);
+    };
+
+    reader.readAsDataURL(file);
   };
 
   const loadVaultItems = async () => {
