@@ -65,7 +65,37 @@ export async function PUT(req) {
     let vaultContext = "";
     if (db) {
       try {
-        const userId = profile?.uid || profile?.userId || profile?.id || 'local';
+        let userId = 'local';
+        
+        // 1. Resolve userId from telegramId if available
+        const telegramId = telegramUser?.id || profile?.telegramId || null;
+        if (telegramId) {
+          try {
+            const usersRef = collection(db, 'users');
+            const idStr = String(telegramId);
+            const idNum = Number(telegramId);
+
+            let userQuery = query(usersRef, where('profile.telegramId', '==', idStr));
+            let userSnap = await getDocs(userQuery);
+            
+            if (userSnap.empty && !isNaN(idNum)) {
+              userQuery = query(usersRef, where('profile.telegramId', '==', idNum));
+              userSnap = await getDocs(userQuery);
+            }
+
+            if (!userSnap.empty) {
+              userId = userSnap.docs[0].id; // The document ID is the Firebase Auth uid
+            } else {
+              userId = profile?.uid || profile?.userId || profile?.id || 'local';
+            }
+          } catch (err) {
+            console.warn("Failed to lookup user by telegramId in Firestore:", err);
+            userId = profile?.uid || profile?.userId || profile?.id || 'local';
+          }
+        } else {
+          userId = profile?.uid || profile?.userId || profile?.id || 'local';
+        }
+
         const vaultRef = collection(db, 'vault_items');
         const q = query(vaultRef, where('user_id', '==', userId));
         const snap = await getDocs(q);
