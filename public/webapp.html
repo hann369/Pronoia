@@ -1515,7 +1515,12 @@ function calculateVirtualTimeline(blocks) {
         windowEndMin += 24 * 60;
       } else {
         // Same-day overlap! Cap windowEndMin to windowStartMin so gap size is 0
-        windowEndMin = windowStartMin;
+        // And truncate the start anchor's end time to the end anchor's start time to resolve overlap!
+        const endAnchorStart = parseTimeToMin(endAnchor.startTime);
+        const startAnchorStart = parseTimeToMin(startAnchor.startTime);
+        virtualBlocks[startAnchor.idx].calculatedEndMin = endAnchorStart;
+        virtualBlocks[startAnchor.idx].virtualDuration = Math.max(0, endAnchorStart - startAnchorStart) * 60;
+        windowEndMin = endAnchorStart;
       }
     }
     

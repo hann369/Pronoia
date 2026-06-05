@@ -497,3 +497,104 @@
   from { transform: scale(0.95); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
+
+/* Single Day Calendar Preview */
+.singleDayPreviewContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: 250px;
+}
+
+.previewDaySelector {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-s);
+  border-radius: 12px;
+  padding: 0.5rem 1rem;
+}
+
+.previewDayName {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.dayNavBtn {
+  background: transparent;
+  border: none;
+  color: var(--theme-accent, #1A6AFF);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  transition: transform 0.2s;
+}
+
+.dayNavBtn:hover {
+  transform: scale(1.25);
+}
+
+.previewDayCard {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem;
+  flex-grow: 1;
+  overflow-y: auto;
+}
+
+.previewBlocksListSingle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.previewBlockItemSingle {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border-left: 3px solid;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-left-width: 3px;
+  align-items: center;
+}
+
+.previewBlockTime {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text3);
+  width: 45px;
+  flex-shrink: 0;
+}
+
+.previewBlockContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.previewBlockTitleText {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.previewBlockRec {
+  font-size: 0.62rem;
+  color: var(--text-muted, rgba(255, 255, 255, 0.5));
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}

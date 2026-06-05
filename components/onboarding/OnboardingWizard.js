@@ -35,6 +35,7 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, set
 
   // Step 4: Preview State
   const [previewCalendar, setPreviewCalendar] = useState({});
+  const [previewDayIdx, setPreviewDayIdx] = useState(0);
 
   useEffect(() => {
     if (step === 4 && onboardingMode === 'circadian') {
@@ -550,45 +551,73 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, set
           )}
 
           {step === 4 && (
-            <div className={styles.previewGrid}>
-              {daysList.map(dayName => {
-                const calendarDateKey = Object.keys(previewCalendar).find(key => {
-                  const date = new Date(key);
-                  const formattedDay = date.toLocaleDateString('de-DE', { weekday: 'long' });
-                  return formattedDay === dayName;
-                });
-                
-                const blocks = calendarDateKey ? previewCalendar[calendarDateKey].blocks : [];
+            <div className={styles.singleDayPreviewContainer}>
+              <div className={styles.previewDaySelector}>
+                <button
+                  type="button"
+                  className={styles.dayNavBtn}
+                  onClick={() => setPreviewDayIdx(prev => (prev > 0 ? prev - 1 : 6))}
+                >
+                  ◀
+                </button>
+                <span className={styles.previewDayName}>
+                  {daysList[previewDayIdx]}
+                </span>
+                <button
+                  type="button"
+                  className={styles.dayNavBtn}
+                  onClick={() => setPreviewDayIdx(prev => (prev < 6 ? prev + 1 : 0))}
+                >
+                  ▶
+                </button>
+              </div>
 
-                return (
-                  <div key={dayName} className={styles.previewCol}>
-                    <span className={styles.previewColTitle}>{dayName.substr(0, 2)}</span>
-                    <div className={styles.previewBlocksList}>
-                      {blocks.map((b, i) => {
-                        const isLiab = b.liability;
-                        const borderColor = b.pillar === 'focus' ? 'var(--theme-accent, #1A6AFF)' : b.pillar === 'skills' ? 'var(--amber)' : b.pillar === 'recovery' ? 'var(--cobalt-bright)' : b.pillar === 'health' ? 'var(--green)' : 'rgba(255, 255, 255, 0.2)';
-                        
-                        return (
-                          <div 
-                            key={i} 
-                            className={styles.previewBlockItem}
-                            style={{ 
-                              borderLeftColor: borderColor,
-                              background: isLiab ? 'rgba(255, 255, 255, 0.04)' : undefined,
-                              borderStyle: isLiab ? 'dashed' : 'solid',
-                              borderWidth: isLiab ? '1px 1px 1px 3px' : '0 0 0 2px',
-                              opacity: isLiab ? 0.6 : 1
-                            }}
-                            title={`${b.title} (${b.startTime}) - ${b.insight}`}
-                          >
-                            {isLiab ? '🔒 ' : ''}{b.title}
+              <div className={styles.previewDayCard}>
+                <div className={styles.previewBlocksListSingle}>
+                  {(() => {
+                    const dayName = daysList[previewDayIdx];
+                    const calendarDateKey = Object.keys(previewCalendar).find(key => {
+                      const date = new Date(key);
+                      const formattedDay = date.toLocaleDateString('de-DE', { weekday: 'long' });
+                      return formattedDay === dayName;
+                    });
+                    
+                    const blocks = calendarDateKey ? previewCalendar[calendarDateKey].blocks : [];
+
+                    if (blocks.length === 0) {
+                      return <p className={styles.chronoDesc} style={{ textAlign: 'center', opacity: 0.6, margin: '2rem 0' }}>Keine Blöcke für diesen Tag geplant.</p>;
+                    }
+
+                    return blocks.map((b, i) => {
+                      const isLiab = b.liability;
+                      const borderColor = b.pillar === 'focus' ? 'var(--theme-accent, #1A6AFF)' : b.pillar === 'skills' ? 'var(--amber)' : b.pillar === 'recovery' ? 'var(--cobalt-bright)' : b.pillar === 'health' ? 'var(--green)' : 'rgba(255, 255, 255, 0.2)';
+                      
+                      return (
+                        <div 
+                          key={i} 
+                          className={styles.previewBlockItemSingle}
+                          style={{ 
+                            borderLeftColor: borderColor,
+                            background: isLiab ? 'rgba(255, 255, 255, 0.04)' : undefined,
+                            borderStyle: isLiab ? 'dashed' : 'solid',
+                            borderWidth: isLiab ? '1px 1px 1px 3px' : '0 0 0 2px',
+                            opacity: isLiab ? 0.6 : 1
+                          }}
+                          title={`${b.title} (${b.startTime}) - ${b.insight}`}
+                        >
+                          <div className={styles.previewBlockTime}>{b.startTime || '--:--'}</div>
+                          <div className={styles.previewBlockContent}>
+                            <div className={styles.previewBlockTitleText}>
+                              {isLiab ? '🔒 ' : ''}{b.title}
+                            </div>
+                            <div className={styles.previewBlockRec}>{b.rec}</div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
             </div>
           )}
         </div>
