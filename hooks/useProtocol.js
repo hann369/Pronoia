@@ -3,6 +3,7 @@ import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { PROTOCOL_DATABASE } from '@/lib/protocol_data';
+import { generateCompleteWeekCalendar } from '@/lib/circadian_scheduler';
 
 // --- Block Normalization Utilities ---
 export function normalizeBlock(b) {
@@ -210,6 +211,9 @@ export function useProtocol() {
     systemId: 'PX-2026-88',
     joinedDate: 'Mai 2026',
     hasCompletedTutorial: false,
+    hasCompletedOnboarding: false,
+    optimalWeek: null,
+    liabilities: [],
     customization: {
       accent: 'blue',
       mode: 'serious',
@@ -243,6 +247,48 @@ export function useProtocol() {
   const [agentMsg, setAgentMsg] = useState("System initialisiert. Bio-Kognitive Überwachung aktiv.");
   const [isTyping, setIsTyping] = useState(false);
   const [directives, setDirectives] = useState([]);
+  const [consensusData, setConsensusData] = useState({
+    leader: "A.06",
+    directive: "Initialisiere Consensus-Broker...",
+    agentStatuses: {
+      "A.01": { status: "ACTIVE", text: "Zirkadiane Phase stabil." },
+      "A.02": { status: "ACTIVE", text: "Erholungs-Phase nominal." },
+      "A.03": { status: "ACTIVE", text: "ZNS-Spannung im grünen Bereich." },
+      "A.04": { status: "ACTIVE", text: "Stack-Compliance nominal." },
+      "A.05": { status: "ACTIVE", text: "Geringe Reibung im aktuellen Ablauf." },
+      "A.06": { status: "LEADING", text: "Alle kognitiven Subsysteme synchronisiert." }
+    }
+  });
+
+  const triggerConsensusEvaluation = useCallback(async (hrv, sleep, logs) => {
+    try {
+      const response = await fetch('/api/consensus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hrv: hrv || 72,
+          sleep: sleep || 84,
+          frictionLogs: logs || [],
+          activeBlock: 'Focus'
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setConsensusData(data);
+        if (data.directive) {
+          setDirectives(prev => {
+            if (prev[0]?.text === data.directive) return prev;
+            return [{
+              text: data.directive,
+              timestamp: new Date().toISOString()
+            }, ...prev].slice(0, 10);
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to run consensus fetch:", err);
+    }
+  }, []);
 
   // Date-Based Calendar States
   const [calendar, setCalendar] = useState({});
@@ -417,6 +463,14 @@ export function useProtocol() {
     }, 2000);
     return () => clearTimeout(timer);
   }, [profile, blocks, blockIdx, isRunning, circadianMode, stack, frictionLogs, directives, dataSources, calendar, user]);
+
+  // Consensus Evaluation trigger on biometrics/friction changes
+  useEffect(() => {
+    if (profileLoading) return;
+    const hrv = profile?.metrics?.hrv || 72;
+    const sleep = profile?.metrics?.sleep || 84;
+    triggerConsensusEvaluation(hrv, sleep, frictionLogs);
+  }, [profile?.metrics?.hrv, profile?.metrics?.sleep, frictionLogs, profileLoading, triggerConsensusEvaluation]);
 
   // Timer Logic
   const tick = useCallback(() => {
@@ -664,6 +718,36 @@ export function useProtocol() {
       ...updatedProfile
     }));
     setAgentMsg("Profil-Parameter erfolgreich aktualisiert.");
+  };
+
+  const activateOptimalProtocol = (chronotype, wakeTime, bedTime, liabilitiesList, goals) => {
+    const weekCalendar = generateCompleteWeekCalendar(chronotype, wakeTime, bedTime, liabilitiesList, goals);
+    setCalendar(weekCalendar);
+    
+    const updatedProfile = {
+      hasCompletedOnboarding: true,
+      optimalWeek: { chronotype, wakeTime, bedTime, goals },
+      liabilities: liabilitiesList
+    };
+    
+    setProfile(prev => ({
+      ...prev,
+      ...updatedProfile
+    }));
+    
+    // Sync active queue for today
+    const todayStr = formatDate(new Date());
+    const todayData = weekCalendar[todayStr];
+    if (todayData && todayData.blocks && todayData.blocks.length > 0) {
+      const normalizedBlocks = normalizeBlockList(todayData.blocks);
+      setBlocks(normalizedBlocks);
+      setBlockIdx(0);
+      setTimeLeft(normalizedBlocks[0].duration);
+      setTotalTime(normalizedBlocks[0].duration);
+      setCircadianMode(true);
+    }
+    
+    setAgentMsg("Optimales Wochenprotokoll erfolgreich generiert und geladen.");
   };
 
   const linkTelegramId = async (telegramId, currentUser) => {
@@ -1799,6 +1883,9 @@ export function useProtocol() {
     pendingQueueOverride,
     setPendingQueueOverride,
     confirmQueueOverride,
-    restoreCalendarBlocks
+    restoreCalendarBlocks,
+    setCalendar,
+    consensusData,
+    activateOptimalProtocol
   };
 }

@@ -42,6 +42,38 @@ export async function POST(req) {
     if (!apiKey || apiKey === 'REPLACE_ME') {
       const lowerPrompt = prompt.toLowerCase();
       
+      // 0. Parse liabilities fallback
+      if (lowerPrompt.includes('blockaden') || lowerPrompt.includes('verbindlichkeiten') || lowerPrompt.includes('parse')) {
+        let liabilities = [];
+        if (lowerPrompt.includes('montag') || lowerPrompt.includes('mo')) {
+          liabilities.push({ id: 'l1', title: 'Arbeit', day: 'Montag', startTime: '09:00', endTime: '17:00' });
+        }
+        if (lowerPrompt.includes('dienstag') || lowerPrompt.includes('di')) {
+          liabilities.push({ id: 'l2', title: 'Arbeit', day: 'Dienstag', startTime: '09:00', endTime: '17:00' });
+        }
+        if (lowerPrompt.includes('mittwoch') || lowerPrompt.includes('mi')) {
+          liabilities.push({ id: 'l3', title: 'Arbeit', day: 'Mittwoch', startTime: '09:00', endTime: '17:00' });
+          if (lowerPrompt.includes('sport') || lowerPrompt.includes('gym')) {
+            liabilities.push({ id: 'l3_sport', title: 'Sport', day: 'Mittwoch', startTime: '18:00', endTime: '19:30' });
+          }
+        }
+        if (lowerPrompt.includes('donnerstag') || lowerPrompt.includes('do')) {
+          liabilities.push({ id: 'l4', title: 'Arbeit', day: 'Donnerstag', startTime: '09:00', endTime: '17:00' });
+        }
+        if (lowerPrompt.includes('freitag') || lowerPrompt.includes('fr')) {
+          liabilities.push({ id: 'l5', title: 'Arbeit', day: 'Freitag', startTime: '09:00', endTime: '17:00' });
+        }
+        
+        // General fallback if no match
+        if (liabilities.length === 0) {
+          liabilities.push({ id: 'lf1', title: 'Fester Termin', day: 'Montag', startTime: '10:00', endTime: '12:00' });
+        }
+        
+        return NextResponse.json({
+          choices: [{ message: { content: JSON.stringify(liabilities) } }]
+        });
+      }
+      
       // 1. Calendar/Day protocol sync (chatWithDayAI)
       if (lowerPrompt.includes('blocks') || lowerPrompt.includes('tagesplan') || lowerPrompt.includes('json')) {
         let currentPlanBlocks = [];

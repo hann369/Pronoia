@@ -1,0 +1,481 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 4, 8, 0.45);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.wizardCard {
+  width: 90%;
+  max-width: 680px;
+  background: var(--panel-glass-bg);
+  border: 1.5px solid var(--panel-glass-border);
+  box-shadow: var(--panel-glass-shadow);
+  border-radius: 24px;
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  backdrop-filter: blur(45px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(45px) saturate(180%) !important;
+  animation: scaleUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1.25rem;
+}
+
+.stepIndicator {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--cobalt-bright);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 400;
+  color: var(--text);
+  margin-bottom: 0.4rem;
+}
+
+.desc {
+  font-size: 0.82rem;
+  color: var(--text3);
+  line-height: 1.5;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-height: 280px;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.4rem;
+  display: block;
+}
+
+/* Chronotype selection */
+.chronotypeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.chronoBtn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-s);
+  border-radius: 12px;
+  padding: 1.25rem 0.75rem;
+  color: var(--text2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-out);
+}
+
+.chronoBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--text3);
+}
+
+.chronoActive {
+  background: rgba(26, 106, 255, 0.12) !important;
+  border-color: var(--cobalt-bright) !important;
+  color: var(--text) !important;
+}
+
+.chronoIcon {
+  font-size: 1.5rem;
+}
+
+.chronoTitle {
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.chronoDesc {
+  font-size: 0.68rem;
+  opacity: 0.8;
+  text-align: center;
+}
+
+/* Input Row */
+.timeRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.timeField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.timeInput {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-s);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  outline: none;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.timeInput:focus {
+  border-color: var(--cobalt-bright);
+  box-shadow: 0 0 10px rgba(26, 106, 255, 0.15);
+}
+
+/* Goal Selection */
+.goalsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.goalRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.goalLabelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.goalVal {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--cobalt-bright);
+}
+
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: var(--border-s);
+  border-radius: 100px;
+  outline: none;
+  transition: background 0.3s ease;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--cobalt-bright);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(26, 106, 255, 0.4);
+  transition: transform 0.15s ease;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+/* Liabilities Step */
+.liabilitiesContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.nlpSection {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--border-s);
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.nlpTextarea {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-s);
+  border-radius: 8px;
+  padding: 0.75rem;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.8rem;
+  resize: none;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.nlpTextarea:focus {
+  border-color: var(--cobalt-bright);
+}
+
+.nlpBtnRow {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.parseBtn {
+  padding: 0.45rem 1.25rem;
+  font-size: 0.65rem;
+  border-radius: 8px;
+}
+
+.manualForm {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 1fr 1fr 0.6fr;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.selectInput, .textInput {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-s);
+  border-radius: 8px;
+  padding: 0.5rem;
+  color: var(--text);
+  font-size: 0.75rem;
+  outline: none;
+  width: 100%;
+}
+
+.addBtn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-s);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.55rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.addBtn:hover {
+  background: var(--cobalt-dim);
+  border-color: var(--cobalt-bright);
+}
+
+.liabilitiesList {
+  max-height: 140px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.liabilityRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+}
+
+.liabilityRow:last-child {
+  border-bottom: none;
+}
+
+.liabInfo {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.liabDay {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--cobalt-bright);
+}
+
+.liabTitle {
+  font-weight: 600;
+}
+
+.liabTime {
+  color: var(--text3);
+}
+
+.liabDelete {
+  background: transparent;
+  border: none;
+  color: var(--red);
+  font-size: 0.95rem;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.liabDelete:hover {
+  opacity: 1;
+}
+
+/* Calendar Preview */
+.previewGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+  height: 240px;
+}
+
+.previewCol {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  height: 100%;
+}
+
+.previewColTitle {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text3);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.25rem;
+  text-transform: uppercase;
+}
+
+.previewBlocksList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+.previewBlockItem {
+  font-size: 0.48rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+  border-left: 2px solid;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Footer buttons */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  padding-top: 1.25rem;
+  margin-top: 0.5rem;
+}
+
+.cancelBtn {
+  background: transparent;
+  border: none;
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: color 0.2s ease;
+}
+
+.cancelBtn:hover {
+  color: var(--text);
+}
+
+.btnGroup {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.backBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-s);
+  color: var(--text);
+  border-radius: 100px;
+  padding: 0.6rem 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+}
+
+.backBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--text3);
+}
+
+.nextBtn {
+  border-radius: 100px;
+  padding: 0.65rem 1.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25);
+  transition: all 0.3s ease;
+}
+
+.nextBtn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
+.primaryAction {
+  background: var(--cobalt) !important;
+  border-color: var(--cobalt-bright) !important;
+  box-shadow: 0 4px 15px rgba(0, 71, 171, 0.2) !important;
+}
+
+.primaryAction:hover {
+  background: var(--cobalt-bright) !important;
+  box-shadow: 0 8px 25px rgba(26, 106, 255, 0.4) !important;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleUp {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}

@@ -14,6 +14,7 @@ import SocialHub from '@/components/social/SocialHub';
 import PronoiaLab from '@/components/lab/PronoiaLab';
 import { useChat } from '@/hooks/useChat';
 import FloatingChat from '@/components/social/FloatingChat';
+import OnboardingWizard from '@/components/onboarding/OnboardingWizard';
 
 
 /* ─── Constants ─── */
@@ -263,7 +264,8 @@ function LifeOSDashboard() {
     toggleTimer, nextBlock, prevBlock, skipBlock, handleCommand, setAgentMsg,
     consumeStackItem, addStackItem, removeStackItem, updateStackItem,
     saveProfile, linkTelegramId, logFriction, loadProtocolQueue, addCustomBlock, uploadDataSource,
-    manualPeekIdx, setManualPeekIdx, pendingQueueOverride, setPendingQueueOverride, confirmQueueOverride, restoreCalendarBlocks
+    manualPeekIdx, setManualPeekIdx, pendingQueueOverride, setPendingQueueOverride, confirmQueueOverride, restoreCalendarBlocks,
+    activateOptimalProtocol, consensusData
   } = useProtocol();
 
   // Drag/Swipe gestures states on Chronometer
@@ -396,6 +398,91 @@ function LifeOSDashboard() {
   const [newGoalText, setNewGoalText] = useState('');
   const [editHrv, setEditHrv] = useState('');
   const [editSleep, setEditSleep] = useState('');
+
+  /* ─── Liabilities Edit State & Handlers ─── */
+  const [editingLiability, setEditingLiability] = useState(null);
+
+  const handleLiabilityClick = (block) => {
+    const found = (profile?.liabilities || []).find(l => l.id === block.id || (l.title === block.title && l.day === block.day));
+    if (found) {
+      setEditingLiability(found);
+    } else {
+      setEditingLiability({
+        id: block.id || `liab_${Date.now()}`,
+        title: block.title,
+        day: block.day || 'Montag',
+        startTime: block.startTime || '09:00',
+        endTime: block.endTime || '17:00'
+      });
+    }
+  };
+
+  const handleSaveEditedLiability = (e) => {
+    e.preventDefault();
+    if (!editingLiability) return;
+    const currentLiabs = profile?.liabilities || [];
+    let updatedLiabs;
+    if (currentLiabs.some(l => l.id === editingLiability.id)) {
+      updatedLiabs = currentLiabs.map(l => l.id === editingLiability.id ? editingLiability : l);
+    } else {
+      updatedLiabs = [...currentLiabs, editingLiability];
+    }
+    const optWeek = profile?.optimalWeek || {
+      chronotype: 'balanced',
+      wakeTime: '07:00',
+      bedTime: '23:00',
+      goals: { deepWorkHours: 15, sportSessions: 3, recoverySessions: 3 }
+    };
+    activateOptimalProtocol(
+      optWeek.chronotype,
+      optWeek.wakeTime,
+      optWeek.bedTime,
+      updatedLiabs,
+      optWeek.goals
+    );
+    setEditingLiability(null);
+  };
+
+  const handleDeleteEditedLiability = () => {
+    if (!editingLiability) return;
+    const currentLiabs = profile?.liabilities || [];
+    const updatedLiabs = currentLiabs.filter(l => l.id !== editingLiability.id);
+    const optWeek = profile?.optimalWeek || {
+      chronotype: 'balanced',
+      wakeTime: '07:00',
+      bedTime: '23:00',
+      goals: { deepWorkHours: 15, sportSessions: 3, recoverySessions: 3 }
+    };
+    activateOptimalProtocol(
+      optWeek.chronotype,
+      optWeek.wakeTime,
+      optWeek.bedTime,
+      updatedLiabs,
+      optWeek.goals
+    );
+    setEditingLiability(null);
+  };
+
+  const handleDeleteLiabilityFromBlock = (block) => {
+    const found = (profile?.liabilities || []).find(l => l.id === block.id || (l.title === block.title && l.day === block.day));
+    if (found) {
+      const currentLiabs = profile?.liabilities || [];
+      const updatedLiabs = currentLiabs.filter(l => l.id !== found.id);
+      const optWeek = profile?.optimalWeek || {
+        chronotype: 'balanced',
+        wakeTime: '07:00',
+        bedTime: '23:00',
+        goals: { deepWorkHours: 15, sportSessions: 3, recoverySessions: 3 }
+      };
+      activateOptimalProtocol(
+        optWeek.chronotype,
+        optWeek.wakeTime,
+        optWeek.bedTime,
+        updatedLiabs,
+        optWeek.goals
+      );
+    }
+  };
 
   /* ─── Ecosystem Shop State ─── */
   const [activeInvoice, setActiveInvoice] = useState(null);
@@ -1148,6 +1235,9 @@ function LifeOSDashboard() {
   else { ltpPotential = Math.max(20, Math.round(50 - prog * 30)); plasticity = Math.max(30, Math.round(60 - prog * 20)); }
 
   const getAgentStatus = (agentId) => {
+    if (consensusData?.agentStatuses?.[agentId]) {
+      return consensusData.agentStatuses[agentId];
+    }
     const isFocus = currentBlock.pillar === 'focus';
     const isSkills = currentBlock.pillar === 'skills';
     const isRecovery = currentBlock.pillar === 'recovery';
@@ -1689,22 +1779,35 @@ function LifeOSDashboard() {
                 <div className={styles.panelGroup}>
                   <div className={styles.panelGroupLabel}>Aktive Queue ({blocks.length} Blöcke)</div>
                   <div className={styles.queueList}>
-                    {blocks.map((block, idx) => (
-                      <div key={idx} className={`${styles.queueItem} ${idx === blockIdx ? styles.queueItemActive : ''}`}>
-                        <span className={styles.queueNum}>{idx + 1}</span>
-                        <div className={styles.queueInfo}>
-                          <div className={styles.queueTitle}>{block.title}</div>
-                          <div className={styles.queueMeta}>
-                            {circadianMode && block.calculatedStartMin !== undefined && block.calculatedEndMin !== undefined ? (
-                              `${formatMinToTime(block.calculatedStartMin)} – ${formatMinToTime(block.calculatedEndMin)} (${Math.round((block.virtualDuration || block.duration) / 60)} Min) · ${block.type}`
-                            ) : (
-                              `${Math.round(block.duration / 60)} Min · ${block.type}`
-                            )}
+                    {blocks.map((block, idx) => {
+                      const isLiab = block.liability;
+                      return (
+                        <div 
+                          key={idx} 
+                          className={`${styles.queueItem} ${idx === blockIdx ? styles.queueItemActive : ''}`}
+                          style={isLiab ? { 
+                            background: 'rgba(255, 255, 255, 0.04)', 
+                            border: '1px dashed rgba(255, 255, 255, 0.15)', 
+                            color: 'rgba(255, 255, 255, 0.55)',
+                            cursor: 'pointer' 
+                          } : undefined}
+                          onClick={isLiab ? () => handleLiabilityClick(block) : undefined}
+                        >
+                          <span className={styles.queueNum}>{isLiab ? '🔒' : idx + 1}</span>
+                          <div className={styles.queueInfo}>
+                            <div className={styles.queueTitle}>{block.title}</div>
+                            <div className={styles.queueMeta}>
+                              {circadianMode && block.calculatedStartMin !== undefined && block.calculatedEndMin !== undefined ? (
+                                `${formatMinToTime(block.calculatedStartMin)} – ${formatMinToTime(block.calculatedEndMin)} (${Math.round((block.virtualDuration || block.duration) / 60)} Min) · ${block.type}`
+                              ) : (
+                                `${Math.round(block.duration / 60)} Min · ${block.type}`
+                              )}
+                            </div>
                           </div>
+                          {idx === blockIdx && <span className={styles.queueActiveDot} />}
                         </div>
-                        {idx === blockIdx && <span className={styles.queueActiveDot} />}
-                      </div>
-                    ))}
+                      );
+                    })}
                     {blocks.length === 0 && <p className={styles.emptyState}>Keine Blöcke aktiv.</p>}
                   </div>
                 </div>
@@ -2509,13 +2612,20 @@ function LifeOSDashboard() {
               </div>
               <div className={styles.panelBody}>
                 <div className={styles.consensusBox}>
-                  <div className={styles.consensusBadge}>
-                    <span className={styles.consensusDot} />
-                    Consensus: 6/6 Freigaben
-                  </div>
-                  <p className={styles.consensusSummary} style={{ marginTop: '1rem', fontSize: '0.85rem' }}>
-                    <strong>A.06 Orchestrator:</strong> {currentBlock.insight || 'Alle Subsysteme synchronisiert.'}
-                  </p>
+                  {(() => {
+                    const hasAlert = Object.values(consensusData?.agentStatuses || {}).some(s => s.status === 'ALERT');
+                    return (
+                      <>
+                        <div className={styles.consensusBadge} style={{ borderColor: hasAlert ? 'var(--red)' : 'var(--green)', color: hasAlert ? 'var(--red)' : 'var(--green)' }}>
+                          <span className={styles.consensusDot} style={{ background: hasAlert ? 'var(--red)' : 'var(--green)' }} />
+                          Consensus: {hasAlert ? 'Erhöhter Stress / Reibung' : '6/6 Freigaben'}
+                        </div>
+                        <p className={styles.consensusSummary} style={{ marginTop: '1rem', fontSize: '0.85rem' }}>
+                          <strong>{consensusData?.leader || 'A.06 Orchestrator'}:</strong> {consensusData?.directive || currentBlock.insight || 'Alle Subsysteme synchronisiert.'}
+                        </p>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 <div className={styles.agentsListGrid} style={{ marginTop: '2rem' }}>
@@ -2698,9 +2808,18 @@ function LifeOSDashboard() {
 
                 <div className={styles.panelGroup} style={{ marginTop: '2.5rem' }}>
                   <div className={styles.panelGroupLabel}>System-Einweisung</div>
-                  <button className={styles.formBtn} style={{ width: '100%', background: 'rgba(26,106,255,0.1)', borderColor: 'var(--theme-accent, var(--cobalt-bright))', color: 'var(--theme-accent, var(--cobalt-bright))', marginTop: '0.5rem' }}
+                  <button className={styles.formBtn} style={{ width: '100%', background: 'rgba(26,106,255,0.1)', borderColor: 'var(--theme-accent, var(--cobalt-bright))', color: 'var(--theme-accent, var(--cobalt-bright))', marginTop: '0.5rem', marginBottom: '1.25rem' }}
                     onClick={() => { setTutorialStep(1); }}>
                     🎓 Tour starten
+                  </button>
+
+                  <div className={styles.panelGroupLabel}>Zirkadianer Setup-Planer</div>
+                  <button
+                    className={styles.formBtn}
+                    style={{ width: '100%', background: 'var(--cobalt)', color: '#fff', border: '1px solid var(--cobalt-bright)', marginTop: '0.5rem' }}
+                    onClick={() => saveProfile({ hasCompletedOnboarding: false })}
+                  >
+                    🔄 Wochenprotokoll & Blockaden anpassen
                   </button>
                 </div>
 
@@ -3010,19 +3129,34 @@ function LifeOSDashboard() {
                   </div>
                 </div>
                 <div className={styles.calBlocks}>
-                  {daySchedule.blocks?.map((block, idx) => (
-                    <div key={idx} className={styles.calBlock} style={{ borderLeftColor: block.pillar === 'skills' ? 'var(--amber)' : block.pillar === 'recovery' ? 'var(--cobalt-bright)' : 'var(--green)' }}>
-                      <div style={{ flex: 1 }}>
-                        <div className={styles.calBlockTitle}>{block.title}</div>
-                        <div className={styles.calBlockSub}>{block.rec}</div>
+                  {daySchedule.blocks?.map((block, idx) => {
+                    const isLiab = block.liability;
+                    return (
+                      <div 
+                        key={idx} 
+                        className={styles.calBlock} 
+                        style={isLiab ? { 
+                          background: 'rgba(255, 255, 255, 0.04)', 
+                          border: '1px dashed rgba(255, 255, 255, 0.15)', 
+                          borderLeft: '3px solid rgba(255, 255, 255, 0.25)', 
+                          cursor: 'pointer' 
+                        } : { 
+                          borderLeftColor: block.pillar === 'skills' ? 'var(--amber)' : block.pillar === 'recovery' ? 'var(--cobalt-bright)' : 'var(--green)' 
+                        }}
+                        onClick={isLiab ? () => handleLiabilityClick(block) : undefined}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div className={styles.calBlockTitle}>{isLiab ? `🔒 ${block.title}` : block.title}</div>
+                          <div className={styles.calBlockSub}>{block.rec}</div>
+                        </div>
+                        <div className={styles.calBlockTime}>{block.startTime || '--:--'}</div>
+                        <div className={styles.calBlockBtns} onClick={e => e.stopPropagation()}>
+                          <button className={styles.calIconBtn} onClick={isLiab ? () => handleLiabilityClick(block) : () => handleEditCalendarBlock(idx, block.title, block.startTime)}>✎</button>
+                          <button className={styles.calIconBtn} style={{ color: 'var(--red)' }} onClick={isLiab ? () => handleDeleteLiabilityFromBlock(block) : () => deleteCalendarBlock(idx)}>✕</button>
+                        </div>
                       </div>
-                      <div className={styles.calBlockTime}>{block.startTime || '--:--'}</div>
-                      <div className={styles.calBlockBtns}>
-                        <button className={styles.calIconBtn} onClick={() => handleEditCalendarBlock(idx, block.title, block.startTime)}>✎</button>
-                        <button className={styles.calIconBtn} style={{ color: 'var(--red)' }} onClick={() => deleteCalendarBlock(idx)}>✕</button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {(!daySchedule.blocks || daySchedule.blocks.length === 0) && (
                     <p className={styles.emptyState}>Kein Protokoll für diesen Tag. Nutze AI Sync.</p>
                   )}
@@ -3068,6 +3202,92 @@ function LifeOSDashboard() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ ONBOARDING WIZARD OVERLAY ═══ */}
+      {profile?.hasCompletedOnboarding === false && (
+        <OnboardingWizard 
+          profile={profile} 
+          activateOptimalProtocol={activateOptimalProtocol} 
+          onClose={() => saveProfile({ hasCompletedOnboarding: true })}
+        />
+      )}
+
+      {/* ═══ LIABILITIES EDIT OVERLAY ═══ */}
+      {editingLiability && (
+        <div className={styles.modalOverlay} onClick={() => setEditingLiability(null)}>
+          <div className={styles.calModal} style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
+            <button className={styles.modalClose} onClick={() => setEditingLiability(null)}>✕</button>
+            <div className={styles.calHeader}>
+              <h2 className={styles.calTitle}>🔒 Sperrzeit anpassen</h2>
+              <p className={styles.calSub}>Ändere wöchentliche Liabilities für automatische Anpassungen.</p>
+            </div>
+            <form onSubmit={handleSaveEditedLiability} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1rem 0' }}>
+              <div>
+                <label className={styles.formLabel}>Titel</label>
+                <input 
+                  type="text" 
+                  className={styles.formInput} 
+                  value={editingLiability.title} 
+                  onChange={e => setEditingLiability(prev => ({ ...prev, title: e.target.value }))} 
+                  required 
+                />
+              </div>
+              <div>
+                <label className={styles.formLabel}>Wochentag</label>
+                <select 
+                  className={styles.formInput} 
+                  value={editingLiability.day} 
+                  onChange={e => setEditingLiability(prev => ({ ...prev, day: e.target.value }))}
+                >
+                  {['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'].map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label className={styles.formLabel}>Startzeit</label>
+                  <input 
+                    type="time" 
+                    className={styles.formInput} 
+                    value={editingLiability.startTime} 
+                    onChange={e => setEditingLiability(prev => ({ ...prev, startTime: e.target.value }))} 
+                    required 
+                  />
+                </div>
+                <div>
+                  <label className={styles.formLabel}>Endzeit</label>
+                  <input 
+                    type="time" 
+                    className={styles.formInput} 
+                    value={editingLiability.endTime} 
+                    onChange={e => setEditingLiability(prev => ({ ...prev, endTime: e.target.value }))} 
+                    required 
+                  />
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button 
+                  type="button" 
+                  className={styles.calSidebarBtn} 
+                  style={{ flex: 1, background: 'rgba(255, 77, 77, 0.15)', borderColor: 'var(--red)', color: 'var(--red)' }}
+                  onClick={handleDeleteEditedLiability}
+                >
+                  Löschen
+                </button>
+                <button 
+                  type="submit" 
+                  className={styles.calSidebarBtnGreen} 
+                  style={{ flex: 2 }}
+                >
+                  Speichern ✦
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
