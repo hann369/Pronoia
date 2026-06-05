@@ -13,6 +13,7 @@ import { db } from '@/lib/firebase';
 import SocialHub from '@/components/social/SocialHub';
 import PronoiaLab from '@/components/lab/PronoiaLab';
 import { useChat } from '@/hooks/useChat';
+import FloatingChat from '@/components/social/FloatingChat';
 
 
 /* ─── Constants ─── */
@@ -3070,6 +3071,7 @@ function LifeOSDashboard() {
         </div>
       )}
 
+      <FloatingChat />
     </div>
   );
 }
