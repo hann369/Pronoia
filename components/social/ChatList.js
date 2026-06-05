@@ -1,7 +1,7 @@
 // components/social/ChatList.js
 import React from 'react';
 
-export default function ChatList({ conversations, onSelectChat, activeChatId, currentUserUid, styles }) {
+export default function ChatList({ conversations, onSelectChat, activeChatId, currentUserUid, onDeleteChat, styles }) {
   const avatarPreset = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=200';
 
   const formatLastMsgTime = (timestamp) => {
@@ -29,22 +29,52 @@ export default function ChatList({ conversations, onSelectChat, activeChatId, cu
             key={chat.id}
             className={`${styles.chatListItem} ${isActive ? styles.chatListItemActive : ''} ${chat.hasUnread ? styles.chatListItemUnread : ''}`}
             onClick={() => onSelectChat(chat)}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
           >
-            <img
-              src={chat.avatar || avatarPreset}
-              alt={chat.title}
-              className={styles.chatListAvatar}
-            />
-            <div className={styles.chatListInfo}>
-              <div className={styles.chatListHeaderRow}>
-                <span className={styles.chatListTitle}>{chat.title}</span>
-                <span className={styles.chatListTime}>{timeStr}</span>
-              </div>
-              <div className={styles.chatListPreviewRow}>
-                <span className={styles.chatListPreview}>{previewText}</span>
-                {chat.hasUnread && <span className={styles.unreadBadge}>⊕</span>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: 1, minWidth: 0 }}>
+              <img
+                src={chat.avatar || avatarPreset}
+                alt={chat.title}
+                className={styles.chatListAvatar}
+              />
+              <div className={styles.chatListInfo}>
+                <div className={styles.chatListHeaderRow}>
+                  <span className={styles.chatListTitle}>{chat.title}</span>
+                  <span className={styles.chatListTime}>{timeStr}</span>
+                </div>
+                <div className={styles.chatListPreviewRow}>
+                  <span className={styles.chatListPreview}>{previewText}</span>
+                  {chat.hasUnread && <span className={styles.unreadBadge}>⊕</span>}
+                </div>
               </div>
             </div>
+
+            {onDeleteChat && (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirm("Möchtest du diesen Chat wirklich unwiderruflich löschen? (Admin-Recht)")) {
+                    onDeleteChat(chat.id);
+                  }
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--red, #ff4d4d)',
+                  cursor: 'pointer',
+                  padding: '0.5rem',
+                  fontSize: '0.85rem',
+                  opacity: 0.6,
+                  transition: 'opacity 0.2s',
+                  marginLeft: '0.5rem'
+                }}
+                onMouseEnter={(e) => e.target.style.opacity = 1}
+                onMouseLeave={(e) => e.target.style.opacity = 0.6}
+                title="Chat löschen (Admin)"
+              >
+                ✕
+              </button>
+            )}
           </div>
         );
       })}

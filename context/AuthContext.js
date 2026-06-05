@@ -12,12 +12,15 @@ import {
   GoogleAuthProvider,
   signOut,
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser]       = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [role, setRole]       = useState('user');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,11 +41,42 @@ export function AuthProvider({ children }) {
         console.error("Google redirect sign-in failed:", err);
       });
 
+    let unsubDoc = null;
+
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
-      setLoading(false);
+      if (unsubDoc) {
+        unsubDoc();
+        unsubDoc = null;
+      }
+
+      if (u && db) {
+        const userDocRef = doc(db, 'users', u.uid);
+        unsubDoc = onSnapshot(userDocRef, (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            setProfile(data.profile || null);
+            setRole(data.role || 'user');
+          } else {
+            setProfile(null);
+            setRole('user');
+          }
+          setLoading(false);
+        }, (err) => {
+          console.error("AuthContext user doc onSnapshot error:", err);
+          setLoading(false);
+        });
+      } else {
+        setProfile(null);
+        setRole('user');
+        setLoading(false);
+      }
     });
-    return unsub;
+
+    return () => {
+      unsub();
+      if (unsubDoc) unsubDoc();
+    };
   }, []);
 
   const login = (email, pw) => {
@@ -79,7 +113,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, loginWithGoogle, resetPassword, logout }}>
+    <AuthContext.Provider value={{ user, profile, role, loading, login, signup, loginWithGoogle, resetPassword, logout }}>
       {children}
     </AuthContext.Provider>
   );

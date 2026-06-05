@@ -7,11 +7,11 @@ import ChatList from './ChatList';
 import ChatBubble from './ChatBubble';
 import UserCard from './UserCard';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import styles from './SocialHub.module.css';
 
 export default function SocialHub({ setActiveTab, stack }) {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const {
     friends,
     pendingRequests,
@@ -43,6 +43,32 @@ export default function SocialHub({ setActiveTab, stack }) {
   const [selectedGroupMembers, setSelectedGroupMembers] = useState([]);
   
   const chatMessagesEndRef = useRef(null);
+
+  const handleToggleRole = async (targetUid, currentRole) => {
+    if (role !== 'admin') return;
+    try {
+      const newRole = currentRole === 'admin' ? 'user' : 'admin';
+      await setDoc(doc(db, 'users', targetUid), { role: newRole }, { merge: true });
+      alert(`Rolle erfolgreich auf '${newRole}' aktualisiert! Bitte Suche erneut ausführen, um den Status anzuzeigen.`);
+    } catch (e) {
+      console.error(e);
+      alert("Fehler beim Aktualisieren der Rolle: " + e.message);
+    }
+  };
+
+  const handleDeleteChat = async (chatId) => {
+    if (role !== 'admin') return;
+    try {
+      await deleteDoc(doc(db, 'chats', chatId));
+      if (selectedChat?.id === chatId) {
+        setSelectedChat(null);
+      }
+      alert("Chat erfolgreich gelöscht.");
+    } catch (e) {
+      console.error(e);
+      alert("Fehler beim Löschen des Chats: " + e.message);
+    }
+  };
 
   // Auto-scroll chat messages to bottom
   useEffect(() => {
@@ -189,6 +215,7 @@ export default function SocialHub({ setActiveTab, stack }) {
                   onSelectChat={setSelectedChat}
                   activeChatId={selectedChat?.id}
                   currentUserUid={user?.uid}
+                  onDeleteChat={role === 'admin' ? handleDeleteChat : null}
                   styles={styles}
                 />
               )}
@@ -258,14 +285,29 @@ export default function SocialHub({ setActiveTab, stack }) {
                     const status = existingFriend ? 'accepted' : isPending ? 'pending' : 'none';
 
                     return (
-                      <UserCard
-                        key={res.uid}
-                        user={res}
-                        onAddFriend={() => sendFriendRequest(res.uid)}
-                        onMessage={() => handleStartChat(res.uid)}
-                        friendshipStatus={status}
-                        styles={styles}
-                      />
+                      <div key={res.uid} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', background: 'var(--bg3)', borderRadius: '12px', border: '1px solid var(--border-s)', padding: '0.25rem', marginBottom: '0.5rem' }}>
+                        <UserCard
+                          user={res}
+                          onAddFriend={() => sendFriendRequest(res.uid)}
+                          onMessage={() => handleStartChat(res.uid)}
+                          friendshipStatus={status}
+                          styles={{ ...styles, userCard: '' }}
+                        />
+                        {role === 'admin' && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                            <span style={{ fontSize: '0.62rem', fontFamily: 'var(--font-mono)', color: 'var(--text3)' }}>
+                              Rolle: <strong style={{ color: res.role === 'admin' ? 'var(--tan)' : 'var(--text2)' }}>{res.role || 'user'}</strong>
+                            </span>
+                            <button
+                              onClick={() => handleToggleRole(res.uid, res.role)}
+                              className="btn btn-ghost"
+                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.6rem', fontFamily: 'var(--font-mono)' }}
+                            >
+                              {res.role === 'admin' ? 'Demote' : 'Promote to Admin'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     );
                   })
                 )}

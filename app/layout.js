@@ -1,6 +1,7 @@
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import Nav from '@/components/Nav';
+import FloatingChat from '@/components/social/FloatingChat';
 
 export const metadata = {
   title: { default: 'Pronoia', template: '%s | Pronoia' },
@@ -22,6 +23,7 @@ export default function RootLayout({ children }) {
 
           <Nav />
           <main>{children}</main>
+          <FloatingChat />
         </AuthProvider>
       </body>
     </html>
