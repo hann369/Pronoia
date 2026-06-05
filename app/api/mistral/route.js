@@ -42,7 +42,138 @@ export async function POST(req) {
     if (!apiKey || apiKey === 'REPLACE_ME') {
       const lowerPrompt = prompt.toLowerCase();
       
-      // 0. Parse liabilities fallback
+      // 0. Parse finished plan fallback
+      if (lowerPrompt.includes('fertiger_wochenplan') || lowerPrompt.includes('fertigen plan')) {
+        let showerPref = 'morning';
+        let shoppingPref = 'weekly';
+        const showerMatch = prompt.match(/showerPreference:\s*(\w+)/);
+        if (showerMatch) showerPref = showerMatch[1];
+        const shoppingMatch = prompt.match(/shoppingPreference:\s*(\w+)/);
+        if (shoppingMatch) shoppingPref = shoppingMatch[1];
+
+        const customBlocksByDay = {
+          "Montag": [], "Dienstag": [], "Mittwoch": [], "Donnerstag": [], "Freitag": [], "Samstag": [], "Sonntag": []
+        };
+
+        // Parse custom times from text
+        const lines = prompt.split('\n');
+        lines.forEach(line => {
+          const match = line.match(/(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)s?\s*(?:ab|um)?\s*(\d{1,2}:\d{2})\s*(?:bis\s*(\d{1,2}:\d{2}))?\s+(.+)/i);
+          if (match) {
+            const dayName = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+            const start = match[2];
+            const end = match[3] || "10:00";
+            const title = match[4].trim();
+            const [sH, sM] = start.split(':').map(Number);
+            const [eH, eM] = end.split(':').map(Number);
+            const duration = Math.max(1800, ((eH * 60 + eM) - (sH * 60 + sM)) * 60);
+
+            if (customBlocksByDay[dayName]) {
+              customBlocksByDay[dayName].push({
+                title,
+                startTime: start,
+                duration,
+                pillar: title.toLowerCase().includes('sport') || title.toLowerCase().includes('gym') ? 'health' : 'focus',
+                type: title.toLowerCase().includes('sport') || title.toLowerCase().includes('gym') ? 'Health' : 'Focus',
+                rec: 'Vom importierten Plan übernommen.',
+                insight: 'Individuelle Terminplanung.'
+              });
+            }
+          }
+        });
+
+        const parseTimeToMin = (t) => {
+          if (!t || typeof t !== 'string') return 480;
+          const [h, m] = t.split(':').map(Number);
+          return (h * 60 + m) || 480;
+        };
+
+        const formatMinToTime = (min) => {
+          const h = Math.floor((min % 1440) / 60);
+          const m = Math.floor(min % 60);
+          return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        };
+
+        const fullWeekPlan = {};
+        const days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
+
+        days.forEach(dayName => {
+          const customBlocks = customBlocksByDay[dayName] || [];
+          const merged = [...customBlocks];
+          
+          // Routine blocks to inject around custom blocks
+          const candidates = [
+            { title: "Aufstehen & Hydration", targetTime: "07:00", duration: 1800, pillar: "recovery", type: "Recovery", rec: "10 Min direktes Sonnenlicht + 500ml salzhaltiges Wasser.", insight: "Melatonin-Stopp." }
+          ];
+
+          const hasSport = customBlocks.some(b => b.title.toLowerCase().includes('sport') || b.title.toLowerCase().includes('gym') || b.title.toLowerCase().includes('training') || b.title.toLowerCase().includes('kraft'));
+          
+          if (showerPref === 'morning' || (showerPref === 'sport' && !hasSport)) {
+            candidates.push({ title: "Cold Shower & Morgen-Routine", targetTime: "07:30", duration: 1800, pillar: "recovery", type: "Recovery", rec: "Kalt duschen (2-3 Min).", insight: "Dopamin-Maximierung." });
+          }
+
+          candidates.push({ title: "Mahlzeit I (Frühstück & Neuro-Fuel)", targetTime: "08:00", duration: 1800, pillar: "health", type: "Health", rec: "Proteinhaltiges Frühstück mit Omega-3.", insight: "Organgraduierte Uhren synchronisieren." });
+          candidates.push({ title: "Mahlzeit II (Mittagessen & Zirkadianer Reset)", targetTime: "13:00", duration: 2700, pillar: "health", type: "Health", rec: "Leichtes Mittagessen zur Erhalt der Energie.", insight: "Stabilisierung Blutzuckerspiegel." });
+
+          if (showerPref === 'sport' && hasSport) {
+            const sportBlock = customBlocks.find(b => b.title.toLowerCase().includes('sport') || b.title.toLowerCase().includes('gym') || b.title.toLowerCase().includes('training') || b.title.toLowerCase().includes('kraft'));
+            if (sportBlock) {
+              const sportEnd = parseTimeToMin(sportBlock.startTime) + (sportBlock.duration / 60);
+              candidates.push({ title: "Shower & Post-Workout Recovery", targetTime: formatMinToTime(sportEnd), duration: 1800, pillar: "recovery", type: "Recovery", rec: "Dusch- & Hygienephase nach Training.", insight: "Zentralnervensystem-Beruhigung." });
+            }
+          }
+
+          if (shoppingPref === 'weekly' && ['Dienstag', 'Freitag'].includes(dayName)) {
+            candidates.push({ title: "Einkaufen & Besorgungen / Haushalt", targetTime: "17:30", duration: 2700, pillar: "social", type: "Social", rec: "Besorgungen oder leichte Arbeiten im Haushalt.", insight: "Spätnachmittagsbewegung." });
+          }
+
+          candidates.push({ title: "Mahlzeit III (Abendessen - Zirkadianer Abstand)", targetTime: "19:00", duration: 3600, pillar: "health", type: "Health", rec: "Letzte Mahlzeit mit 3 Std Abstand zum Schlafen.", insight: "HRV-Schutz." });
+
+          if (showerPref === 'evening') {
+            candidates.push({ title: "Focus II (Planung & Review)", targetTime: "21:00", duration: 1800, pillar: "skills", type: "Skills", rec: "Reflexion des Tages und Vorbereitung auf Morgen.", insight: "Lernkonsolidierung." });
+            candidates.push({ title: "Warm Shower & Abend-Routine", targetTime: "21:30", duration: 1800, pillar: "recovery", type: "Recovery", rec: "Warmes Bad/Dusche.", insight: "Temperaturabsenkung für Schlafbereitschaft." });
+          } else {
+            candidates.push({ title: "Focus II (Planung & Review)", targetTime: "21:00", duration: 3600, pillar: "skills", type: "Skills", rec: "Reflexion des Tages und Vorbereitung auf Morgen.", insight: "Lernkonsolidierung." });
+          }
+
+          candidates.push({ title: "Circadian Wind-Down & Sleep Prep", targetTime: "22:00", duration: 3600, pillar: "recovery", type: "Recovery", rec: "Blaufilter aktivieren, entspannender Stack.", insight: "Melatoninausschüttung anregen." });
+
+          candidates.forEach(cand => {
+            const startMin = parseTimeToMin(cand.targetTime);
+            const durationMin = cand.duration / 60;
+            
+            let fits = false;
+            // Shift forward in 15 minute increments up to 3 hours
+            for (let shift = 0; shift <= 180; shift += 15) {
+              const currentStart = startMin + shift;
+              const currentEnd = currentStart + durationMin;
+              
+              const overlaps = merged.some(b => {
+                const bStart = parseTimeToMin(b.startTime);
+                const bEnd = bStart + (b.duration / 60);
+                return (currentStart < bEnd && currentEnd > bStart);
+              });
+              
+              if (!overlaps) {
+                cand.startTime = formatMinToTime(currentStart);
+                merged.push(cand);
+                fits = true;
+                break;
+              }
+            }
+          });
+
+          // Sort final list chronologically
+          merged.sort((a, b) => parseTimeToMin(a.startTime) - parseTimeToMin(b.startTime));
+          fullWeekPlan[dayName] = merged;
+        });
+
+        return NextResponse.json({
+          choices: [{ message: { content: JSON.stringify(fullWeekPlan) } }]
+        });
+      }
+
+      // 1. Parse liabilities fallback
       if (lowerPrompt.includes('blockaden') || lowerPrompt.includes('verbindlichkeiten') || lowerPrompt.includes('parse')) {
         let liabilities = [];
         if (lowerPrompt.includes('montag') || lowerPrompt.includes('mo')) {

@@ -1509,9 +1509,14 @@ function calculateVirtualTimeline(blocks) {
     // Window end is when the next anchor starts
     let windowEndMin = parseTimeToMin(endAnchor.startTime);
     
-    // Wrap around for overnight
+    // Wrap around for overnight (only if crossing midnight, e.g. from evening to morning)
     if (windowEndMin < windowStartMin) {
-      windowEndMin += 24 * 60;
+      if (windowEndMin < 360 && windowStartMin > 1080) {
+        windowEndMin += 24 * 60;
+      } else {
+        // Same-day overlap! Cap windowEndMin to windowStartMin so gap size is 0
+        windowEndMin = windowStartMin;
+      }
     }
     
     const windowSizeMin = windowEndMin - windowStartMin;

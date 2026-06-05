@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import styles from './OnboardingWizard.module.css';
 import { generateCompleteWeekCalendar } from '@/lib/circadian_scheduler';
 
-export default function OnboardingWizard({ profile, activateOptimalProtocol, onClose }) {
+export default function OnboardingWizard({ profile, activateOptimalProtocol, setCalendar, saveProfile, onClose }) {
   const [step, setStep] = useState(1);
+  const [onboardingMode, setOnboardingMode] = useState('circadian'); // 'circadian' | 'import'
   
   // Step 1: Chronotype & Times
   const [chronotype, setChronotype] = useState(profile?.optimalWeek?.chronotype || 'balanced');
   const [wakeTime, setWakeTime] = useState(profile?.optimalWeek?.wakeTime || '07:00');
   const [bedTime, setBedTime] = useState(profile?.optimalWeek?.bedTime || '23:00');
+  const [showerPreference, setShowerPreference] = useState(profile?.optimalWeek?.showerPreference || 'morning');
+  const [shoppingPreference, setShoppingPreference] = useState(profile?.optimalWeek?.shoppingPreference || 'weekly');
   
   // Step 2: Goals
   const [deepWorkHours, setDeepWorkHours] = useState(profile?.optimalWeek?.goals?.deepWorkHours || 15);
@@ -20,6 +23,10 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, onC
   const [nlpText, setNlpText] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   
+  // Import Mode State
+  const [importText, setImportText] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  
   // Manual Liability Form State
   const [manualTitle, setManualTitle] = useState('');
   const [manualDay, setManualDay] = useState('Montag');
@@ -30,17 +37,19 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, onC
   const [previewCalendar, setPreviewCalendar] = useState({});
 
   useEffect(() => {
-    if (step === 4) {
+    if (step === 4 && onboardingMode === 'circadian') {
       const cal = generateCompleteWeekCalendar(
         chronotype, 
         wakeTime, 
         bedTime, 
         liabilities, 
-        { deepWorkHours, sportSessions, recoverySessions }
+        { deepWorkHours, sportSessions, recoverySessions },
+        showerPreference,
+        shoppingPreference
       );
       setPreviewCalendar(cal);
     }
-  }, [step, chronotype, wakeTime, bedTime, liabilities, deepWorkHours, sportSessions, recoverySessions]);
+  }, [step, onboardingMode, chronotype, wakeTime, bedTime, liabilities, deepWorkHours, sportSessions, recoverySessions, showerPreference, shoppingPreference]);
 
   const handleNlpParse = async () => {
     if (!nlpText.trim()) return;
@@ -68,7 +77,6 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, onC
               const updated = [...prev];
               parsed.forEach(item => {
                 const uniqueId = item.id || `nlp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                // Avoid duplication
                 if (!updated.some(existing => existing.day === item.day && existing.startTime === item.startTime && existing.endTime === item.endTime)) {
                   updated.push({
                     id: uniqueId,
@@ -118,6 +126,92 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, onC
     }
   };
 
+  const handleImportPlan = async () => {
+    if (!importText.trim()) return;
+    setIsImporting(true);
+    try {
+      const response = await fetch('/api/mistral', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `parse fertiger_wochenplan from user text: "${importText}"
+          preferences:
+          - showerPreference: ${showerPreference}
+          - shoppingPreference: ${shoppingPreference}`,
+          systemPrompt: `Du bist ein automatischer Wochenplan-Konverter für Pronoia Life OS.
+          Lies den Wochenplan des Nutzers ein und konvertiere ihn in strukturierte Blöcke.
+          Jeder Tag (Montag, Dienstag, Mittwoch, Donnerstag, Freitag, Samstag, Sonntag) muss ein Array von Blöcken sein.
+          Jeder Block benötigt exakt:
+          - title: Name des Blocks (z.B. "Fokus Arbeit", "Duschen & Morgenroutine", "Mittagessen")
+          - startTime: "HH:MM"
+          - duration: Dauer in Sekunden (z.B. 3600 für 1 Std)
+          - pillar: "focus" | "health" | "skills" | "recovery" | "social"
+          - type: "Focus" | "Health" | "Skills" | "Recovery" | "Social"
+          
+          WICHTIGE ANWEISUNG:
+          Ergänze den Plan für jeden Tag automatisch mit wichtigen zirkadianen Routine-Blöcken in den Lücken oder passend platziert, falls der Nutzer sie nicht explizit genannt hat:
+          1. 'Circadian Light Sync & Baseline Hydration' (Aufstehen, ca. 07:00 oder 30 Min vor dem ersten Block, 30 Min, pillar: recovery, type: Recovery)
+          2. 'Mahlzeit I (Frühstück & Neuro-Fuel)' (ca. 08:00, 30 Min, pillar: health, type: Health)
+          3. 'Mahlzeit II (Mittagessen & Zirkadianer Reset)' (ca. 13:00, 45 Min, pillar: health, type: Health)
+          4. 'Mahlzeit III (Abendessen - Zirkadianer Abstand)' (ca. 19:00, 45 Min, pillar: health, type: Health)
+          5. 'Circadian Wind-Down & Sleep Prep' (Schlafvorbereitung, ca. 22:00 oder am Ende des Tages, 60 Min, pillar: recovery, type: Recovery)
+          
+          Bezüglich Duschen und Einkaufen, richte dich nach folgenden Präferenzen des Nutzers:
+          - Falls showerPreference = "morning": Füge 'Cold Shower & Morgen-Routine' (30 Min, pillar: recovery) direkt nach dem Aufstehen-Block hinzu.
+          - Falls showerPreference = "evening": Füge 'Warm Shower & Abend-Routine' (30 Min, pillar: recovery) ca. 90-60 Min vor dem Wind-down-Block hinzu.
+          - Falls showerPreference = "sport": Füge 'Shower & Post-Workout Recovery' (30 Min, pillar: recovery) direkt im Anschluss an sportliche Aktivitäten hinzu. Falls kein Sport, am Morgen einplanen.
+          - Falls showerPreference = "none": Keinen Dusch-Block einplanen.
+          
+          - Falls shoppingPreference = "weekly": Füge an Dienstagen und Freitagen einen Block 'Einkaufen & Besorgungen / Haushalt' (45 Min, pillar: social) am Spätnachmittag (ca. 17:30) hinzu.
+          - Falls shoppingPreference = "none": Keinen Einkaufs-Block einplanen.
+          
+          Achte darauf, dass diese Ergänzungen zeitlich nicht mit den vom Nutzer explizit genannten Arbeits-/Terminblöcken überlappen. Verschiebe sie leicht in freie Zeiten, sodass ein stimmiges, lückenloses Gesamtbild entsteht.
+          Antworte AUSSCHLIESSLICH mit einem validen JSON-Objekt, das Wochentage als Keys auf Block-Arrays abbildet.`
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+        if (content) {
+          const parsed = JSON.parse(content);
+          
+          const today = new Date();
+          const currentDayOfWeek = today.getDay();
+          const mondayOffset = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
+          const startMonday = new Date(today);
+          startMonday.setDate(today.getDate() + mondayOffset);
+
+          const weekCalendar = {};
+          daysList.forEach((dayName, idx) => {
+            const targetDate = new Date(startMonday);
+            targetDate.setDate(startMonday.getDate() + idx);
+            const dateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
+            
+            const dayBlocks = parsed[dayName] || [];
+            weekCalendar[dateStr] = {
+              blocks: dayBlocks.map(b => ({
+                title: b.title || 'Plan Block',
+                startTime: b.startTime || '09:00',
+                duration: b.duration || 3600,
+                pillar: b.pillar || 'focus',
+                type: b.type || 'Focus'
+              }))
+            };
+          });
+
+          setPreviewCalendar(weekCalendar);
+          alert("Wochenplan erfolgreich konvertiert! Fahre fort zur Vorschau.");
+          setStep(4);
+        }
+      }
+    } catch (err) {
+      console.error("Import conversion failed:", err);
+      alert("Fehler beim Konvertieren. Nutze die zirkadiane Generierung oder überprüfe die Formatierung.");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const handleAddManual = (e) => {
     e.preventDefault();
     if (!manualTitle.trim()) return;
@@ -139,13 +233,32 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, onC
   };
 
   const handleActivate = () => {
-    activateOptimalProtocol(
-      chronotype, 
-      wakeTime, 
-      bedTime, 
-      liabilities, 
-      { deepWorkHours, sportSessions, recoverySessions }
-    );
+    if (onboardingMode === 'circadian') {
+      activateOptimalProtocol(
+        chronotype, 
+        wakeTime, 
+        bedTime, 
+        liabilities, 
+        { deepWorkHours, sportSessions, recoverySessions },
+        showerPreference,
+        shoppingPreference
+      );
+    } else {
+      setCalendar(previewCalendar);
+      saveProfile({
+        hasCompletedOnboarding: true,
+        optimalWeek: {
+          chronotype,
+          wakeTime,
+          bedTime,
+          goals: { deepWorkHours, sportSessions, recoverySessions },
+          showerPreference,
+          shoppingPreference,
+          mode: 'imported'
+        },
+        liabilities: []
+      });
+    }
     if (onClose) onClose();
   };
 
@@ -159,13 +272,15 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, onC
           <h2 className={styles.title}>
             {step === 1 && "Zirkadianer Schlaf-Planer"}
             {step === 2 && "Kognitive & Physische Ziele"}
-            {step === 3 && "Wöchentliche Liabilities (Blockaden)"}
+            {step === 3 && (onboardingMode === 'circadian' ? "Wöchentliche Liabilities (Blockaden)" : "Bestehenden Plan importieren")}
             {step === 4 && "Vorschau des Optimalen Protokolls"}
           </h2>
           <p className={styles.desc}>
             {step === 1 && "Wähle deinen Chronotyp und passe deine Aufwach- und Schlafenszeiten an, um deine bio-kognitiven Peaks zu berechnen."}
             {step === 2 && "Definiere, wie viele Stunden Deep Work und Sessions für Fitness/Erholung du pro Woche anstrebst."}
-            {step === 3 && "Trage feste wöchentliche Termine (wie Arbeit oder Vorlesungen) ein. Die kognitiven Ziele werden um diese Sperrzeiten herum optimiert."}
+            {step === 3 && (onboardingMode === 'circadian' 
+              ? "Trage feste wöchentliche Termine (wie Arbeit oder Vorlesungen) ein. Die kognitiven Ziele werden um diese Sperrzeiten herum optimiert." 
+              : "Füge deinen bestehenden Wochenplan ein, um ihn direkt in strukturierte Protokollblöcke zu konvertieren.")}
             {step === 4 && "Überprüfe das vom System berechnete zirkadiane Wochenprotokoll basierend auf deinen Schlaf-Peaks und blockierten Liabilities."}
           </p>
         </div>
@@ -213,6 +328,35 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, onC
                     value={bedTime}
                     onChange={e => setBedTime(e.target.value)}
                   />
+                </div>
+              </div>
+
+              <div className={styles.timeRow}>
+                <div className={styles.timeField}>
+                  <label className={styles.label}>Normalerweise duschen</label>
+                  <select
+                    className={styles.selectInput}
+                    value={showerPreference}
+                    onChange={e => setShowerPreference(e.target.value)}
+                    style={{ background: 'rgba(255, 255, 255, 0.04)', height: '42px', border: '1px solid var(--border-s)', color: 'var(--text)' }}
+                  >
+                    <option value="morning">🌅 Morgens (nach Aufstehen)</option>
+                    <option value="evening">🌌 Abends (vor Schlafen)</option>
+                    <option value="sport">💪 Nach dem Sport / Training</option>
+                    <option value="none">❌ Nicht automatisch einplanen</option>
+                  </select>
+                </div>
+                <div className={styles.timeField}>
+                  <label className={styles.label}>Einkaufen & Besorgungen</label>
+                  <select
+                    className={styles.selectInput}
+                    value={shoppingPreference}
+                    onChange={e => setShoppingPreference(e.target.value)}
+                    style={{ background: 'rgba(255, 255, 255, 0.04)', height: '42px', border: '1px solid var(--border-s)', color: 'var(--text)' }}
+                  >
+                    <option value="weekly">🛒 Ja, wöchentlich (Spätnachmittag)</option>
+                    <option value="none">❌ Nicht automatisch einplanen</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -272,99 +416,143 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, onC
 
           {step === 3 && (
             <div className={styles.liabilitiesContainer}>
-              {/* NLP Input */}
-              <div className={styles.nlpSection}>
-                <label className={styles.label}>KI-Freitext Analyse</label>
-                <textarea
-                  className={styles.nlpTextarea}
-                  rows={2}
-                  placeholder="z.B. 'Ich arbeite Montag bis Freitag von 9 bis 17 Uhr und habe Mittwoch um 18 Uhr Sport'..."
-                  value={nlpText}
-                  onChange={e => setNlpText(e.target.value)}
-                />
-                <div className={styles.nlpBtnRow}>
-                  <button 
-                    type="button" 
-                    className={`${styles.nextBtn} ${styles.parseBtn}`}
-                    onClick={handleNlpParse}
-                    disabled={isParsing || !nlpText.trim()}
-                  >
-                    {isParsing ? 'Analysiere...' : 'Einlesen ✦'}
-                  </button>
-                </div>
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                <button
+                  type="button"
+                  className={`${styles.backBtn} ${onboardingMode === 'circadian' ? styles.chronoActive : ''}`}
+                  style={{ flex: 1, borderRadius: '12px', padding: '0.75rem', textTransform: 'none', fontSize: '0.75rem' }}
+                  onClick={() => setOnboardingMode('circadian')}
+                >
+                  ⚙️ Zirkadianer Optimierer
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.backBtn} ${onboardingMode === 'import' ? styles.chronoActive : ''}`}
+                  style={{ flex: 1, borderRadius: '12px', padding: '0.75rem', textTransform: 'none', fontSize: '0.75rem' }}
+                  onClick={() => setOnboardingMode('import')}
+                >
+                  📋 Fertigen Plan einlesen
+                </button>
               </div>
 
-              {/* Manual Input Form */}
-              <div>
-                <label className={styles.label}>Manuelle Sperrzeit hinzufügen</label>
-                <form onSubmit={handleAddManual} className={styles.manualForm}>
-                  <input
-                    type="text"
-                    placeholder="Titel (z.B. Arbeit)"
-                    className={styles.textInput}
-                    value={manualTitle}
-                    onChange={e => setManualTitle(e.target.value)}
-                    required
-                  />
-                  <select
-                    className={styles.selectInput}
-                    value={manualDay}
-                    onChange={e => setManualDay(e.target.value)}
-                  >
-                    {daysList.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                  <input
-                    type="time"
-                    className={styles.textInput}
-                    value={manualStart}
-                    onChange={e => setManualStart(e.target.value)}
-                    required
-                  />
-                  <input
-                    type="time"
-                    className={styles.textInput}
-                    value={manualEnd}
-                    onChange={e => setManualEnd(e.target.value)}
-                    required
-                  />
-                  <button type="submit" className={styles.addBtn}>+</button>
-                </form>
-              </div>
-
-              {/* List of current blockages */}
-              <div className={styles.liabilitiesList}>
-                {liabilities.map(l => (
-                  <div key={l.id} className={styles.liabilityRow}>
-                    <div className={styles.liabInfo}>
-                      <span className={styles.liabDay}>{l.day}</span>
-                      <span className={styles.liabTitle}>{l.title}</span>
-                      <span className={styles.liabTime}>({l.startTime} – {l.endTime})</span>
+              {onboardingMode === 'circadian' ? (
+                <>
+                  {/* NLP Input */}
+                  <div className={styles.nlpSection}>
+                    <label className={styles.label}>KI-Freitext Analyse</label>
+                    <textarea
+                      className={styles.nlpTextarea}
+                      rows={2}
+                      placeholder="z.B. 'Ich arbeite Montag bis Freitag von 9 bis 17 Uhr und habe Mittwoch um 18 Uhr Sport'..."
+                      value={nlpText}
+                      onChange={e => setNlpText(e.target.value)}
+                    />
+                    <div className={styles.nlpBtnRow}>
+                      <button 
+                        type="button" 
+                        className={`${styles.nextBtn} ${styles.parseBtn}`}
+                        onClick={handleNlpParse}
+                        disabled={isParsing || !nlpText.trim()}
+                      >
+                        {isParsing ? 'Analysiere...' : 'Einlesen ✦'}
+                      </button>
                     </div>
-                    <button 
-                      type="button" 
-                      className={styles.liabDelete}
-                      onClick={() => handleDeleteLiability(l.id)}
-                    >
-                      ✕
-                    </button>
                   </div>
-                ))}
-                {liabilities.length === 0 && (
-                  <p className={styles.chronoDesc} style={{ padding: '1rem', margin: 0, textAlign: 'center', opacity: 0.6 }}>
-                    Keine wöchentlichen Liabilities eingetragen. Dein Kalender wird rein zirkadian optimiert.
-                  </p>
-                )}
-              </div>
+
+                  {/* Manual Input Form */}
+                  <div>
+                    <label className={styles.label}>Manuelle Sperrzeit hinzufügen</label>
+                    <form onSubmit={handleAddManual} className={styles.manualForm}>
+                      <input
+                        type="text"
+                        placeholder="Titel (z.B. Arbeit)"
+                        className={styles.textInput}
+                        value={manualTitle}
+                        onChange={e => setManualTitle(e.target.value)}
+                        required
+                      />
+                      <select
+                        className={styles.selectInput}
+                        value={manualDay}
+                        onChange={e => setManualDay(e.target.value)}
+                      >
+                        {daysList.map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                      <input
+                        type="time"
+                        className={styles.textInput}
+                        value={manualStart}
+                        onChange={e => setManualStart(e.target.value)}
+                        required
+                      />
+                      <input
+                        type="time"
+                        className={styles.textInput}
+                        value={manualEnd}
+                        onChange={e => setManualEnd(e.target.value)}
+                        required
+                      />
+                      <button type="submit" className={styles.addBtn}>+</button>
+                    </form>
+                  </div>
+
+                  {/* List of current blockages */}
+                  <div className={styles.liabilitiesList}>
+                    {liabilities.map(l => (
+                      <div key={l.id} className={styles.liabilityRow}>
+                        <div className={styles.liabInfo}>
+                          <span className={styles.liabDay}>{l.day}</span>
+                          <span className={styles.liabTitle}>{l.title}</span>
+                          <span className={styles.liabTime}>({l.startTime} – {l.endTime})</span>
+                        </div>
+                        <button 
+                          type="button" 
+                          className={styles.liabDelete}
+                          onClick={() => handleDeleteLiability(l.id)}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    {liabilities.length === 0 && (
+                      <p className={styles.chronoDesc} style={{ padding: '1rem', margin: 0, textAlign: 'center', opacity: 0.6 }}>
+                        Keine wöchentlichen Liabilities eingetragen. Dein Kalender wird rein zirkadian optimiert.
+                      </p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  <div className={styles.nlpSection}>
+                    <label className={styles.label}>Bestehenden Wochenplan einlesen (NLP)</label>
+                    <textarea
+                      className={styles.nlpTextarea}
+                      rows={8}
+                      placeholder="Kopiere deinen fertigen Plan hier hinein. Beispiel:&#10;Montag:&#10;08:00 - 08:30 Aufstehen & Routine&#10;09:00 - 12:00 Deep Work&#10;17:00 - 18:30 Sport & Fitness&#10;..."
+                      value={importText}
+                      onChange={e => setImportText(e.target.value)}
+                    />
+                    <div className={styles.nlpBtnRow}>
+                      <button
+                        type="button"
+                        className={`${styles.nextBtn} ${styles.primaryAction}`}
+                        onClick={handleImportPlan}
+                        disabled={isImporting || !importText.trim()}
+                        style={{ padding: '0.65rem 2rem' }}
+                      >
+                        {isImporting ? 'Analysiere Plan...' : 'Plan konvertieren ✦'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {step === 4 && (
             <div className={styles.previewGrid}>
               {daysList.map(dayName => {
-                // Find matching date in previewCalendar
                 const calendarDateKey = Object.keys(previewCalendar).find(key => {
-                  // The week calendar keys are dates 'YYYY-MM-DD'
-                  // We can match them by looking at the generated day calendar's weekday
                   const date = new Date(key);
                   const formattedDay = date.toLocaleDateString('de-DE', { weekday: 'long' });
                   return formattedDay === dayName;
@@ -430,6 +618,7 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, onC
                 type="button" 
                 className={`${styles.nextBtn} ${styles.primaryAction}`}
                 onClick={() => setStep(prev => prev + 1)}
+                disabled={onboardingMode === 'import' && step === 3} /* Force conversion button first in Step 3 for import */
               >
                 Weiter
               </button>

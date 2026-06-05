@@ -136,9 +136,14 @@ export function calculateVirtualTimeline(blocks) {
     // Window end is when the next anchor starts
     let windowEndMin = parseTimeToMin(endAnchor.startTime);
     
-    // Wrap around for overnight
+    // Wrap around for overnight (only if crossing midnight, e.g. from evening to morning)
     if (windowEndMin < windowStartMin) {
-      windowEndMin += 24 * 60;
+      if (windowEndMin < 360 && windowStartMin > 1080) {
+        windowEndMin += 24 * 60;
+      } else {
+        // Same-day overlap! Cap windowEndMin to windowStartMin so gap size is 0
+        windowEndMin = windowStartMin;
+      }
     }
     
     const windowSizeMin = windowEndMin - windowStartMin;
@@ -720,13 +725,13 @@ export function useProtocol() {
     setAgentMsg("Profil-Parameter erfolgreich aktualisiert.");
   };
 
-  const activateOptimalProtocol = (chronotype, wakeTime, bedTime, liabilitiesList, goals) => {
-    const weekCalendar = generateCompleteWeekCalendar(chronotype, wakeTime, bedTime, liabilitiesList, goals);
+  const activateOptimalProtocol = (chronotype, wakeTime, bedTime, liabilitiesList, goals, showerPreference, shoppingPreference) => {
+    const weekCalendar = generateCompleteWeekCalendar(chronotype, wakeTime, bedTime, liabilitiesList, goals, showerPreference, shoppingPreference);
     setCalendar(weekCalendar);
     
     const updatedProfile = {
       hasCompletedOnboarding: true,
-      optimalWeek: { chronotype, wakeTime, bedTime, goals },
+      optimalWeek: { chronotype, wakeTime, bedTime, goals, showerPreference, shoppingPreference },
       liabilities: liabilitiesList
     };
     

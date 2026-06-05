@@ -3211,7 +3211,12 @@ function LifeOSDashboard() {
         <OnboardingWizard 
           profile={profile} 
           activateOptimalProtocol={activateOptimalProtocol} 
-          onClose={() => saveProfile({ hasCompletedOnboarding: true })}
+          setCalendar={setCalendar}
+          saveProfile={saveProfile}
+          onClose={() => {
+            saveProfile({ hasCompletedOnboarding: true });
+            setTimeout(syncToActive, 200);
+          }}
         />
       )}
 
