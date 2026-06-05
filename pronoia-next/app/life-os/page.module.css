@@ -28,14 +28,14 @@
 .sidebar {
   grid-row: 2;
   grid-column: 1;
-  background: rgba(15, 20, 32, 0.45) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: var(--panel-glass-bg) !important;
+  border: 1px solid var(--panel-glass-border) !important;
   border-radius: 20px;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   margin: 1.5rem 0.75rem;
   height: calc(100vh - 72px - 3rem) !important;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  box-shadow: var(--panel-glass-shadow);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -57,8 +57,8 @@
     position: fixed;
     bottom: 0;
     top: auto;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    background: rgba(15, 20, 32, 0.65) !important;
+    border: 1px solid var(--panel-glass-border) !important;
+    background: var(--panel-glass-bg-mobile) !important;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     z-index: 999;
@@ -194,8 +194,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(15, 20, 32, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--panel-glass-bg);
+  border: 1px solid var(--panel-glass-border);
   border-radius: 16px;
   padding: 0.85rem 1.5rem;
   margin-bottom: 1.5rem;
@@ -203,7 +203,7 @@
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   flex-wrap: wrap;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+  box-shadow: var(--panel-glass-shadow);
 }
 
 @media (max-width: 600px) {
@@ -555,8 +555,8 @@
 }
 
 .chronoMetaItem {
-  background: rgba(15, 20, 32, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--panel-glass-bg);
+  border: 1px solid var(--panel-glass-border);
   border-radius: 12px;
   padding: 0.75rem;
   display: flex;
@@ -566,7 +566,7 @@
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   text-align: center;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+  box-shadow: var(--panel-glass-shadow);
 }
 
 .chronoMetaLabel {
@@ -586,8 +586,8 @@
 
 /* ─── Current Block Insight ─── */
 .insightCard {
-  background: rgba(15, 20, 32, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--panel-glass-bg);
+  border: 1px solid var(--panel-glass-border);
   border-radius: 16px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
@@ -597,7 +597,7 @@
   gap: 1.5rem;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+  box-shadow: var(--panel-glass-shadow);
 }
 
 @media (max-width: 600px) {
@@ -673,15 +673,15 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(15, 20, 32, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--panel-glass-bg);
+  border: 1px solid var(--panel-glass-border);
   border-radius: 12px;
   padding: 0.85rem 1.25rem;
   margin-bottom: 1.5rem;
   gap: 1.5rem;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+  box-shadow: var(--panel-glass-shadow);
 }
 
 @media (max-width: 600px) {
@@ -766,8 +766,8 @@
 
 /* ─── AI Chat Panel ─── */
 .chatBox {
-  background: rgba(15, 20, 32, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--panel-glass-bg);
+  border: 1px solid var(--panel-glass-border);
   border-radius: 16px;
   display: flex;
   flex-direction: column;
@@ -775,7 +775,7 @@
   height: 280px;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+  box-shadow: var(--panel-glass-shadow);
 }
 
 .chatMessages {
@@ -1681,8 +1681,8 @@
 }
 
 .calModal {
-  background: rgba(10, 12, 18, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-card);
+  border: 1px solid var(--border-s);
   border-radius: 20px;
   max-width: 920px;
   width: 100%;
@@ -1691,7 +1691,7 @@
   flex-direction: column;
   overflow: hidden;
   position: relative;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
@@ -2061,8 +2061,8 @@
 
 /* ─── Skill Lab Modal Specifics ─── */
 .skillModal {
-  background: rgba(10, 12, 18, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-card);
+  border: 1px solid var(--border-s);
   border-radius: 20px;
   max-width: 650px;
   width: 100%;
@@ -2071,7 +2071,7 @@
   flex-direction: column;
   overflow: hidden;
   position: relative;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
@@ -2923,13 +2923,13 @@
   flex-direction: column;
   gap: 1.5rem;
   width: 100%;
-  background: rgba(15, 20, 32, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--panel-glass-bg);
+  border: 1px solid var(--panel-glass-border);
   border-radius: 16px;
   padding: 1.5rem;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35);
+  box-shadow: var(--panel-glass-shadow);
 }
 
 .singlePanelLayout {
@@ -2937,14 +2937,14 @@
   flex-direction: column;
   gap: 1.5rem;
   width: 100%;
-  background: rgba(15, 20, 32, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--panel-glass-bg);
+  border: 1px solid var(--panel-glass-border);
   border-radius: 16px;
   padding: 2rem;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   animation: tabFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35);
+  box-shadow: var(--panel-glass-shadow);
 }
 
 @keyframes tabFadeIn {

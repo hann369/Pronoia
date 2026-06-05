@@ -35,10 +35,17 @@
   --text3:      #94A3B8;
   --border:     rgba(213, 184, 147, 0.18);
   --border-s:   rgba(213, 184, 147, 0.35);
+  --border-strong: rgba(213, 184, 147, 0.55);
   --nav-bg:     rgba(253, 251, 249, 0.92);
   --bg-rgb:     253, 251, 249;
   --text-rgb:   37, 52, 79;
   --panel-bg:   rgba(253, 251, 249, 0.65);
+
+  /* Glassmorphism Theme-Aware Tokens */
+  --panel-glass-bg: rgba(255, 255, 255, 0.45);
+  --panel-glass-bg-mobile: rgba(255, 255, 255, 0.75);
+  --panel-glass-border: rgba(213, 184, 147, 0.25);
+  --panel-glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
 
   /* Semantic */
   --green:      #00C48C;
@@ -68,6 +75,12 @@
   --text-rgb:     238, 240, 244;
   --panel-bg:     rgba(8, 12, 22, 0.72);
   --cobalt-dim:   rgba(26, 106, 255, 0.15);
+
+  /* Glassmorphism Theme-Aware Tokens */
+  --panel-glass-bg: rgba(15, 20, 32, 0.45);
+  --panel-glass-bg-mobile: rgba(15, 20, 32, 0.65);
+  --panel-glass-border: rgba(255, 255, 255, 0.08);
+  --panel-glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
 [data-theme="dark"][data-ui-mode="serious"] {
