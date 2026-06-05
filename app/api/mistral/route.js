@@ -2,7 +2,37 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
-// ── Bestehender Endpoint (unveränder) ─────────────────────────
+const PRONOIA_TIPS = [
+  "Trinke morgens 500ml Wasser mit einer Prise Salz und Zitrone vor deinem ersten Kaffee. Das rehydriert deine Zellen und verhindert Nebennieren-Stress.",
+  "Nutze die 90-Minuten Ultra-Rhythmen für Deep Work. Mach danach 15 Minuten Pause mit geschlossenen Augen (NSDR) zur schnellen Dopamin-Synthese.",
+  "Nimm dein Koffein erst 90–120 Minuten nach dem Aufwachen. Das verhindert den Nachmittags-Crash, da das Adenosin sich natürlich abbauen kann.",
+  "Bio-Stacking-Tipp: Kombiniere L-Theanin mit Koffein im Verhältnis 2:1 für sauberen Fokus ohne Zittrigkeit.",
+  "Reguliere dein biologisches System: Erhalte in den ersten 30 Minuten nach dem Aufstehen 10 Minuten direktes Sonnenlicht.",
+  "Reduziere Blaulicht ab 20:00 Uhr radikal. Benutze Rotlicht oder eine Blaulichtfilter-Brille, um die Melatoninsynthese nicht zu blockieren.",
+  "Kalt duschen am Morgen erhöht das zirkulierende Dopamin um bis zu 250% für mehrere Stunden ohne den typischen Stimulanzien-Crash."
+];
+
+function getLocalChatFallback(prompt) {
+  const p = prompt.toLowerCase();
+  if (/status|bereit|active|nominal/.test(p)) {
+    return "Status: Nominal. Alle kognitiven Subsysteme synchronisiert.";
+  }
+  if (/focus|arbeit|deep|concentration/.test(p)) {
+    return "A.01 Flow Architect: Kognitiver Fokus bei 94% Effizienz. Deep Work aktiv.";
+  }
+  if (/stack|supplement|px|pill|dosis/.test(p)) {
+    return "A.02 Fuel Scheduler: Bio-Stack Peak-Absorption nominal. Hydration prüfen.";
+  }
+  if (/schlaf|sleep|sommeil/.test(p)) {
+    return "A.03 Circadian Guardian: Melatonin-Synthese geschützt. Licht im Rotbereich.";
+  }
+  if (/hrv|recovery|regeneration/.test(p)) {
+    return "A.04 Load Balancer: PNS-Aktivierung aktiv. HRV nominal.";
+  }
+  return "Systemstatus nominal. Offline-Modus aktiv.";
+}
+
+// ── Bestehender Endpoint (unverändert) ─────────────────────────
 export async function POST(req) {
   try {
     const { prompt, systemPrompt, tools, tool_choice } = await req.json();
@@ -10,8 +40,116 @@ export async function POST(req) {
     const apiKey = process.env.MISTRAL_API_KEY;
     
     if (!apiKey || apiKey === 'REPLACE_ME') {
-      return NextResponse.json({ 
-        choices: [{ message: { content: "AI Sync eingeschränkt (API Key fehlt). Systemstatus stabil." } }] 
+      const lowerPrompt = prompt.toLowerCase();
+      
+      // 1. Calendar/Day protocol sync (chatWithDayAI)
+      if (lowerPrompt.includes('blocks') || lowerPrompt.includes('tagesplan') || lowerPrompt.includes('json')) {
+        let currentPlanBlocks = [];
+        try {
+          const planMatch = prompt.match(/Current Plan:\s*(\[.*?\])/);
+          if (planMatch) {
+            currentPlanBlocks = JSON.parse(planMatch[1]);
+          }
+        } catch (e) {
+          console.warn("Failed to parse current plan from prompt:", e);
+        }
+
+        if (currentPlanBlocks.length === 0) {
+          currentPlanBlocks = [
+            { title: 'Morning Stack', startTime: '08:00', duration: 900, pillar: 'health', rec: 'Hydrierung.', insight: 'Morgen-Baseline.' },
+            { title: 'Fokus Arbeit', startTime: '09:00', duration: 5400, pillar: 'focus', rec: 'Deep Work.', insight: 'Maximale Last.' },
+            { title: 'Skill Erwerb', startTime: '11:00', duration: 2700, pillar: 'skills', rec: 'Lernen.', insight: 'Neuronale Plastizität.' },
+            { title: 'Erholungsphase', startTime: '15:00', duration: 1800, pillar: 'recovery', rec: 'NSDR.', insight: 'PNS Trigger.' }
+          ];
+        }
+
+        let instruction = "";
+        const instMatch = prompt.match(/User Instruction:\s*"(.*?)"/i) || prompt.match(/Instructions:\s*"(.*?)"/i);
+        if (instMatch) {
+          instruction = instMatch[1];
+        }
+
+        if (instruction) {
+          const instLower = instruction.toLowerCase();
+          let matchedTime = instLower.match(/(\d{1,2})(?::(\d{2}))?\s*-\s*(\d{1,2})(?::(\d{2}))?/);
+          let timeStr = "12:00";
+          let duration = 3600;
+          if (matchedTime) {
+            const startH = matchedTime[1].padStart(2, '0');
+            const startM = (matchedTime[2] || '00').padStart(2, '0');
+            timeStr = `${startH}:${startM}`;
+            const endH = parseInt(matchedTime[3]);
+            const startHInt = parseInt(matchedTime[1]);
+            duration = Math.max(1, endH - startHInt) * 3600;
+          }
+
+          const cleanTitle = instruction.replace(/füge hinzu|plane|erstelle|add|schedule|appointment|termin/gi, '').trim();
+          const title = cleanTitle ? (cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1)) : "Anpassung";
+
+          currentPlanBlocks.push({
+            title,
+            startTime: timeStr,
+            duration,
+            pillar: instLower.includes('arzt') || instLower.includes('health') || instLower.includes('arzttermin') ? 'health' : 'focus',
+            rec: 'Per AI-Zuschnitt angepasst (Offline-Modus).',
+            insight: 'Tagesstruktur gewahrt.'
+          });
+
+          currentPlanBlocks.sort((a, b) => {
+            const [aH, aM] = (a.startTime || "00:00").split(':').map(Number);
+            const [bH, bM] = (b.startTime || "00:00").split(':').map(Number);
+            return (aH * 60 + aM) - (bH * 60 + bM);
+          });
+        }
+
+        const replyContent = JSON.stringify({ blocks: currentPlanBlocks });
+        return NextResponse.json({
+          choices: [{ message: { content: replyContent } }]
+        });
+      }
+
+      // 2. Skill Lab Adaptive materials generation (generateSkillMaterials)
+      if (lowerPrompt.includes('lernmodule') || lowerPrompt.includes('theory') || lowerPrompt.includes('practice')) {
+        const skillMatch = prompt.match(/Skill Focus:\s*"(.*?)"/i);
+        const skill = skillMatch ? skillMatch[1] : "Programmieren";
+        const replyContent = JSON.stringify({
+          modules: [
+            {
+              id: 'm1',
+              type: 'video',
+              title: `${skill} Grundlagen & Best Practices`,
+              content: `Dieses Video führt dich in die fortgeschrittenen Prinzipien von ${skill} ein. Konzentriere dich auf die Isolation von Fehlerquellen und Deliberate Practice.`,
+              videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ'
+            },
+            {
+              id: 'm2',
+              type: 'theory',
+              title: `Tiefen-Theorie: ${skill} Meisterschaft`,
+              content: `Um ${skill} wirklich zu beherrschen, musst du die unbewusste Inkompetenz überwinden. Deliberate Practice erfordert ständige Konzentration auf die schwierigsten Teilaufgaben. Schreibe Notizen und halte dich an deinen Lernplan.`,
+              notes: 'Notizen für Theorie-Einheit.'
+            },
+            {
+              id: 'm3',
+              type: 'practice',
+              title: `Praxis Challenge: Deliberate Practice`,
+              content: `Setze das Gelernte in einer 20-minütigen High-Intensity-Session um.`,
+              steps: [
+                'Definiere das genaue Übungsziel.',
+                'Führe die Übung mit vollem Fokus aus.',
+                'Analysiere deine Fehler und korrigiere sie sofort.'
+              ]
+            }
+          ]
+        });
+        return NextResponse.json({
+          choices: [{ message: { content: replyContent } }]
+        });
+      }
+
+      // 3. Standard chat response fallback
+      const reply = getLocalChatFallback(prompt);
+      return NextResponse.json({
+        choices: [{ message: { content: reply } }]
       });
     }
 
@@ -54,9 +192,6 @@ export async function PUT(req) {
     if (!message) return NextResponse.json({ error: "No message" }, { status: 400 });
 
     const apiKey = process.env.MISTRAL_API_KEY;
-    if (!apiKey || apiKey === 'REPLACE_ME') {
-      return NextResponse.json({ reply: "API Key fehlt.", error: true });
-    }
 
     const telegramId = telegramUser?.id || null;
     const linkUrl = telegramId ? `https://pronoia-3g6y.vercel.app/life-os?tg_id=${telegramId}` : "https://pronoia-3g6y.vercel.app/life-os";
@@ -191,29 +326,99 @@ ANTWORT NUR ALS JSON:
   "tags": []
 }`;
 
-    const messages = [
-      { role: "system", content: systemPrompt },
-      ...history.slice(-8).map(h => ({ role: h.role, content: h.content })),
-      { role: "user", content: message }
-    ];
+    let parsed = null;
 
-    const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "mistral-large-latest",
-        messages,
-        temperature: 0.75,
-        max_tokens: 600,
-        response_format: { type: "json_object" }
-      })
-    });
+    if (!apiKey || apiKey === 'REPLACE_ME') {
+      const cmd = message.toLowerCase().trim();
+      let reply = "Systemstatus stabil. Alle Parameter nominal.";
+      let action = null;
+      let intent = "chat";
+      let tags = ["local_fallback"];
 
-    const data = await response.json();
-    const parsed = JSON.parse(data.choices?.[0]?.message?.content);
+      // 1. Check for biometrics update
+      const hrvMatch = cmd.match(/(?:hrv|puls|herzfrequenz)\s*(?:auf|zu|setze|logge|log)?\s*(\d+)/i) || cmd.match(/(\d+)\s*(?:ms|hrv)/i);
+      const sleepMatch = cmd.match(/(?:schlaf|sleep|sommeil|somme)\s*(?:auf|zu|setze|logge|log)?\s*(\d+)/i) || cmd.match(/(\d+)\s*(?:%|schlaf|sleep)/i);
+
+      if (hrvMatch || sleepMatch) {
+        intent = "biometrics_update";
+        let hrv = hrvMatch ? parseInt(hrvMatch[1]) : (profile?.metrics?.hrv || 72);
+        let sleep = sleepMatch ? parseInt(sleepMatch[1]) : (profile?.metrics?.sleep || 84);
+        action = { type: "biometrics_update", hrv, sleep };
+        reply = `Biometrie-Update: HRV auf ${hrv}ms ${sleepMatch ? `und Schlaf auf ${sleep}%` : ''} eingetragen. System kalibriert.`;
+      } 
+      // 2. Check for block/timer control
+      else if (/pause|stop|pausiere|stoppe|halt/.test(cmd)) {
+        intent = "block_control";
+        action = { type: "block_control", action: "toggle" };
+        reply = "Timer angehalten. Erholungsmodus aktiv.";
+      } else if (/weiter|resume|start|starte/.test(cmd)) {
+        intent = "block_control";
+        action = { type: "block_control", action: "toggle" };
+        reply = "Fokus-Timer fortgesetzt. ZNS-Kanal offen.";
+      } else if (/nächster|nächste|next|skip|überspringe/.test(cmd)) {
+        intent = "block_control";
+        action = { type: "block_control", action: "next" };
+        reply = "Block übersprungen. Nächste Phase eingeleitet.";
+      } else if (/zurück|vorheriger|prev/.test(cmd)) {
+        intent = "block_control";
+        action = { type: "block_control", action: "prev" };
+        reply = "Zurück zum vorherigen Block.";
+      }
+      // 3. Status queries
+      else if (/status|befinden|system|nominal/.test(cmd)) {
+        intent = "chat";
+        reply = `Status: Nominal. HRV: ${profile?.metrics?.hrv || 72}ms. Schlaf: ${profile?.metrics?.sleep || 84}%. Alle Teilsysteme synchronisiert.`;
+      }
+      // 4. Bio-stack queries
+      else if (/stack|supplement|ergänzung|kapsel|dosis/.test(cmd)) {
+        intent = "stack_question";
+        reply = "Bio-Stack aktiv. Nootropika-Zufuhr laut Zeitplan empfohlen. Hydration prüfen.";
+      }
+      // 5. Account linking
+      else if (/link|verbinden|konto|account/.test(cmd)) {
+        intent = "support";
+        reply = `Verwende diesen Link, um dein Konto zu verknüpfen: ${linkUrl}`;
+      }
+      // 6. Generic tips
+      else if (/tipp|ratschlag|hilfe|was\s+tun/.test(cmd)) {
+        intent = "chat";
+        const randomTip = PRONOIA_TIPS[Math.floor(Math.random() * PRONOIA_TIPS.length)] || "Trinke morgens 500ml Wasser mit Salz.";
+        reply = `Tipp: ${randomTip}`;
+      }
+
+      parsed = {
+        reply,
+        intent,
+        action,
+        stackUpdate: null,
+        score: null,
+        tags
+      };
+    } else {
+      const messages = [
+        { role: "system", content: systemPrompt },
+        ...history.slice(-8).map(h => ({ role: h.role, content: h.content })),
+        { role: "user", content: message }
+      ];
+
+      const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "mistral-large-latest",
+          messages,
+          temperature: 0.75,
+          max_tokens: 600,
+          response_format: { type: "json_object" }
+        })
+      });
+
+      const data = await response.json();
+      parsed = JSON.parse(data.choices?.[0]?.message?.content);
+    }
 
     let status = null;
     let debug = null;

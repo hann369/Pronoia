@@ -10,7 +10,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import styles from './SocialHub.module.css';
 
-export default function SocialHub({ setActiveTab }) {
+export default function SocialHub({ setActiveTab, stack }) {
   const { user } = useAuth();
   const {
     friends,
@@ -106,19 +106,27 @@ export default function SocialHub({ setActiveTab }) {
   // Quick shares
   const handleShareStack = async () => {
     if (!selectedChat) return;
-    // Load local storage stack or default mock stack to share
-    const localData = localStorage.getItem('pronoia_protocol_state');
-    let stackToShare = [
-      { name: 'Bromantane', dose: '50mg', timing: 'morning' },
-      { name: 'Alpha-GPC', dose: '300mg', timing: 'focus' }
-    ];
-    if (localData) {
-      try {
-        const parsed = JSON.parse(localData);
-        if (parsed.stack) stackToShare = parsed.stack;
-      } catch (e) {
-        console.error(e);
+    
+    let stackToShare = stack;
+
+    if (!stackToShare || stackToShare.length === 0) {
+      // Load local storage stack or default mock stack to share
+      const localData = localStorage.getItem('pronoia_protocol_state');
+      if (localData) {
+        try {
+          const parsed = JSON.parse(localData);
+          if (parsed.stack) stackToShare = parsed.stack;
+        } catch (e) {
+          console.error(e);
+        }
       }
+    }
+
+    if (!stackToShare || stackToShare.length === 0) {
+      stackToShare = [
+        { name: 'Bromantane', dose: '50mg', timing: 'morning' },
+        { name: 'Alpha-GPC', dose: '300mg', timing: 'focus' }
+      ];
     }
     
     const success = await sendMessage(selectedChat.id, JSON.stringify(stackToShare), 'stack-share');
@@ -180,6 +188,7 @@ export default function SocialHub({ setActiveTab }) {
                   conversations={conversations}
                   onSelectChat={setSelectedChat}
                   activeChatId={selectedChat?.id}
+                  currentUserUid={user?.uid}
                   styles={styles}
                 />
               )}

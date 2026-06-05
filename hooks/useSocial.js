@@ -142,13 +142,24 @@ export function useSocial() {
         )
       );
 
-      // Capitalized version (e.g. "hann" -> "Hann", "hann369" -> "Hann369")
+      // Prefix startsWith query for username (e.g. "han" matches "hann369")
+      queries.push(
+        query(
+          collection(db, 'users'),
+          where('profile.username', '>=', term),
+          where('profile.username', '<=', term + '\uf8ff'),
+          limit(10)
+        )
+      );
+
+      // Capitalized version startsWith query
       const capitalized = term.charAt(0).toUpperCase() + term.slice(1);
       if (capitalized !== term) {
         queries.push(
           query(
             collection(db, 'users'),
-            where('profile.username', '==', capitalized),
+            where('profile.username', '>=', capitalized),
+            where('profile.username', '<=', capitalized + '\uf8ff'),
             limit(10)
           )
         );

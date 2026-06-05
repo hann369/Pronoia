@@ -1,7 +1,7 @@
 // components/social/ChatList.js
 import React from 'react';
 
-export default function ChatList({ conversations, onSelectChat, activeChatId, styles }) {
+export default function ChatList({ conversations, onSelectChat, activeChatId, currentUserUid, styles }) {
   const avatarPreset = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=200';
 
   const formatLastMsgTime = (timestamp) => {
@@ -19,8 +19,9 @@ export default function ChatList({ conversations, onSelectChat, activeChatId, st
       {conversations.map(chat => {
         const isActive = chat.id === activeChatId;
         const timeStr = chat.lastMessage ? formatLastMsgTime(chat.lastMessage.timestamp) : '';
+        const isSelf = chat.lastMessage && chat.lastMessage.senderUid === currentUserUid;
         const previewText = chat.lastMessage 
-          ? (chat.lastMessage.senderUid === chat.participants.find(id => id !== chat.participants.find(i => i !== id)) ? 'Du: ' : '') + '🔒 Verschlüsselt'
+          ? (isSelf ? 'Du: ' : '') + (chat.lastMessage.ciphertext ? '🔒 Verschlüsselt' : (chat.lastMessage.text || ''))
           : 'Keine Nachrichten';
 
         return (

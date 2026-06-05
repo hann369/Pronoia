@@ -1317,7 +1317,7 @@ function LifeOSDashboard() {
           </div>
         );
       case 'social':
-        return <SocialHub setActiveTab={setActiveTab} />;
+        return <SocialHub setActiveTab={setActiveTab} stack={stack} />;
       case 'lab':
         return <PronoiaLab setActiveTab={setActiveTab} />;
       case 'dashboard':

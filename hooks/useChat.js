@@ -297,7 +297,7 @@ export function useChat() {
       let activeKey = null;
 
       if (chatData.type === 'direct') {
-        const peerUid = chatData.participants.find(id => id !== user.uid);
+        const peerUid = chatData.participants.find(id => id !== user.uid) || user.uid;
         try {
           const peerDoc = await getDoc(doc(db, 'users', peerUid));
           if (peerDoc.exists() && peerDoc.data().publicKey?.jwk) {
@@ -332,7 +332,7 @@ export function useChat() {
 
       for (const d of snapshot.docs) {
         const msgData = d.data();
-        let decryptedText = "[Verschlüsselte Nachricht]";
+        let decryptedText = msgData.text || "[Verschlüsselte Nachricht]";
 
         if (activeKey && msgData.ciphertext && msgData.iv) {
           try {
@@ -368,7 +368,7 @@ export function useChat() {
       let activeKey = null;
 
       if (chatData.type === 'direct') {
-        const peerUid = chatData.participants.find(id => id !== user.uid);
+        const peerUid = chatData.participants.find(id => id !== user.uid) || user.uid;
         const peerDoc = await getDoc(doc(db, 'users', peerUid));
         if (peerDoc.exists() && peerDoc.data().publicKey?.jwk) {
           const peerPub = await importPublicKey(peerDoc.data().publicKey.jwk);
@@ -391,17 +391,37 @@ export function useChat() {
         }
       }
 
+      const timestamp = new Date().toISOString();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
       if (!activeKey) {
-        alert("E2E Schlüssel nicht verfügbar. Senden blockiert.");
-        return false;
+        // Fallback to sending in plaintext (e.g. for communities or when key exchange is not finished)
+        const msgPayload = {
+          senderUid: user.uid,
+          senderName: profileName(),
+          timestamp,
+          expiresAt,
+          type,
+          text: plaintext,
+          readBy: [user.uid]
+        };
+
+        await addDoc(collection(db, 'chats', chatId, 'messages'), msgPayload);
+
+        await setDoc(doc(db, 'chats', chatId), {
+          lastMessage: {
+            text: plaintext.substring(0, 60),
+            senderUid: user.uid,
+            timestamp,
+            readBy: [user.uid]
+          }
+        }, { merge: true });
+
+        return true;
       }
 
       // Encrypt message
       const encrypted = await encryptMessage(activeKey, plaintext);
-
-      // Calculate 7-day retention expiry
-      const timestamp = new Date().toISOString();
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
       const msgPayload = {
         senderUid: user.uid,
