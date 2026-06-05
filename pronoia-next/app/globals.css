@@ -464,7 +464,7 @@ body::before {
 [data-ui-mode="glass"] [class*="storeCard"]:not([class*="Header"]):not([class*="Body"]):not([class*="Footer"]):not([class*="Name"]):not([class*="Desc"]):not([class*="Tag"]):not([class*="Badge"]):not([class*="Status"]):not([class*="Price"]):not([class*="Label"]),
 [data-ui-mode="glass"] [class*="terminalCard"]:not([class*="Row"]),
 [data-ui-mode="glass"] [class*="holoModal"]:not([class*="Title"]):not([class*="Sub"]):not([class*="Invoice"]):not([class*="Row"]):not([class*="Label"]):not([class*="Value"]):not([class*="Close"]),
-[data-ui-mode="glass"] [class*="appCard"]:not([class*="Wrapper"]):not([class*="Symbol"]):not([class*="Img"]):not([class*="Btn"]):not([class*="Form"]):not([class*="Input"]):not([class*="Actions"]):not([class*="Name"]):not([class*="Desc"]):not([class*="Badge"]),
+[data-ui-mode="glass"] [class*="appCard"]:not([class*="Wrapper"]):not([class*="Symbol"]):not([class*="Img"]):not([class*="Btn"]):not([class*="Form"]):not([class*="Input"]):not([class*="Actions"]):not([class*="Name"]):not([class*="Desc"]):not([class*="Badge"]):not([class*="Info"]),
 [data-ui-mode="glass"] [class*="Nav_scrolled"] {
   backdrop-filter: blur(45px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(45px) saturate(180%) !important;
@@ -506,18 +506,19 @@ body::before {
 [data-ui-mode="glass"] [class*="calSidebarBtnGreen"],
 [data-ui-mode="glass"] [class*="storeBuyBtn"],
 [data-ui-mode="glass"] [class*="FloatingChat_sendBtn"] {
-  background: linear-gradient(135deg, rgba(26, 106, 255, 0.8) 0%, rgba(0, 71, 171, 0.8) 100%) !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.5) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(26, 106, 255, 0.35) 45%, rgba(0, 71, 171, 0.6) 100%) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.55) !important;
   border-radius: 100px !important;
   color: #ffffff !important;
   font-weight: 600 !important;
   box-shadow: 
-    inset 0 1.5px 2px rgba(255, 255, 255, 0.75),
-    inset 0 -3px 8px rgba(0, 0, 0, 0.2),
-    0 8px 20px rgba(26, 106, 255, 0.4) !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 6px 10px rgba(255, 255, 255, 0.25),
+    inset 0 -8px 12px rgba(0, 0, 0, 0.2),
+    0 8px 20px rgba(26, 106, 255, 0.35) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25) !important;
   transition: all 0.3s var(--ease-out) !important;
 }
 
@@ -528,12 +529,13 @@ body::before {
 [data-ui-mode="glass"] [class*="calSidebarBtnGreen"]:hover,
 [data-ui-mode="glass"] [class*="storeBuyBtn"]:hover,
 [data-ui-mode="glass"] [class*="FloatingChat_sendBtn"]:hover {
-  background: linear-gradient(135deg, rgba(26, 106, 255, 0.95) 0%, rgba(0, 71, 171, 0.95) 100%) !important;
-  transform: translateY(-2px) scale(1.03) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(26, 106, 255, 0.45) 45%, rgba(0, 71, 171, 0.75) 100%) !important;
+  transform: translateY(-2px) scale(1.02) !important;
   box-shadow: 
-    inset 0 2px 3px rgba(255, 255, 255, 0.95),
-    inset 0 -3px 8px rgba(0, 0, 0, 0.15),
-    0 12px 28px rgba(26, 106, 255, 0.55) !important;
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.9),
+    inset 0 8px 12px rgba(255, 255, 255, 0.35),
+    inset 0 -10px 15px rgba(0, 0, 0, 0.25),
+    0 12px 28px rgba(26, 106, 255, 0.5) !important;
 }
 
 /* Semi-Transparent Secondary/Ghost Buttons */
