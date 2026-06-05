@@ -435,30 +435,37 @@ body::before {
   background: radial-gradient(circle, rgba(255, 51, 168, 0.35) 0%, rgba(255, 51, 168, 0) 70%) !important;
 }
 
+/* Transparent Layout Shell to reveal background orbs */
+[data-ui-mode="glass"] [class*="shell"] {
+  background: transparent !important;
+}
+
 /* System-Wide Panel & Card Frosted Glass Override */
-[data-ui-mode="glass"] [class*="card"],
-[data-ui-mode="glass"] [class*="Panel"],
-[data-ui-mode="glass"] [class*="Modal"],
-[data-ui-mode="glass"] [class*="sidebar"],
-[data-ui-mode="glass"] [class*="statusBar"],
+[data-ui-mode="glass"] [class*="card"]:not([class*="Name"]):not([class*="Desc"]):not([class*="Badge"]):not([class*="Status"]):not([class*="Tag"]):not([class*="Text"]):not([class*="Role"]):not([class*="Top"]):not([class*="Footer"]):not([class*="Header"]):not([class*="Button"]):not([class*="Img"]):not([class*="Avatar"]):not([class*="Info"]):not([class*="Price"]):not([class*="Label"]):not([class*="Wrapper"]):not([class*="Symbol"]):not([class*="Btn"]):not([class*="List"]):not([class*="Grid"]):not([class*="Title"]):not([class*="Link"]):not([class*="Item"]):not([class*="Row"]):not([class*="Col"]),
+[data-ui-mode="glass"] [class*="Panel"]:not([class*="Header"]):not([class*="Title"]):not([class*="Body"]):not([class*="Footer"]):not([class*="Group"]):not([class*="Label"]):not([class*="Text"]):not([class*="Btn"]),
+[data-ui-mode="glass"] [class*="Modal"]:not([class*="Overlay"]):not([class*="Header"]):not([class*="Title"]):not([class*="Body"]):not([class*="Footer"]):not([class*="Close"]):not([class*="Sub"]),
+[data-ui-mode="glass"] [class*="sidebar"]:not([class*="Logo"]):not([class*="Nav"]):not([class*="Btn"]):not([class*="Avatar"]):not([class*="Bottom"]):not([class*="Label"]):not([class*="Icon"]),
+[data-ui-mode="glass"] [class*="statusBar"]:not([class*="Left"]):not([class*="Right"]):not([class*="Info"]):not([class*="Greeting"]):not([class*="Date"]),
 [data-ui-mode="glass"] [class*="chatBox"],
-[data-ui-mode="glass"] [class*="chatDrawer"],
+[data-ui-mode="glass"] [class*="chatDrawer"]:not([class*="Header"]):not([class*="Body"]):not([class*="Footer"]):not([class*="Title"]):not([class*="Close"]):not([class*="Input"]):not([class*="Actions"]):not([class*="Send"]),
 [data-ui-mode="glass"] [class*="FloatingChat_floatingButton"],
-[data-ui-mode="glass"] [class*="FloatingChat_chatDrawer"],
-[data-ui-mode="glass"] [class*="SocialHub_sidebar"],
-[data-ui-mode="glass"] [class*="SocialHub_chatArea"],
-[data-ui-mode="glass"] [class*="PronoiaLab_labPanel"],
-[data-ui-mode="glass"] [class*="PronoiaLab_compoundCard"],
-[data-ui-mode="glass"] [class*="PronoiaLab_sidebar"],
-[data-ui-mode="glass"] [class*="PronoiaLab_glassPanel"],
-[data-ui-mode="glass"] [class*="tabContentSideCol"],
-[data-ui-mode="glass"] [class*="singlePanelLayout"],
-[data-ui-mode="glass"] [class*="insightCard"],
-[data-ui-mode="glass"] [class*="frictionRow"],
-[data-ui-mode="glass"] [class*="chronoMetaItem"],
-[data-ui-mode="glass"] [class*="storeCard"],
-[data-ui-mode="glass"] [class*="terminalCard"],
-[data-ui-mode="glass"] [class*="holoModal"] {
+[data-ui-mode="glass"] [class*="FloatingChat_chatDrawer"]:not([class*="Header"]):not([class*="Body"]):not([class*="Footer"]):not([class*="Title"]):not([class*="Close"]):not([class*="Input"]):not([class*="Actions"]):not([class*="Send"]),
+[data-ui-mode="glass"] [class*="SocialHub_sidebar"]:not([class*="Header"]):not([class*="Search"]):not([class*="Input"]):not([class*="List"]):not([class*="Item"]):not([class*="Empty"]):not([class*="Title"]):not([class*="Subtitle"]),
+[data-ui-mode="glass"] [class*="SocialHub_chatArea"]:not([class*="Header"]):not([class*="Body"]):not([class*="Footer"]):not([class*="Input"]):not([class*="Msg"]):not([class*="Bubble"]),
+[data-ui-mode="glass"] [class*="PronoiaLab_labPanel"]:not([class*="Header"]):not([class*="Title"]):not([class*="Body"]):not([class*="Footer"]):not([class*="Group"]):not([class*="Label"]):not([class*="Text"]):not([class*="Btn"]),
+[data-ui-mode="glass"] [class*="PronoiaLab_compoundCard"]:not([class*="Header"]):not([class*="Body"]):not([class*="Footer"]):not([class*="Name"]):not([class*="Desc"]):not([class*="Badge"]):not([class*="Status"]),
+[data-ui-mode="glass"] [class*="PronoiaLab_sidebar"]:not([class*="Header"]):not([class*="Title"]):not([class*="Body"]):not([class*="Footer"]),
+[data-ui-mode="glass"] [class*="PronoiaLab_glassPanel"]:not([class*="Header"]):not([class*="Title"]):not([class*="Body"]):not([class*="Footer"]),
+[data-ui-mode="glass"] [class*="tabContentSideCol"]:not([class*="Header"]):not([class*="Body"]):not([class*="Footer"]),
+[data-ui-mode="glass"] [class*="singlePanelLayout"]:not([class*="Header"]):not([class*="Body"]):not([class*="Footer"]),
+[data-ui-mode="glass"] [class*="insightCard"]:not([class*="Header"]):not([class*="Body"]):not([class*="Footer"]):not([class*="Title"]):not([class*="Text"]):not([class*="Value"]),
+[data-ui-mode="glass"] [class*="frictionRow"]:not([class*="Label"]):not([class*="Input"]):not([class*="Btn"]):not([class*="Text"]):not([class*="Value"]),
+[data-ui-mode="glass"] [class*="chronoMetaItem"]:not([class*="Label"]):not([class*="Value"]):not([class*="Text"]):not([class*="Icon"]),
+[data-ui-mode="glass"] [class*="storeCard"]:not([class*="Header"]):not([class*="Body"]):not([class*="Footer"]):not([class*="Name"]):not([class*="Desc"]):not([class*="Tag"]):not([class*="Badge"]):not([class*="Status"]):not([class*="Price"]):not([class*="Label"]),
+[data-ui-mode="glass"] [class*="terminalCard"]:not([class*="Row"]),
+[data-ui-mode="glass"] [class*="holoModal"]:not([class*="Title"]):not([class*="Sub"]):not([class*="Invoice"]):not([class*="Row"]):not([class*="Label"]):not([class*="Value"]):not([class*="Close"]),
+[data-ui-mode="glass"] [class*="appCard"]:not([class*="Wrapper"]):not([class*="Symbol"]):not([class*="Img"]):not([class*="Btn"]):not([class*="Form"]):not([class*="Input"]):not([class*="Actions"]):not([class*="Name"]):not([class*="Desc"]):not([class*="Badge"]),
+[data-ui-mode="glass"] [class*="Nav_scrolled"] {
   backdrop-filter: blur(45px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(45px) saturate(180%) !important;
   background: var(--panel-glass-bg) !important;
