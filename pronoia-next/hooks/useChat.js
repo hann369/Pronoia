@@ -1,3 +1,4 @@
+'use client';
 // hooks/useChat.js — Real-time E2E Chat Hook
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '@/lib/firebase';

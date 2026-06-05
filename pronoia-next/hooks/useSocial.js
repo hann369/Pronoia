@@ -1,3 +1,4 @@
+'use client';
 // hooks/useSocial.js — Friendship, User Search and Presence hook
 import { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
@@ -193,6 +194,7 @@ export function useSocial() {
               const data = doc.data();
               resultsMap.set(doc.id, {
                 uid: doc.id,
+                role: data.role || 'user',
                 profile: data.profile || { username: data.profile?.username || 'Unnamed Hacker' }
               });
             });
