@@ -125,32 +125,39 @@
 }
 
 [data-theme="dark"][data-ui-mode="glass"] {
-  --bg:           #03050a !important;
-  --bg2:          rgba(15, 20, 32, 0.3) !important;
-  --bg3:          rgba(15, 20, 32, 0.45) !important;
-  --bg-card:      rgba(255, 255, 255, 0.08) !important;
-  --border:       rgba(255, 255, 255, 0.15) !important;
-  --border-s:     rgba(255, 255, 255, 0.25) !important;
-  --border-strong: rgba(255, 255, 255, 0.4) !important;
-  --panel-glass-bg: rgba(10, 12, 22, 0.32) !important;
-  --panel-glass-border: rgba(255, 255, 255, 0.25) !important;
-  --panel-glass-shadow: 0 20px 50px rgba(0, 0, 0, 0.5) !important;
-  --orb-opacity:  0.32;
+  --bg:           #020408 !important;
+  --bg2:          rgba(15, 20, 32, 0.25) !important;
+  --bg3:          rgba(15, 20, 32, 0.35) !important;
+  --bg-card:      rgba(255, 255, 255, 0.05) !important;
+  --border:       rgba(255, 255, 255, 0.22) !important;
+  --border-s:     rgba(255, 255, 255, 0.32) !important;
+  --border-strong: rgba(255, 255, 255, 0.45) !important;
+  --panel-glass-bg: rgba(10, 12, 22, 0.18) !important;
+  --panel-glass-border: rgba(255, 255, 255, 0.45) !important;
+  --panel-glass-shadow: 
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.3), 
+    inset 0 15px 35px -10px rgba(255, 255, 255, 0.12), 
+    0 25px 60px rgba(0, 0, 0, 0.55) !important;
+  --orb-opacity:  0.45;
 }
 
 [data-theme="light"][data-ui-mode="glass"] {
   --bg:           #f5f3ef !important;
-  --bg2:          rgba(255, 255, 255, 0.3) !important;
-  --bg3:          rgba(255, 255, 255, 0.45) !important;
-  --bg-card:      rgba(255, 255, 255, 0.4) !important;
-  --border:       rgba(0, 0, 0, 0.06) !important;
-  --border-s:     rgba(0, 0, 0, 0.12) !important;
-  --border-strong: rgba(0, 0, 0, 0.2) !important;
-  --panel-glass-bg: rgba(255, 255, 255, 0.4) !important;
-  --panel-glass-border: rgba(255, 255, 255, 0.8) !important;
-  --panel-glass-shadow: 0 20px 50px rgba(31, 38, 135, 0.06) !important;
-  --orb-opacity:  0.24;
+  --bg2:          rgba(255, 255, 255, 0.25) !important;
+  --bg3:          rgba(255, 255, 255, 0.35) !important;
+  --bg-card:      rgba(255, 255, 255, 0.35) !important;
+  --border:       rgba(255, 255, 255, 0.4) !important;
+  --border-s:     rgba(255, 255, 255, 0.6) !important;
+  --border-strong: rgba(255, 255, 255, 0.8) !important;
+  --panel-glass-bg: rgba(255, 255, 255, 0.3) !important;
+  --panel-glass-border: rgba(255, 255, 255, 0.95) !important;
+  --panel-glass-shadow: 
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.8), 
+    inset 0 15px 35px -10px rgba(255, 255, 255, 0.45), 
+    0 25px 60px rgba(31, 38, 135, 0.08) !important;
+  --orb-opacity:  0.35;
 }
+
 
 /* ═══ RESET ═══════════════════════════════════════════ */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -383,3 +390,203 @@ body::before {
   .section { padding: 6rem 0; }
   .section-sm { padding: 4rem 0; }
 }
+
+/* ═══════════════════════════════════════════════════════
+   OVER-THE-TOP GLASSMORPHISM SYSTEM-WIDE OVERRIDES
+   Inspired by premium fluid neon & liquid glass UI designs
+   ═══════════════════════════════════════════════════════ */
+
+/* Saturated Backdrop Gradients */
+[data-theme="dark"][data-ui-mode="glass"] body {
+  background: radial-gradient(circle at 30% 20%, #0c163b 0%, #050a1e 40%, #020306 100%) !important;
+}
+[data-theme="light"][data-ui-mode="glass"] body {
+  background: radial-gradient(circle at 30% 20%, #f0f4f8 0%, #d8e3ea 100%) !important;
+}
+
+/* Enhanced Ambient Background Glows */
+[data-ui-mode="glass"] .orb {
+  filter: blur(140px) !important;
+  opacity: var(--orb-opacity) !important;
+}
+[data-ui-mode="glass"] .orb-1 {
+  background: radial-gradient(circle, rgba(26, 106, 255, 0.6) 0%, rgba(26, 106, 255, 0) 70%) !important;
+  width: 85vw !important;
+  height: 85vw !important;
+}
+[data-ui-mode="glass"] .orb-2 {
+  background: radial-gradient(circle, rgba(213, 184, 147, 0.5) 0%, rgba(213, 184, 147, 0) 70%) !important;
+  width: 75vw !important;
+  height: 75vw !important;
+}
+[data-ui-mode="glass"] .orb-3 {
+  background: radial-gradient(circle, rgba(255, 51, 168, 0.45) 0%, rgba(255, 51, 168, 0) 70%) !important;
+  width: 65vw !important;
+  height: 65vw !important;
+}
+
+[data-theme="light"][data-ui-mode="glass"] .orb-1 {
+  background: radial-gradient(circle, rgba(26, 106, 255, 0.45) 0%, rgba(26, 106, 255, 0) 70%) !important;
+}
+[data-theme="light"][data-ui-mode="glass"] .orb-2 {
+  background: radial-gradient(circle, rgba(213, 184, 147, 0.4) 0%, rgba(213, 184, 147, 0) 70%) !important;
+}
+[data-theme="light"][data-ui-mode="glass"] .orb-3 {
+  background: radial-gradient(circle, rgba(255, 51, 168, 0.35) 0%, rgba(255, 51, 168, 0) 70%) !important;
+}
+
+/* System-Wide Panel & Card Frosted Glass Override */
+[data-ui-mode="glass"] [class*="card"],
+[data-ui-mode="glass"] [class*="Panel"],
+[data-ui-mode="glass"] [class*="Modal"],
+[data-ui-mode="glass"] [class*="sidebar"],
+[data-ui-mode="glass"] [class*="statusBar"],
+[data-ui-mode="glass"] [class*="chatBox"],
+[data-ui-mode="glass"] [class*="chatDrawer"],
+[data-ui-mode="glass"] [class*="FloatingChat_floatingButton"],
+[data-ui-mode="glass"] [class*="FloatingChat_chatDrawer"],
+[data-ui-mode="glass"] [class*="SocialHub_sidebar"],
+[data-ui-mode="glass"] [class*="SocialHub_chatArea"],
+[data-ui-mode="glass"] [class*="PronoiaLab_labPanel"],
+[data-ui-mode="glass"] [class*="PronoiaLab_compoundCard"],
+[data-ui-mode="glass"] [class*="PronoiaLab_sidebar"],
+[data-ui-mode="glass"] [class*="PronoiaLab_glassPanel"],
+[data-ui-mode="glass"] [class*="tabContentSideCol"],
+[data-ui-mode="glass"] [class*="singlePanelLayout"],
+[data-ui-mode="glass"] [class*="insightCard"],
+[data-ui-mode="glass"] [class*="frictionRow"],
+[data-ui-mode="glass"] [class*="chronoMetaItem"],
+[data-ui-mode="glass"] [class*="storeCard"],
+[data-ui-mode="glass"] [class*="terminalCard"],
+[data-ui-mode="glass"] [class*="holoModal"] {
+  backdrop-filter: blur(45px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(45px) saturate(180%) !important;
+  background: var(--panel-glass-bg) !important;
+  border: 1.5px solid var(--panel-glass-border) !important;
+  box-shadow: var(--panel-glass-shadow) !important;
+}
+
+/* Specular Glow Hover Effects for Glass Cards */
+[data-ui-mode="glass"] [class*="card"]:hover,
+[data-ui-mode="glass"] [class*="storeDrawerCard"]:hover,
+[data-ui-mode="glass"] [class*="storeCard"]:hover,
+[data-ui-mode="glass"] [class*="PronoiaLab_compoundCard"]:hover,
+[data-ui-mode="glass"] [class*="SocialHub_sidebar"] [class*="chatCard"]:hover {
+  transform: translateY(-6px) scale(1.01) !important;
+  border-color: rgba(255, 255, 255, 0.65) !important;
+  box-shadow: 
+    inset 0 2px 3px 0 rgba(255, 255, 255, 0.4),
+    inset 0 15px 35px -10px rgba(255, 255, 255, 0.15),
+    0 35px 70px rgba(0, 0, 0, 0.65) !important;
+}
+
+[data-theme="light"][data-ui-mode="glass"] [class*="card"]:hover,
+[data-theme="light"][data-ui-mode="glass"] [class*="storeDrawerCard"]:hover,
+[data-theme="light"][data-ui-mode="glass"] [class*="storeCard"]:hover,
+[data-theme="light"][data-ui-mode="glass"] [class*="PronoiaLab_compoundCard"]:hover {
+  border-color: rgba(255, 255, 255, 1) !important;
+  box-shadow: 
+    inset 0 2px 3px 0 rgba(255, 255, 255, 0.95),
+    inset 0 15px 35px -10px rgba(255, 255, 255, 0.6),
+    0 30px 65px rgba(31, 38, 135, 0.12) !important;
+}
+
+/* Liquid Glass / Gel Action Buttons */
+[data-ui-mode="glass"] .btn-primary,
+[data-ui-mode="glass"] [class*="formBtn"],
+[data-ui-mode="glass"] [class*="terminalBtnGreen"],
+[data-ui-mode="glass"] [class*="calAiBtn"],
+[data-ui-mode="glass"] [class*="calSidebarBtnGreen"],
+[data-ui-mode="glass"] [class*="storeBuyBtn"],
+[data-ui-mode="glass"] [class*="FloatingChat_sendBtn"] {
+  background: linear-gradient(135deg, rgba(26, 106, 255, 0.8) 0%, rgba(0, 71, 171, 0.8) 100%) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.5) !important;
+  border-radius: 100px !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.75),
+    inset 0 -3px 8px rgba(0, 0, 0, 0.2),
+    0 8px 20px rgba(26, 106, 255, 0.4) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.3s var(--ease-out) !important;
+}
+
+[data-ui-mode="glass"] .btn-primary:hover,
+[data-ui-mode="glass"] [class*="formBtn"]:hover,
+[data-ui-mode="glass"] [class*="terminalBtnGreen"]:hover,
+[data-ui-mode="glass"] [class*="calAiBtn"]:hover,
+[data-ui-mode="glass"] [class*="calSidebarBtnGreen"]:hover,
+[data-ui-mode="glass"] [class*="storeBuyBtn"]:hover,
+[data-ui-mode="glass"] [class*="FloatingChat_sendBtn"]:hover {
+  background: linear-gradient(135deg, rgba(26, 106, 255, 0.95) 0%, rgba(0, 71, 171, 0.95) 100%) !important;
+  transform: translateY(-2px) scale(1.03) !important;
+  box-shadow: 
+    inset 0 2px 3px rgba(255, 255, 255, 0.95),
+    inset 0 -3px 8px rgba(0, 0, 0, 0.15),
+    0 12px 28px rgba(26, 106, 255, 0.55) !important;
+}
+
+/* Semi-Transparent Secondary/Ghost Buttons */
+[data-ui-mode="glass"] .btn-ghost,
+[data-ui-mode="glass"] [class*="terminalBtn"]:not([class*="terminalBtnGreen"]),
+[data-ui-mode="glass"] [class*="calSidebarBtn"],
+[data-ui-mode="glass"] [class*="modePickBtn"],
+[data-ui-mode="glass"] [class*="accentPickBtn"] {
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25) !important;
+  color: var(--text) !important;
+  transition: all 0.3s var(--ease-out) !important;
+}
+
+[data-ui-mode="glass"] .btn-ghost:hover,
+[data-ui-mode="glass"] [class*="terminalBtn"]:not([class*="terminalBtnGreen"]):hover,
+[data-ui-mode="glass"] [class*="calSidebarBtn"]:hover,
+[data-ui-mode="glass"] [class*="modePickBtn"]:hover,
+[data-ui-mode="glass"] [class*="accentPickBtn"]:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 
+    inset 0 1px 2px rgba(255, 255, 255, 0.35),
+    0 5px 15px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Active Mode & Accent Selection Indicators */
+[data-ui-mode="glass"] [class*="modePickActive"],
+[data-ui-mode="glass"] [class*="accentPickActive"] {
+  background: rgba(26, 106, 255, 0.25) !important;
+  border-color: var(--cobalt-bright) !important;
+  box-shadow: 
+    inset 0 1px 2px rgba(255, 255, 255, 0.35),
+    0 0 12px rgba(26, 106, 255, 0.3) !important;
+}
+
+/* Frosted Form & Search Inputs */
+[data-ui-mode="glass"] [class*="formInput"],
+[data-ui-mode="glass"] [class*="calChatInput"],
+[data-ui-mode="glass"] [class*="FloatingChat_searchInput"],
+[data-ui-mode="glass"] [class*="SocialHub_searchInput"] {
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+  color: var(--text) !important;
+}
+
+[data-ui-mode="glass"] [class*="formInput"]:focus,
+[data-ui-mode="glass"] [class*="calChatInput"]:focus,
+[data-ui-mode="glass"] [class*="FloatingChat_searchInput"]:focus,
+[data-ui-mode="glass"] [class*="SocialHub_searchInput"]:focus {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 
+    inset 0 1px 2px rgba(0, 0, 0, 0.1),
+    0 0 10px rgba(255, 255, 255, 0.15) !important;
+}
+
