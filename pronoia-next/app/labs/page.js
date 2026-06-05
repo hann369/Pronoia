@@ -65,8 +65,8 @@ export default function LabsPage() {
     <>
       {/* Dynamic Ambient Background */}
       <div className="sky-background" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: -2, overflow: 'hidden', pointerEvents: 'none' }}>
-        <div className="orb orb-1" style={{ position: 'absolute', width: '65vw', height: '65vw', borderRadius: '50%', filter: 'blur(120px)', opacity: 0.1, background: 'var(--tan)', top: '-10%', right: '-15%', animation: 'orb-float 22s infinite alternate' }}></div>
-        <div className="orb orb-2" style={{ position: 'absolute', width: '55vw', height: '55vw', borderRadius: '50%', filter: 'blur(120px)', opacity: 0.12, background: 'var(--cobalt)', bottom: '-15%', left: '-10%', animation: 'orb-float 18s infinite alternate', animationDelay: '-6s' }}></div>
+        <div className="orb orb-1" style={{ position: 'absolute', width: '65vw', height: '65vw', borderRadius: '50%', filter: 'blur(120px)', opacity: 'var(--orb-opacity, 0.1)', background: 'var(--tan)', top: '-10%', right: '-15%', animation: 'orb-float 22s infinite alternate' }}></div>
+        <div className="orb orb-2" style={{ position: 'absolute', width: '55vw', height: '55vw', borderRadius: '50%', filter: 'blur(120px)', opacity: 'var(--orb-opacity, 0.12)', background: 'var(--cobalt)', bottom: '-15%', left: '-10%', animation: 'orb-float 18s infinite alternate', animationDelay: '-6s' }}></div>
       </div>
 
       <div className={styles.container}>

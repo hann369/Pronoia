@@ -2650,7 +2650,8 @@ function LifeOSDashboard() {
                     {[
                       { id: 'serious', label: 'Matte Dark' },
                       { id: 'cyber', label: 'Cyber Glow' },
-                      { id: 'mono', label: 'Clinical Slate' }
+                      { id: 'mono', label: 'Clinical Slate' },
+                      { id: 'glass', label: 'Glassmorphism' }
                     ].map(mode => (
                       <button
                         key={mode.id}
