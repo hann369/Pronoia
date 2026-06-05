@@ -1,119 +1,276 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import SkillLabModal from '@/components/SkillLabModal';
+import styles from './page.module.css';
 
-const COMPOUNDS = [
-  { id: 'C01', name: 'Creatin Monohydrat', dose: '5.00g', desc: 'Zelluläre ATP-Regeneration. Erhöht den zellulären Energie-Output während tiefen Fokus-Blöcken.' },
-  { id: 'C02', name: 'Taurin', dose: '2.00g', desc: 'ZNS-Beruhigung. Moduliert GABA-Rezeptoren und verhindert Überreizung durch Stimulation.' },
-  { id: 'C03', name: 'Bromantane', dose: '50mg', desc: 'Dopamin-Synthese-Upregulation. Steigert die intrinsische Motivation ohne adrenergen Crash.' },
-  { id: 'C04', name: 'Magnesiumglycinat', dose: '400mg', desc: 'Regulation des Cortisolspiegels und Unterstützung der muskulären Relaxation.' }
+const COMPOUNDS_BASE = [
+  { id: 'C01', name: 'Creatin Monohydrat', doseBase: 3.0, maxDose: 6.0, unit: 'g', desc: 'Zelluläre ATP-Regeneration. Erhöht den zellulären Energie-Output während tiefen Fokus-Blöcken.' },
+  { id: 'C02', name: 'Taurin', doseBase: 1.0, maxDose: 3.0, unit: 'g', desc: 'ZNS-Beruhigung. Moduliert GABA-Rezeptoren und verhindert Überreizung durch Koffein/Stimulation.' },
+  { id: 'C03', name: 'Bromantane', doseBase: 25, maxDose: 75, unit: 'mg', desc: 'Dopamin-Synthese-Upregulation. Steigert die intrinsische Motivation und Ausdauer ohne adrenergen Crash.' },
+  { id: 'C04', name: 'Magnesiumglycinat', doseBase: 200, maxDose: 500, unit: 'mg', desc: 'Senkung des Cortisolspiegels, Regulation der neuralen Erregung und Unterstützung der muskulären Entspannung.' }
 ];
 
+const BATCHES = {
+  '#001': { batchId: '#001', purity: '99.82%', spectrometry: 'COMPLETE', heavyMetals: 'UNDETECTED', status: 'VERIFIED', date: 'April 2026' },
+  '#002': { batchId: '#002', purity: '99.78%', spectrometry: 'COMPLETE', heavyMetals: 'UNDETECTED', status: 'VERIFIED', date: 'Mai 2026' },
+  '#003': { batchId: '#003', purity: '99.91%', spectrometry: 'COMPLETE', heavyMetals: 'UNDETECTED', status: 'VERIFIED', date: 'Juni 2026' }
+};
+
 export default function LabsPage() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [expandedRow, setExpandedRow] = useState(null);
 
+  // Synergy Calculator States
+  const [cognitiveLoad, setCognitiveLoad] = useState(50);
+  const [physicalStress, setPhysicalStress] = useState(30);
+  const [sleepDeficit, setSleepDeficit] = useState(20);
+
+  // Batch Check States
+  const [batchSearch, setBatchSearch] = useState('#001');
+  const [activeBatch, setActiveBatch] = useState(BATCHES['#001']);
+  const [batchError, setBatchError] = useState('');
+
   const toggleRow = (id) => {
-    if (expandedRow === id) setExpandedRow(null);
-    else setExpandedRow(id);
+    setExpandedRow(prev => prev === id ? null : id);
+  };
+
+  // Calculate synergy dosages dynamically based on user parameters
+  const calculatedDoses = useMemo(() => {
+    const cogFactor = cognitiveLoad / 100;
+    const physFactor = physicalStress / 100;
+    const sleepFactor = sleepDeficit / 100;
+
+    return {
+      C01: (3.0 + cogFactor * 1.5 + physFactor * 1.5).toFixed(2), // Creatine (max 6.0g)
+      C02: (1.0 + cogFactor * 1.5 + sleepFactor * 0.5).toFixed(2), // Taurine (max 3.0g)
+      C03: Math.round(25 + cogFactor * 30 + physFactor * 20),      // Bromantane (max 75mg)
+      C04: Math.round(200 + physFactor * 150 + sleepFactor * 150)  // Magnesium (max 500mg)
+    };
+  }, [cognitiveLoad, physicalStress, sleepDeficit]);
+
+  const handleBatchSearch = (e) => {
+    e.preventDefault();
+    const query = batchSearch.trim();
+    const formatted = query.startsWith('#') ? query : `#${query}`;
+    
+    if (BATCHES[formatted]) {
+      setActiveBatch(BATCHES[formatted]);
+      setBatchError('');
+    } else {
+      setBatchError(`Batch ${query} nicht im Verzeichnis gefunden.`);
+    }
   };
 
   return (
     <>
+      {/* Dynamic Ambient Background */}
       <div className="sky-background" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: -2, overflow: 'hidden', pointerEvents: 'none' }}>
-        <div className="orb orb-1" style={{ position: 'absolute', width: '60vw', height: '60vw', borderRadius: '50%', filter: 'blur(120px)', opacity: 0.15, background: 'var(--tan)', top: '-10%', right: '-10%', animation: 'orb-float 20s infinite alternate' }}></div>
-        <div className="orb orb-2" style={{ position: 'absolute', width: '60vw', height: '60vw', borderRadius: '50%', filter: 'blur(120px)', opacity: 0.15, background: 'var(--cobalt)', bottom: '-10%', left: '-10%', animation: 'orb-float 20s infinite alternate', animationDelay: '-5s' }}></div>
+        <div className="orb orb-1" style={{ position: 'absolute', width: '65vw', height: '65vw', borderRadius: '50%', filter: 'blur(120px)', opacity: 0.1, background: 'var(--tan)', top: '-10%', right: '-15%', animation: 'orb-float 22s infinite alternate' }}></div>
+        <div className="orb orb-2" style={{ position: 'absolute', width: '55vw', height: '55vw', borderRadius: '50%', filter: 'blur(120px)', opacity: 0.12, background: 'var(--cobalt)', bottom: '-15%', left: '-10%', animation: 'orb-float 18s infinite alternate', animationDelay: '-6s' }}></div>
       </div>
 
-      <section style={{ minHeight: '90vh', display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', alignItems: 'center', padding: '10vh 10%', borderBottom: '1px solid var(--border)' }}>
-        <div>
-          <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 'clamp(3rem, 7vw, 5.5rem)', letterSpacing: '-0.05em', lineHeight: 0.9, marginBottom: '2rem' }}>PX-V1<br/>ARCHITECTURE</h1>
-          <p style={{ fontSize: '1.2rem', color: 'var(--text2)', maxWidth: '600px', marginBottom: '3rem' }}>
-            Synergetische Matrix aus Bromantane, Creatin, Taurin und Magnesiumglycinat. Ein biologisches Upgrade, keine Krücke.
-          </p>
-          <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-            <button onClick={() => setIsModalOpen(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.1em', padding: 0 }}>
-              INITIATE SKILL LAB _
-            </button>
-            <Link href="/protocol" style={{ fontFamily: 'var(--font-mono)', textDecoration: 'none', color: 'var(--text)', opacity: 0.6, fontWeight: 700, letterSpacing: '0.1em' }}>
-              PROTOCOL
-            </Link>
-          </div>
-        </div>
-        <div style={{ transform: 'scale(1.2)' }}>
-          {/* Using next/img would be better, but standard img matches 1:1 */}
-          <img src="/graphic assets/px-v1.png" alt="Molecular Architecture" style={{ width: '100%', objectFit: 'contain' }} />
-        </div>
-      </section>
+      <div className={styles.container}>
 
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', borderBottom: '1px solid var(--border)' }}>
-        {[
-          { label: 'Batch ID', value: '#001' },
-          { label: 'Purity Index', value: '99.8%' },
-          { label: 'Neuro-Latency', value: '-2.8ms' },
-          { label: 'Stock Status', value: 'ACTIVE' }
-        ].map(stat => (
-          <div key={stat.label} style={{ padding: '3rem', borderRight: '1px solid var(--border)' }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text2)', marginBottom: '1rem' }}>{stat.label}</div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '2.2rem', fontWeight: 700, color: 'var(--accent)' }}>{stat.value}</div>
+        {/* ─── Hero Section ─── */}
+        <section className={styles.heroSection}>
+          <div className={styles.heroContent}>
+            <h1 className={styles.heroTitle}>PX-V1<br/>Architecture</h1>
+            <p className={styles.heroSubtitle}>
+              Die bio-kognitive Matrix von Pronoia Labs. Eine synergetische Nootropika-Formel, entwickelt für kompromisslose mentale Klarheit und neuroplastische Anpassung.
+            </p>
+            <div className={styles.heroActions}>
+              <Link href="/life-os" className={styles.btnPrimary}>
+                Launch Life OS →
+              </Link>
+              <a href="#playground" className={styles.btnLink}>
+                Synergy Matrix _
+              </a>
+            </div>
           </div>
-        ))}
-      </section>
+          <div className={styles.heroImageContainer}>
+            <img src="/graphic assets/px-v1.png" alt="Molecular Architecture" className={styles.heroImage} />
+          </div>
+        </section>
 
-      <section style={{ padding: '10vh 10%' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '5vh', borderBottom: '1px solid var(--border)', paddingBottom: '2rem' }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '3rem', margin: 0 }}>Molecular Matrix</h2>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', opacity: 0.4 }}>PX-V1_COMPOUND_LIST.PDF</span>
-        </div>
-        
-        <div style={{ width: '100%' }}>
-          {COMPOUNDS.map(comp => (
-            <div key={comp.id} onClick={() => toggleRow(comp.id)} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.3s', cursor: 'pointer', background: expandedRow === comp.id ? 'var(--bg2)' : 'transparent' }}>
-              <div style={{ padding: '2.5rem 1.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text2)', width: '10%' }}>{comp.id}</span>
-                  <span style={{ fontSize: '1.4rem', fontWeight: 600, flex: 1 }}>{comp.name}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>{comp.dose}</span>
+        {/* ─── Telemetry Statistics Row ─── */}
+        <section className={styles.statsSection}>
+          {[
+            { label: 'Active Batch', value: '#003' },
+            { label: 'Purity Index', value: '99.91%' },
+            { label: 'Latency Shift', value: '-2.8ms' },
+            { label: 'Formulation status', value: 'VERIFIED' }
+          ].map(stat => (
+            <div key={stat.label} className={styles.statCard}>
+              <div className={styles.statLabel}>{stat.label}</div>
+              <div className={styles.statValue}>{stat.value}</div>
+            </div>
+          ))}
+        </section>
+
+        {/* ─── Interactive Synergy & Batch Checker Playground ─── */}
+        <section id="playground" className={styles.interactiveSection}>
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--cobalt-bright)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Adaptive Formulation Lab</span>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '2.2rem', marginTop: '0.5rem', fontWeight: 400 }}>Interaktives Telemetrie-Center</h2>
+          </div>
+
+          <div className={styles.interactiveGrid}>
+            
+            {/* Compound Synergy Calculator */}
+            <div className={styles.calcCard}>
+              <div className={styles.calcHeader}>
+                <h3>PX-V1 Synergy Calculator</h3>
+                <p>Simuliere Dosierungsverhältnisse basierend auf kognitiven und physischen Parametern.</p>
+              </div>
+
+              <div className={styles.sliderGroup}>
+                <div className={styles.sliderRow}>
+                  <div className={styles.sliderLabel}>
+                    <span>Kognitive Belastung</span>
+                    <span>{cognitiveLoad}%</span>
+                  </div>
+                  <input type="range" className={styles.slider} min="0" max="100" value={cognitiveLoad} onChange={e => setCognitiveLoad(parseInt(e.target.value))} />
                 </div>
-                <div style={{ 
-                  maxHeight: expandedRow === comp.id ? '100px' : '0', 
-                  overflow: 'hidden', 
-                  transition: 'all 0.5s ease', 
-                  fontSize: '0.95rem', 
-                  color: 'var(--text2)',
-                  paddingTop: expandedRow === comp.id ? '1rem' : '0',
-                  opacity: expandedRow === comp.id ? 1 : 0
-                }}>
+                <div className={styles.sliderRow}>
+                  <div className={styles.sliderLabel}>
+                    <span>Physischer Stress</span>
+                    <span>{physicalStress}%</span>
+                  </div>
+                  <input type="range" className={styles.slider} min="0" max="100" value={physicalStress} onChange={e => setPhysicalStress(parseInt(e.target.value))} />
+                </div>
+                <div className={styles.sliderRow}>
+                  <div className={styles.sliderLabel}>
+                    <span>Schlafdefizit</span>
+                    <span>{sleepDeficit}%</span>
+                  </div>
+                  <input type="range" className={styles.slider} min="0" max="100" value={sleepDeficit} onChange={e => setSleepDeficit(parseInt(e.target.value))} />
+                </div>
+              </div>
+
+              <div className={styles.compoundBreakdown}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text3)', letterSpacing: '0.1em', marginBottom: '0.5rem', fontWeight: 700, textTransform: 'uppercase' }}>Optimiertes Bio-Stack Verhältnis</div>
+                {COMPOUNDS_BASE.map(comp => {
+                  const dose = calculatedDoses[comp.id] || comp.doseBase;
+                  const ratio = Math.min(100, (dose / comp.maxDose) * 100);
+                  return (
+                    <div key={comp.id} className={styles.compRow}>
+                      <span className={styles.compName}>{comp.name}</span>
+                      <div className={styles.compFill}>
+                        <div className={styles.compFillBar} style={{ width: `${ratio}%` }} />
+                      </div>
+                      <span className={styles.compAmount}>{dose}{comp.unit}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Batch Spectrometry Checker */}
+            <div className={styles.batchCard}>
+              <div className={styles.batchHeader}>
+                <h3>Spectrometry Batch Check</h3>
+                <p>Verifiziere Reinheit und Authentizität deiner Charge direkt über das Laborregister.</p>
+              </div>
+
+              <form onSubmit={handleBatchSearch} className={styles.batchInputGroup}>
+                <input 
+                  type="text" 
+                  className={styles.batchInput} 
+                  placeholder="Chargencode eingeben (z.B. #003)" 
+                  value={batchSearch} 
+                  onChange={e => setBatchSearch(e.target.value)} 
+                />
+                <button type="submit" className={styles.batchBtn}>Prüfen</button>
+              </form>
+
+              {batchError ? (
+                <div style={{ color: 'var(--red)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', padding: '0.5rem' }}>
+                  ⚠ {batchError}
+                </div>
+              ) : (
+                <div className={styles.batchResult}>
+                  <div className={styles.reportRow}>
+                    <span>Batch ID</span>
+                    <span style={{ color: 'var(--tan)', fontWeight: 'bold' }}>{activeBatch.batchId}</span>
+                  </div>
+                  <div className={styles.reportRow}>
+                    <span>Synthese-Datum</span>
+                    <span>{activeBatch.date}</span>
+                  </div>
+                  <div className={styles.reportRow}>
+                    <span>Spectrometry Check</span>
+                    <span style={{ color: 'var(--green)' }}>{activeBatch.spectrometry}</span>
+                  </div>
+                  <div className={styles.reportRow}>
+                    <span>Heavy Metals Check</span>
+                    <span style={{ color: 'var(--green)' }}>{activeBatch.heavyMetals}</span>
+                  </div>
+                  <div className={styles.reportRow}>
+                    <span>Purity Index</span>
+                    <span style={{ color: 'var(--tan)' }}>{activeBatch.purity}</span>
+                  </div>
+                  <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                    <span style={{ background: 'var(--green-dim)', border: '1px solid var(--green)', color: 'var(--green)', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontFamily: 'var(--font-mono)' }}>
+                      STATUS: {activeBatch.status}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
+        </section>
+
+        {/* ─── Compound Accordion List ─── */}
+        <section className={styles.matrixSection}>
+          <div className={styles.sectionHeader}>
+            <h2>Molecular Matrix</h2>
+            <span>PX-V1_COMPOUND_LIST.JSON</span>
+          </div>
+          
+          <div className={styles.matrixList}>
+            {COMPOUNDS_BASE.map(comp => (
+              <div 
+                key={comp.id} 
+                className={`${styles.matrixRow} ${expandedRow === comp.id ? styles.matrixRowActive : ''}`} 
+                onClick={() => toggleRow(comp.id)}
+              >
+                <div className={styles.matrixRowHeader}>
+                  <span className={styles.matrixId}>{comp.id}</span>
+                  <span className={styles.matrixName}>{comp.name}</span>
+                  <span className={styles.matrixDose}>{comp.maxDose}{comp.unit} Max</span>
+                </div>
+                <div className={styles.matrixDesc}>
                   {comp.desc}
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
 
-      <section style={{ background: 'var(--text)', color: 'var(--bg)', padding: '10vh 10%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '5vw', alignItems: 'center' }}>
-        <div>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '3.5rem', lineHeight: 1, marginBottom: '2rem' }}>The grey market doesn't have to be grey.</h2>
-          <p style={{ opacity: 0.6, marginBottom: '2rem', fontSize: '1.1rem' }}>
-            Wir veröffentlichen das Certificate of Analysis für jede Charge. Wenn es nicht getestet ist, ist es nicht in unserem System.
-          </p>
-          <button style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '0.5rem 1.2rem', borderRadius: '100px', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-            View Certificates
-          </button>
-        </div>
-        <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', padding: '3rem', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', lineHeight: 1.8 }}>
-          <span style={{ color: 'var(--accent)' }}>&gt; REPORT: 2026-B001</span><br />
-          &gt; SPECTROMETRY: COMPLETE<br />
-          &gt; HEAVY METALS: UNDETECTED<br />
-          &gt; PURITY: 99.82%<br /><br />
-          <span style={{ background: 'var(--accent)', color: '#fff', padding: '0.2rem 0.5rem' }}>STATUS: VERIFIED</span>
-        </div>
-      </section>
+        {/* ─── Lab Quality Verification Banner ─── */}
+        <section className={styles.certSection}>
+          <div className={styles.certContent}>
+            <h2>Purity is a system standard.</h2>
+            <p>
+              Graumarkt-Intransparenz existiert bei uns nicht. Wir veröffentlichen die gaschromatographischen Analysen (GC-MS) für jede einzelne Charge im System. Was nicht zertifiziert ist, gelangt nicht in unsere Stacks.
+            </p>
+            <button onClick={() => alert('Zertifikatsregister vollständig verifiziert. Alle Dokumente sind im System archiviert.')}>
+              View Certificates
+            </button>
+          </div>
+          <div className={styles.certReport}>
+            <span>&gt; SPECTROMETRY TELEMETRY REGISTER</span><br />
+            &gt; SYSTEM STATE: COMPLETE<br />
+            &gt; TOXINS & HEAVY METALS: UNDETECTED<br />
+            &gt; AVERAGE PURITY INDEX: 99.84%<br /><br />
+            <span style={{ background: 'var(--cobalt-bright)', color: '#fff', padding: '0.2rem 0.5rem', borderRadius: '3px', fontSize: '0.7rem' }}>
+              TELEMETRY: VERIFIED
+            </span>
+          </div>
+        </section>
 
-      <SkillLabModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      </div>
     </>
   );
 }

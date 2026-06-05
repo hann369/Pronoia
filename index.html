@@ -3047,14 +3047,49 @@ void main(){
                     });
                 });
 
-                // System nav link
-                const sysLink = document.getElementById('nav-system');
-                if (sysLink) {
-                    sysLink.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        this.show();
-                    });
-                }
+                // dynamic auth state check
+                firebase.auth().onAuthStateChanged(async (user) => {
+                    const sysLink = document.getElementById('nav-system');
+                    if (user) {
+                        try {
+                            const doc = await firebase.firestore().collection('users').doc(user.uid).get();
+                            if (doc.exists && doc.data().isPaid) {
+                                // Unlock navigation link dynamically
+                                if (sysLink) {
+                                    sysLink.classList.remove('system-locked');
+                                    sysLink.classList.add('system-unlocked');
+                                    sysLink.setAttribute('data-de', 'SYSTEM ✓');
+                                    sysLink.setAttribute('data-en', 'SYSTEM ✓');
+                                    sysLink.textContent = (typeof currentLang !== 'undefined' && currentLang === 'de') ? 'SYSTEM ✓' : 'SYSTEM ✓';
+                                    sysLink.onclick = null;
+                                    sysLink.href = 'protocol.html';
+                                }
+                                localStorage.setItem('pronoia_unlocked', 'true');
+                            } else {
+                                // Logged in but not paid
+                                if (sysLink) {
+                                    sysLink.onclick = (e) => {
+                                        e.preventDefault();
+                                        this.show();
+                                        this.showPayment();
+                                    };
+                                }
+                                localStorage.removeItem('pronoia_unlocked');
+                            }
+                        } catch (e) {
+                            console.error("Firestore auth sync failed:", e);
+                        }
+                    } else {
+                        // Not logged in
+                        if (sysLink) {
+                            sysLink.onclick = (e) => {
+                                e.preventDefault();
+                                this.show();
+                            };
+                        }
+                        localStorage.removeItem('pronoia_unlocked');
+                    }
+                });
 
                 document.getElementById('px-auth-btn').addEventListener('click', () => this.handleAuth());
                 document.getElementById('px-auth-switch').addEventListener('click', () => this.toggleMode());

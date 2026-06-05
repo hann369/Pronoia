@@ -129,4 +129,57 @@
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[c]));
   }
+
+  // --- YouTube Shorts redirect & hiding script ---
+  if (window.location.hostname.includes("youtube.com")) {
+    const handleYoutubeShorts = () => {
+      if (window.location.pathname.startsWith("/shorts/")) {
+        console.log("[Pronoia Safety] YouTube Shorts URL detected. Redirecting to home feed...");
+        window.location.replace("https://www.youtube.com/");
+      }
+    };
+
+    // Run check immediately
+    handleYoutubeShorts();
+
+    // Check pathname transitions on YouTube (Single Page App)
+    let lastUrl = window.location.href;
+    setInterval(() => {
+      if (window.location.href !== lastUrl) {
+        lastUrl = window.location.href;
+        handleYoutubeShorts();
+      }
+    }, 500);
+
+    // Inject stylesheet to hide Shorts shelf, sidebar link, and elements
+    const injectShortsCSS = () => {
+      if (document.getElementById("pronoia-shorts-hider")) return;
+      const style = document.createElement("style");
+      style.id = "pronoia-shorts-hider";
+      style.innerHTML = `
+        /* Hide YouTube sidebar Shorts link */
+        ytd-guide-entry-renderer[entry-id="FEshorts"],
+        a[title="Shorts"],
+        ytd-mini-guide-entry-renderer[aria-label="Shorts"],
+        
+        /* Hide home feed Shorts carousel / shelves */
+        ytd-rich-shelf-renderer[is-shorts],
+        ytd-reel-shelf-renderer,
+        ytd-shelf-renderer:has(span[title="Shorts"]),
+        ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-shorts]),
+        
+        /* General titles or icons containing Shorts */
+        [title="Shorts"] {
+          display: none !important;
+        }
+      `;
+      document.documentElement.appendChild(style);
+    };
+
+    if (document.documentElement) {
+      injectShortsCSS();
+    } else {
+      window.addEventListener("DOMContentLoaded", injectShortsCSS);
+    }
+  }
 })();

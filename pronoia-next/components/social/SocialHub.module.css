@@ -1,0 +1,678 @@
+/* components/social/SocialHub.module.css */
+
+.socialShell {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  height: 600px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+@media (max-width: 768px) {
+  .socialShell {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Sidebar --- */
+.socialSidebar {
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: rgba(10, 12, 18, 0.4);
+}
+
+.tabBar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid var(--border);
+}
+
+.tabBtn {
+  background: transparent;
+  border: none;
+  padding: 0.85rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text3);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.tabBtn:hover {
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text);
+}
+
+.tabBtnActive {
+  border-bottom: 2px solid var(--theme-accent, var(--cobalt-bright));
+  color: var(--theme-accent, var(--cobalt-bright));
+  background: rgba(26, 106, 255, 0.03);
+}
+
+.sidebarContent {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.groupCreateRow {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.groupForm {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.groupInput {
+  background: var(--bg3);
+  border: 1px solid var(--border-s);
+  border-radius: 6px;
+  padding: 0.45rem 0.75rem;
+  color: var(--text);
+  font-size: 0.75rem;
+  outline: none;
+}
+
+.groupInput:focus {
+  border-color: var(--theme-accent, var(--cobalt-bright));
+}
+
+.groupMemberListLabel {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text3);
+  text-transform: uppercase;
+}
+
+.groupMemberList {
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid var(--border-s);
+  border-radius: 6px;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.groupMemberLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text2);
+  cursor: pointer;
+}
+
+/* --- Conversations List --- */
+.chatList {
+  display: flex;
+  flex-direction: column;
+}
+
+.chatListItem {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.95rem 1.25rem;
+  border-bottom: 1px solid var(--border-s);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chatListItem:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.chatListItemActive {
+  background: rgba(26, 106, 255, 0.04) !important;
+  border-left: 3px solid var(--theme-accent, var(--cobalt-bright));
+}
+
+.chatListAvatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-s);
+  object-fit: cover;
+}
+
+.chatListInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.chatListHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.chatListTitle {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.chatListTime {
+  font-size: 0.65rem;
+  color: var(--text3);
+}
+
+.chatListPreviewRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chatListPreview {
+  font-size: 0.7rem;
+  color: var(--text3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 170px;
+}
+
+.unreadBadge {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--theme-accent, var(--cobalt-bright));
+}
+
+/* --- Friends --- */
+.friendsList {
+  padding: 0.5rem 0;
+}
+
+.friendRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border-s);
+}
+
+.friendInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.onlineDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+}
+
+.friendName {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* --- Requests --- */
+.requestsList {
+  padding: 1.25rem;
+}
+
+.requestsSectionLabel {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.75rem;
+}
+
+.requestRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0.85rem;
+  background: var(--bg3);
+  border: 1px solid var(--border-s);
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.requestName {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text2);
+}
+
+.requestActions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.reqAcceptBtn, .reqDeclineBtn {
+  border: none;
+  border-radius: 4px;
+  width: 26px;
+  height: 22px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.reqAcceptBtn {
+  background: var(--green);
+  color: white;
+}
+
+.reqDeclineBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-s);
+  color: var(--text2);
+}
+
+.reqPendingTag {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--text3);
+}
+
+/* --- Search Pane --- */
+.searchPane {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.searchForm {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.searchInput {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--border-s);
+  border-radius: 8px;
+  padding: 0.5rem 0.85rem;
+  color: var(--text);
+  font-size: 0.78rem;
+  outline: none;
+}
+
+.searchInput:focus {
+  border-color: var(--theme-accent, var(--cobalt-bright));
+}
+
+.searchBtn {
+  background: var(--theme-accent, var(--cobalt-bright));
+  border: none;
+  border-radius: 8px;
+  padding: 0 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+}
+
+.searchResults {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.userCard {
+  background: var(--bg3);
+  border: 1px solid var(--border-s);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.userCardLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.userCardAvatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border-s);
+  object-fit: cover;
+}
+
+.userCardInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.userCardName {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.userCardClass {
+  font-size: 0.62rem;
+  color: var(--text3);
+}
+
+.userCardHrv {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  color: var(--theme-accent, var(--cobalt-bright));
+}
+
+/* --- Chat Display Window --- */
+.socialMainContent {
+  background: rgba(5, 7, 10, 0.2);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.noChatSelected {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+  color: var(--text3);
+}
+
+.socialHeroSymbol {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.noChatSelected h2 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 400;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+
+.noChatSelected p {
+  font-size: 0.82rem;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+.chatWindow {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.chatHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(10, 12, 18, 0.4);
+}
+
+.chatHeaderTitle {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.chatHeaderStatus {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+}
+
+.secureBadge, .expiryBadge {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+}
+
+.secureBadge {
+  color: var(--green);
+  background: rgba(0, 196, 140, 0.05);
+  border: 1px solid rgba(0, 196, 140, 0.2);
+}
+
+.expiryBadge {
+  color: var(--amber);
+  background: rgba(245, 166, 35, 0.05);
+  border: 1px solid rgba(245, 166, 35, 0.2);
+}
+
+.chatMessagesArea {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.chatEmptyState {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--text3);
+  font-size: 0.75rem;
+  padding: 2rem;
+}
+
+.chatInputForm {
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 0.75rem;
+  background: rgba(10, 12, 18, 0.4);
+}
+
+.chatMsgInput {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--border-s);
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  color: var(--text);
+  font-size: 0.82rem;
+  outline: none;
+}
+
+.chatMsgInput:focus {
+  border-color: var(--theme-accent, var(--cobalt-bright));
+}
+
+.chatSendBtn {
+  background: var(--theme-accent, var(--cobalt-bright));
+  border: none;
+  border-radius: 8px;
+  padding: 0 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chatSendBtn:hover {
+  box-shadow: 0 0 10px var(--theme-accent-glow, rgba(26, 106, 255, 0.25));
+}
+
+/* --- Message Bubbles --- */
+.bubbleWrapper {
+  display: flex;
+  width: 100%;
+}
+
+.bubbleSelf {
+  justify-content: flex-end;
+}
+
+.bubbleOther {
+  justify-content: flex-start;
+}
+
+.bubble {
+  padding: 0.65rem 0.95rem;
+  border-radius: 14px;
+  max-width: 75%;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bubbleSelf .bubble {
+  background: var(--theme-accent, var(--cobalt-bright));
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.bubbleOther .bubble {
+  background: var(--bg3);
+  border: 1px solid var(--border-s);
+  color: var(--text);
+  border-bottom-left-radius: 4px;
+}
+
+.bubbleSender {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--theme-accent, var(--cobalt-bright));
+  text-transform: uppercase;
+  margin-bottom: 0.15rem;
+}
+
+.bubbleText {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  margin: 0;
+  word-break: break-word;
+}
+
+.bubbleMeta {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+}
+
+.bubbleTime {
+  font-size: 0.58rem;
+}
+
+.bubbleSelf .bubbleTime {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.bubbleOther .bubbleTime {
+  color: var(--text3);
+}
+
+.bubbleLock {
+  font-size: 0.58rem;
+  opacity: 0.85;
+}
+
+/* --- Geteilte Rich-Karten --- */
+.shareCard {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  min-width: 200px;
+}
+
+.shareCardHeader {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--theme-accent, var(--cobalt-bright));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+
+.shareCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.shareCardItem {
+  font-size: 0.7rem;
+  color: var(--text2);
+}
+
+/* Override shareCard styling inside self-bubbles (blue background) for proper contrast */
+.bubbleSelf .shareCard {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.bubbleSelf .shareCardHeader {
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.bubbleSelf .shareCardItem {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.emptyState {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text3);
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+
+.loadingText {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text3);
+  text-align: center;
+}

@@ -1,0 +1,2337 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>Pronoia Life OS</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&family=JetBrains+Mono:wght@300;400;500;700&display=swap');
+  
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h2, h3, .card-title, .timer-clock, .logo-text {
+    font-family: 'Outfit', sans-serif !important;
+  }
+  
+  :root {
+    --bg: #080a0f;
+    --bg2: #0f1118;
+    --bg3: #161b27;
+    --border: rgba(26, 106, 255, 0.12);
+    --border-strong: rgba(26, 106, 255, 0.25);
+    --accent: #1A6AFF; /* Cobalt Bright */
+    --accent-glow: rgba(26, 106, 255, 0.35);
+    --tan: #d5b893;
+    --text: #eef0f4;
+    --text-muted: #a8b4c0;
+    --text-dim: #6a7890;
+    --green: #00C48C;
+    --amber: #F5A623;
+  }
+
+  /* ── Light Theme variables override ── */
+  body.light-theme {
+    --bg: #f4f6fa;
+    --bg2: #ffffff;
+    --bg3: #eef2f8;
+    --border: rgba(26, 106, 255, 0.08);
+    --border-strong: rgba(26, 106, 255, 0.18);
+    --text: #0c0f16;
+    --text-muted: #4a5568;
+    --text-dim: #718096;
+    --tan: #a88a65; /* Darker tan for proper contrast on white background */
+    --accent-glow: rgba(26, 106, 255, 0.15);
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    transition: background 0.3s ease, color 0.3s ease;
+    position: relative;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    opacity: 0.025;
+    pointer-events: none;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-height: 100vh;
+    position: relative;
+    background: var(--bg);
+    transition: background 0.3s ease;
+    z-index: 1;
+  }
+
+  /* ── Header ── */
+  .header {
+    padding: 0.65rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    background: var(--bg2);
+    z-index: 10;
+    transition: background 0.3s ease, border-color 0.3s ease;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    height: 38px;
+  }
+  .logo-img {
+    height: 28px; /* Increased from 18px to 28px */
+    display: block;
+    transition: filter 0.3s ease;
+  }
+  body:not(.light-theme) .logo-img {
+    filter: invert(1) brightness(1.4);
+  }
+  body.light-theme .logo-img {
+    filter: none;
+  }
+  .theme-toggle-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border-radius: 8px;
+    margin-right: 6px;
+    transition: all 0.2s ease;
+    outline: none;
+  }
+  .theme-toggle-btn:active {
+    background: rgba(26, 106, 255, 0.1);
+    color: var(--accent);
+  }
+  .theme-toggle-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+  }
+  .system-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+  .pulsing-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse 1.8s infinite;
+  }
+  @keyframes pulse {
+    0% { transform: scale(0.9); opacity: 0.6; }
+    50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 8px var(--green); }
+    100% { transform: scale(0.9); opacity: 0.6; }
+  }
+
+  /* ── Screens ── */
+  .screen {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .screen.active {
+    display: flex;
+  }
+  .scroll-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── Glass Cards & Common UI ── */
+  .glass-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  .card-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 16px;
+    color: var(--text);
+    margin-bottom: 0.5rem;
+  }
+  .card-subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--tan);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.75rem;
+  }
+
+  /* ── Inputs, Range Sliders & Buttons ── */
+  .form-group {
+    margin-bottom: 1.25rem;
+  }
+  .form-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .form-value {
+    color: var(--accent);
+    font-weight: 700;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    background: transparent;
+    height: 20px;
+  }
+  input[type=range]:focus {
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 4px;
+    cursor: pointer;
+    background: var(--bg3);
+    border-radius: 2px;
+    border: 1px solid var(--border);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    -webkit-appearance: none;
+    margin-top: -6px;
+    box-shadow: 0 0 8px var(--accent-glow);
+    border: 1px solid var(--text);
+  }
+  .ob-input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--text);
+    font-family: inherit;
+    outline: none;
+    transition: border 0.15s;
+  }
+  .ob-input:focus {
+    border-color: var(--border-strong);
+  }
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .chip {
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--text-muted);
+    background: var(--bg3);
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .chip.sel {
+    border-color: var(--accent);
+    color: var(--text);
+    background: rgba(26, 106, 255, 0.15);
+    box-shadow: 0 0 8px rgba(26, 106, 255, 0.15);
+  }
+  .btn-main {
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    margin-top: 0.5rem;
+    box-shadow: 0 4px 15px var(--accent-glow);
+  }
+  .btn-main:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+  .btn-outline {
+    width: 100%;
+    padding: 11px;
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    color: var(--accent);
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+  }
+  .btn-outline:active {
+    background: rgba(26, 106, 255, 0.08);
+  }
+
+  /* ── Onboarding / Profile Tab ── */
+  .profile-badge {
+    text-align: center;
+    margin-bottom: 1.25rem;
+  }
+  .profile-badge .avatar-placeholder {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg3);
+    font-family: 'DM Serif Display', serif;
+    font-size: 24px;
+    color: var(--tan);
+    margin-bottom: 0.5rem;
+    box-shadow: 0 0 15px var(--accent-glow);
+  }
+  .profile-badge h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    color: var(--text);
+  }
+  .profile-badge p {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    margin-top: 2px;
+  }
+
+  /* ── Chat Tab ── */
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .msg {
+    max-width: 82%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    transition: all 0.2s ease;
+  }
+  .msg.bot {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+    align-self: flex-start;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  }
+  .msg.user {
+    background: linear-gradient(135deg, var(--accent), var(--accent-glow));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+    align-self: flex-end;
+    box-shadow: 0 8px 24px rgba(26, 106, 255, 0.15);
+  }
+  .typing-indicator {
+    align-self: flex-start;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    border-bottom-left-radius: 4px;
+    padding: 10px 14px;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .typing-indicator span {
+    width: 6px;
+    height: 6px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    animation: bounce 1.2s infinite;
+  }
+  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-5px); }
+  }
+  .chat-footer {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    flex-shrink: 0;
+    background: var(--bg);
+    transition: background 0.3s ease, border-color 0.3s ease;
+  }
+  .chat-input {
+    flex: 1;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 9px 14px;
+    font-size: 13px;
+    color: var(--text);
+    font-family: inherit;
+    outline: none;
+    resize: none;
+    max-height: 100px;
+    line-height: 1.4;
+    transition: border 0.15s;
+  }
+  .chat-input:focus {
+    border-color: var(--border-strong);
+  }
+  .send-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.1s;
+    box-shadow: 0 2px 8px var(--accent-glow);
+  }
+  .send-btn:active {
+    transform: scale(0.9);
+  }
+  .send-btn svg {
+    width: 15px;
+    height: 15px;
+    stroke: #fff;
+    fill: none;
+    stroke-width: 2;
+  }
+  .quick-actions {
+    display: flex;
+    gap: 6px;
+    padding: 0 1.25rem 0.5rem;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .qa-btn {
+    padding: 5px 12px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--bg2);
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .qa-btn:active {
+    border-color: var(--accent);
+    color: var(--text);
+    background: rgba(26, 106, 255, 0.08);
+  }
+
+  /* ── Life OS Tab ── */
+  .chrono-display {
+    text-align: center;
+    padding: 1.5rem 0 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+  }
+  .chrono-container {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    margin: 0.5rem auto 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .chrono-svg {
+    transform: rotate(-90deg);
+    width: 200px;
+    height: 200px;
+  }
+  .chrono-outer-ring {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.02);
+    stroke-width: 1.5;
+  }
+  .chrono-track {
+    fill: none;
+    stroke: var(--bg3);
+    stroke-width: 5;
+    transition: stroke 0.3s ease;
+  }
+  .chrono-progress {
+    fill: none;
+    stroke: url(#progGrad);
+    stroke-width: 5;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.3s ease, stroke 0.3s ease;
+  }
+  .chrono-center {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .timer-clock {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0;
+    line-height: 1.1;
+  }
+  .chrono-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 4px;
+    font-weight: 700;
+  }
+  .chrono-glow {
+    position: absolute;
+    width: 170px;
+    height: 170px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+    filter: blur(15px);
+    z-index: 0;
+    opacity: 0.6;
+    pointer-events: none;
+    transition: background 0.3s ease;
+  }
+  .chrono-meta {
+    display: flex;
+    justify-content: space-around;
+    width: 100%;
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .timer-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--tan);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 1rem;
+  }
+  .timer-controls {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+  }
+  .tc-btn {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tc-btn:active {
+    transform: scale(0.92);
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .tc-btn svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+  }
+  .tc-btn.primary {
+    background: var(--accent);
+    color: #fff;
+    width: 52px;
+    height: 52px;
+    box-shadow: 0 4px 12px var(--accent-glow);
+    border: none;
+  }
+  .tc-btn.primary:active {
+    box-shadow: 0 2px 6px var(--accent-glow);
+  }
+
+  /* Mini Calendar view */
+  .cal-strip {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin: 0.5rem 0 1rem;
+  }
+  .cal-day {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 0;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .cal-day.selected {
+    border-color: var(--accent);
+    background: rgba(26, 106, 255, 0.1);
+    box-shadow: 0 0 8px rgba(26, 106, 255, 0.1);
+  }
+  .cal-day.today {
+    border-color: var(--tan);
+  }
+  .cal-day-name {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+  }
+  .cal-day-num {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-top: 2px;
+  }
+  .cal-dot {
+    width: 4px;
+    height: 4px;
+    background: var(--accent);
+    border-radius: 50%;
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .cal-blocks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 0.75rem;
+  }
+  .cal-block-item {
+    background: var(--bg3);
+    border-left: 3px solid var(--border);
+    padding: 10px 12px;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .cal-block-item.focus { border-left-color: var(--accent); }
+  .cal-block-item.health { border-left-color: var(--green); }
+  .cal-block-item.recovery { border-left-color: var(--tan); }
+  .cal-block-item.skills { border-left-color: var(--amber); }
+  
+  .cal-block-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .cal-block-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--text-muted);
+  }
+  .cal-block-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .pillar-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+  }
+  
+  .empty-state {
+    text-align: center;
+    padding: 1.5rem;
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+
+  /* Pillar Badges */
+  .pillar-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+  }
+  .pillar-badge.focus { background: rgba(26, 106, 255, 0.15); color: var(--accent); border: 1px solid rgba(26, 106, 255, 0.3); }
+  .pillar-badge.health { background: rgba(0, 196, 140, 0.15); color: var(--green); border: 1px solid rgba(0, 196, 140, 0.3); }
+  .pillar-badge.recovery { background: rgba(213, 184, 147, 0.15); color: var(--tan); border: 1px solid rgba(213, 184, 147, 0.3); }
+  .pillar-badge.skills { background: rgba(245, 166, 35, 0.15); color: var(--amber); border: 1px solid rgba(245, 166, 35, 0.3); }
+
+  /* ── Stack Tab ── */
+  .stack-subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 1rem;
+  }
+  .stack-item {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 11px 13px;
+    margin-bottom: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .si-info .name {
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .si-info .dose {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 3px;
+  }
+  .badge {
+    padding: 3px 9px;
+    border-radius: 16px;
+    font-size: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+  }
+  .badge.am {
+    background: rgba(26, 106, 255, 0.1);
+    color: var(--accent);
+    border: 1px solid rgba(26, 106, 255, 0.2);
+  }
+  .badge.pm {
+    background: rgba(213, 184, 147, 0.1);
+    color: var(--tan);
+    border: 1px solid rgba(213, 184, 147, 0.2);
+  }
+  .score-bar {
+    background: rgba(26, 106, 255, 0.05);
+    border: 1px solid rgba(26, 106, 255, 0.15);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .score-bar .label {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .score-bar .num {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .sync-row {
+    padding: 0.75rem 1.25rem;
+    flex-shrink: 0;
+  }
+
+  /* ── Tab bar ── */
+  .tabbar {
+    display: flex;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+    background: rgba(15, 17, 24, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    padding-top: 8px;
+    transition: background 0.3s ease, border-color 0.3s ease;
+    z-index: 10;
+  }
+  .tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    color: var(--text-dim);
+    transition: color 0.2s ease, transform 0.2s ease;
+    position: relative;
+  }
+  .tab.active {
+    color: var(--accent);
+  }
+  .tab svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    transition: transform 0.2s ease;
+  }
+  .tab.active svg {
+    transform: translateY(-2px);
+  }
+  .tab span {
+    font-size: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .tab::after {
+    content: "";
+    position: absolute;
+    bottom: -6px;
+    width: 14px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .tab.active::after {
+    transform: scaleX(1);
+    box-shadow: 0 0 6px var(--accent);
+  }
+
+  .directive-item {
+    background: rgba(26, 106, 255, 0.04);
+    border: 1px solid rgba(26, 106, 255, 0.12);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.45;
+  }
+  .directive-item strong {
+    color: var(--text);
+  }
+  .directive-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="logo">
+      <img src="/graphic assets/pronoia_logo.png" alt="Pronoia" class="logo-img" />
+    </div>
+    <div class="system-status">
+      <button class="theme-toggle-btn" onclick="toggleThemeManual()" aria-label="Theme umschalten">
+        <svg id="themeToggleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <!-- Sun icon default -->
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+      </button>
+      <div class="pulsing-dot"></div>
+      <span id="systemState">SYSTEM: ONLINE</span>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 1: Onboarding & Profile ── -->
+  <div class="screen active" id="s-profile">
+    <div class="scroll-body">
+      <div class="profile-badge">
+        <div class="avatar-placeholder">⊕</div>
+        <h2 id="userName">User</h2>
+        <p id="userSystemId">SYSTEM ID: PX-2026-88</p>
+        <p id="userEmail" style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--tan); margin-top: 4px;">EMAIL: NICHT VERKNÜPFT</p>
+      </div>
+
+      <div id="debugConsole" style="font-family: 'JetBrains Mono', monospace; font-size: 8px; color: #ff5555; margin-bottom: 1rem; text-align: left; background: rgba(255, 85, 85, 0.05); padding: 8px; border-radius: 8px; border: 1px dashed rgba(255,85,85,0.25); display: none; line-height: 1.5;"></div>
+
+      <!-- ONBOARDING FORM -->
+      <div class="glass-card" id="onboardForm">
+        <div class="card-title">Setup ausführen</div>
+        <div class="card-subtitle">Life OS Parameter</div>
+        
+        <div class="form-group">
+          <div class="form-label">Primäres Ziel</div>
+          <div class="chip-row" id="goals">
+            <div class="chip" onclick="toggleChip(this)">Fokus</div>
+            <div class="chip" onclick="toggleChip(this)">Muskelaufbau</div>
+            <div class="chip" onclick="toggleChip(this)">Energie</div>
+            <div class="chip" onclick="toggleChip(this)">Schlaf</div>
+            <div class="chip" onclick="toggleChip(this)">Stressmanagement</div>
+            <div class="chip" onclick="toggleChip(this)">Libido</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">Erfahrung mit Supplements</div>
+          <div class="chip-row" id="exp">
+            <div class="chip" onclick="soloChip(this,'exp')">Beginner</div>
+            <div class="chip sel" onclick="soloChip(this,'exp')">Intermediate</div>
+            <div class="chip" onclick="soloChip(this,'exp')">Advanced</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">Alter</div>
+          <input class="ob-input" type="number" id="age" placeholder="z.B. 21" min="14" max="60" />
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">Größte Challenge</div>
+          <input class="ob-input" type="text" id="challenge" placeholder="z.B. Morgenroutine, Brain Fog..." />
+        </div>
+
+        <button class="btn-main" onclick="submitOnboarding()">Ecosystem initialisieren</button>
+      </div>
+
+      <!-- BIOMETRIE SLIDERS (always visible / functional after config) -->
+      <div class="glass-card">
+        <div class="card-title">Biometrie Sync</div>
+        <div class="card-subtitle">Live-Biomarker manuell kalibrieren</div>
+
+        <div class="form-group">
+          <div class="form-label">
+            <span>Herzratenvariabilität (HRV)</span>
+            <span class="form-value" id="hrvValueDisplay">72 ms</span>
+          </div>
+          <input type="range" id="hrvSlider" min="30" max="120" value="72" />
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">
+            <span>Schlaf-Score (letzte Nacht)</span>
+            <span class="form-value" id="sleepValueDisplay">84%</span>
+          </div>
+          <input type="range" id="sleepSlider" min="10" max="100" value="84" />
+        </div>
+
+        <button class="btn-outline" id="biometricsSyncBtn" onclick="syncBiometrics()">An Life OS senden</button>
+      </div>
+
+      <!-- SYSTEM DIRECTIVES CARD -->
+      <div class="glass-card" id="directivesCard" style="display: none; padding: 1.25rem 1rem;">
+        <div class="card-title">📜 System-Direktiven</div>
+        <div class="card-subtitle">Aktuelle Handlungsanweisungen</div>
+        <div id="directivesList" style="display: flex; flex-direction: column; gap: 8px;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 2: KI Chat ── -->
+  <div class="screen" id="s-chat">
+    <div class="chat-messages" id="chatMessages">
+      <div class="msg bot" id="firstMsg">Bereit für kognitives Laden. Welches Optimierungs-Modul möchtest du heute besprechen?</div>
+    </div>
+    <div class="quick-actions" id="quickActions">
+      <button class="qa-btn" onclick="sendQuick('HRV loggen')">💓 HRV loggen</button>
+      <button class="qa-btn" onclick="sendQuick('Fokus umschalten')">⏱ Fokus umschalten</button>
+      <button class="qa-btn" onclick="sendQuick('Was ist PX-V1?')">🧪 PX-V1 Info</button>
+      <button class="qa-btn" onclick="sendQuick('Zeige meinen Stack')">💊 Stack anzeigen</button>
+    </div>
+    <div class="chat-footer">
+      <textarea class="chat-input" id="chatInput" rows="1" placeholder="Frag mich alles..." onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="send-btn" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 3: Life OS Tracker ── -->
+  <div class="screen" id="s-lifeos">
+    <div class="scroll-body">
+      <!-- Active Chronometer -->
+      <div class="glass-card chrono-display" style="position: relative; padding: 1.5rem 1.25rem 1rem;">
+        <span class="pillar-badge focus" id="activeBlockPillar" style="z-index: 2; margin-bottom: 0.75rem;">FOCUS</span>
+        
+        <!-- SVG Circular Progress Ring -->
+        <div class="chrono-container" id="chronoSwipeZone" style="position: relative; width: 200px; height: 200px; margin: 0.5rem auto 1rem; display: flex; align-items: center; justify-content: center; touch-action: none; cursor: grab; user-select: none;">
+          <div class="chrono-glow" id="chronoGlow"></div>
+          <svg width="200" height="200" class="chrono-svg" style="transform: rotate(-90deg); width: 200px; height: 200px; position: absolute; z-index: 1;">
+            <defs>
+              <linearGradient id="progGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="var(--accent)" />
+                <stop offset="100%" stop-color="var(--tan)" />
+              </linearGradient>
+            </defs>
+            <circle cx="100" cy="100" r="95" class="chrono-outer-ring" style="fill: none; stroke: rgba(255, 255, 255, 0.02); stroke-width: 1.5;" />
+            <circle cx="100" cy="100" r="85" class="chrono-track" style="fill: none; stroke: var(--bg3); stroke-width: 5; transition: stroke 0.3s;" />
+            <circle cx="100" cy="100" r="85" class="chrono-progress" id="timerProgressCircle" stroke-dasharray="534.07" stroke-dashoffset="0" style="fill: none; stroke: url(#progGrad); stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 0.3s ease, stroke 0.3s;" />
+          </svg>
+          <div class="chrono-center" style="position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2;">
+            <div class="timer-clock" id="timerDisplay" style="font-family: 'JetBrains Mono', monospace; font-size: 2.2rem; font-weight: 700; color: var(--text); margin: 0; line-height: 1.1; cursor: pointer;" title="Dauer anpassen">90:00</div>
+            <div class="chrono-status" id="chronoStatus" style="font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; margin-top: 4px; font-weight: 700;">ZIRKADIAN</div>
+            <!-- Reset Peek Button / Indicator -->
+            <button id="restoreLiveBlockBtn" style="display: none; background: rgba(26, 106, 255, 0.15); color: var(--accent); border: 1px solid var(--accent); border-radius: 12px; padding: 2px 8px; font-size: 0.65rem; margin-top: 4px; cursor: pointer; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em; z-index: 3;" onclick="resetWebappPeek(event)">↩ LIVE</button>
+          </div>
+        </div>
+
+        <div class="timer-label" style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--tan); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.25rem; margin-bottom: 0.75rem;">Aktiver Block: <span id="activeBlockTitle" style="color: var(--text);">Deep Work I</span></div>
+        
+        <!-- Meta-Strip under Chronometer -->
+        <div class="chrono-meta" id="chronoMetaStrip" style="display: flex; justify-content: space-around; width: 100%; border-top: 1px solid var(--border); padding-top: 0.75rem; margin-bottom: 1rem;">
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <span style="font-size: 8px; font-family: 'JetBrains Mono', monospace; color: var(--text-dim); text-transform: uppercase;">Block</span>
+            <span style="font-size: 11px; font-weight: bold; color: var(--text);" id="metaBlockIdx">1 / 6</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <span style="font-size: 8px; font-family: 'JetBrains Mono', monospace; color: var(--text-dim); text-transform: uppercase;">Pillar</span>
+            <span style="font-size: 11px; font-weight: bold; color: var(--tan);" id="metaBlockPillar">FOCUS</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <span style="font-size: 8px; font-family: 'JetBrains Mono', monospace; color: var(--text-dim); text-transform: uppercase;">HRV</span>
+            <span style="font-size: 11px; font-weight: bold; color: var(--green);" id="metaHRV">72ms</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <span style="font-size: 8px; font-family: 'JetBrains Mono', monospace; color: var(--text-dim); text-transform: uppercase;">Schlaf</span>
+            <span style="font-size: 11px; font-weight: bold; color: var(--accent);" id="metaSleep">84%</span>
+          </div>
+        </div>
+
+        <div class="timer-controls" style="margin-bottom: 0.75rem;">
+          <div class="tc-btn" onclick="prevWebappBlock()">
+            <svg viewBox="0 0 24 24"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="4" x2="5" y2="20" stroke="currentColor" stroke-width="2"/></svg>
+          </div>
+          <button class="tc-btn primary" id="playPauseBtn" onclick="toggleBlockTimer()">
+            <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+          <div class="tc-btn" onclick="nextWebappBlock()">
+            <svg viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="4" x2="19" y2="20" stroke="currentColor" stroke-width="2"/></svg>
+          </div>
+        </div>
+
+        <!-- Circadian Sync Toggle -->
+        <div class="circadian-sync-row" style="margin-top: 10px; display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg3); transition: all 0.2s;" onclick="toggleCircadianMode()">
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);" id="circadianLabel">Zirkadianer Sync: Aktiv</span>
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green);" id="circadianDot"></div>
+        </div>
+      </div>
+
+      <!-- Friction Logs Panel -->
+      <div class="glass-card" style="padding: 1rem;">
+        <div class="card-title" style="font-size: 14px; margin-bottom: 0.25rem;">Reibungsverlust erfassen</div>
+        <div class="card-subtitle" style="font-size: 8px; margin-bottom: 0.75rem;">Fokus-Qualität protokollieren</div>
+        
+        <div style="display: flex; gap: 6px;">
+          <button class="btn-outline" style="flex: 1; padding: 8px; font-size: 10px; border-color: rgba(0, 196, 140, 0.3); color: var(--green); text-transform: uppercase; font-weight: bold; border-radius: 8px;" onclick="submitFrictionLog('ok')">🟢 Stabil</button>
+          <button class="btn-outline" style="flex: 1; padding: 8px; font-size: 10px; border-color: rgba(245, 166, 35, 0.3); color: var(--amber); text-transform: uppercase; font-weight: bold; border-radius: 8px;" onclick="submitFrictionLog('warn')">🟡 Ablenkung</button>
+          <button class="btn-outline" style="flex: 1; padding: 8px; font-size: 10px; border-color: rgba(255, 85, 85, 0.3); color: #ff5555; text-transform: uppercase; font-weight: bold; border-radius: 8px;" onclick="submitFrictionLog('miss')">🔴 Blockade</button>
+        </div>
+      </div>
+
+      <!-- 7-Day Mini Calendar -->
+      <div class="glass-card">
+        <div class="card-title">Wochenkalender</div>
+        <div class="card-subtitle" id="selectedCalendarDateLabel">Heute</div>
+        
+        <div class="cal-strip" id="calendarStrip">
+          <!-- Dynamically populated -->
+        </div>
+
+        <div class="cal-blocks-list" id="calendarDayBlocks">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Add Calendar Event Form -->
+      <div class="glass-card">
+        <div class="card-title">Block hinzufügen</div>
+        <div class="card-subtitle">Kalender ergänzen</div>
+        
+        <div class="form-group">
+          <div class="form-label">Titel des Blocks</div>
+          <input class="ob-input" type="text" id="calNewTitle" placeholder="z.B. Deep Work III, Cardio, NSDR..." />
+        </div>
+        
+        <div style="display: flex; gap: 8px; margin-bottom: 1.25rem;">
+          <div style="flex: 1;">
+            <div class="form-label">Uhrzeit</div>
+            <input class="ob-input" type="time" id="calNewTime" value="09:00" />
+          </div>
+          <div style="flex: 1;">
+            <div class="form-label">Dauer (Min.)</div>
+            <input class="ob-input" type="number" id="calNewDuration" value="60" min="5" max="360" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">Kategorie / Säule</div>
+          <select class="ob-input" id="calNewPillar" style="background-image: none;">
+            <option value="focus">Focus (Blau)</option>
+            <option value="health">Health (Grün)</option>
+            <option value="recovery">Recovery (Beige)</option>
+            <option value="skills">Skills (Gelb)</option>
+          </select>
+        </div>
+
+        <button class="btn-main" onclick="addCalendarBlockSubmit()">Block einbuchen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 4: Stack ── -->
+  <div class="screen" id="s-stack">
+    <div class="scroll-body">
+      <div class="glass-card">
+        <div class="card-title">Optimierter Bio-Stack</div>
+        <div class="stack-subtitle" id="stackSubtitle">Geladen: 5 Supplements</div>
+        
+        <div id="stackItems">
+          <!-- wird dynamisch gebaut -->
+        </div>
+        
+        <div class="score-bar">
+          <div>
+            <div class="label">Stack Score</div>
+            <div style="font-size:10px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;margin-top:3px">KI-optimiert</div>
+          </div>
+          <div class="num" id="stackScore">87</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="sync-row">
+      <button class="btn-main" id="syncBtn" onclick="syncToWebsite()">Stack an Pronoia senden</button>
+    </div>
+  </div>
+
+  <!-- ── Tabbar ── -->
+  <div class="tabbar">
+    <div class="tab active" id="tab-profile" onclick="switchTab('profile')">
+      <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Profil</span>
+    </div>
+    <div class="tab" id="tab-chat" onclick="switchTab('chat')">
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span>KI Chat</span>
+    </div>
+    <div class="tab" id="tab-lifeos" onclick="switchTab('lifeos')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>Life OS</span>
+    </div>
+    <div class="tab" id="tab-stack" onclick="switchTab('stack')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+      <span>Stack</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Telegram Init ────────────────────────────────────────────
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready();
+  tg.expand();
+  tg.MainButton.hide();
+}
+const tgUser = tg?.initDataUnsafe?.user;
+const userName = tgUser?.first_name || "BioHacker";
+const userId = tgUser?.id || null;
+document.getElementById("userName").textContent = userName;
+
+// Set dynamic system ID
+const computedId = userId ? `PX-2026-${String(userId).slice(-3)}` : "PX-2026-88";
+document.getElementById("userSystemId").textContent = "SYSTEM ID: " + computedId;
+
+// ── State ────────────────────────────────────────────────────
+let profile = { goals: [], experience: "intermediate", age: null, challenge: "", name: userName, telegramId: userId, metrics: { hrv: 72, sleep: 84 } };
+let chatHistory = [];
+let userStack = [
+  { name: "Creatin Monohydrat", dose: "5g täglich", time: "am" },
+  { name: "Taurin", dose: "2g täglich", time: "am" },
+  { name: "Bromantane", dose: "50mg 5on/2off", time: "am" },
+  { name: "Magnesium Glycinat", dose: "400mg", time: "pm" },
+  { name: "D3 + K2", dose: "5000IU + 200mcg", time: "am" }
+];
+let userCalendar = {};
+let selectedCalendarDateStr = "";
+
+// ── Timer State ──
+let currentBlockDuration = 5400; // 90 mins
+let timeLeft = 5400;
+let isTimerRunning = false;
+let timerInterval = null;
+let currentBlockIdx = null;
+let isCircadianMode = true;
+let userBlocks = [];
+let webappPeekIdx = null;
+let webappPeekTimer = null;
+
+// ── Sliders live update ──
+const hrvSlider = document.getElementById("hrvSlider");
+const hrvValueDisplay = document.getElementById("hrvValueDisplay");
+const sleepSlider = document.getElementById("sleepSlider");
+const sleepValueDisplay = document.getElementById("sleepValueDisplay");
+
+hrvSlider.oninput = function() {
+  hrvValueDisplay.textContent = this.value + " ms";
+};
+sleepSlider.oninput = function() {
+  sleepValueDisplay.textContent = this.value + "%";
+};
+
+// ── Chips ──
+function toggleChip(el) { el.classList.toggle("sel"); }
+function soloChip(el, group) {
+  el.closest(".chip-row").querySelectorAll(".chip").forEach(c => c.classList.remove("sel"));
+  el.classList.add("sel");
+}
+
+// ── Navigation ──
+function switchTab(tab) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  
+  document.getElementById("s-" + tab).classList.add("active");
+  document.getElementById("tab-" + tab).classList.add("active");
+  
+  if (tab === "stack") renderStack();
+  if (tab === "lifeos") {
+    renderCalendar();
+  }
+}
+
+// ── Onboarding ──
+function submitOnboarding() {
+  const goals = [...document.querySelectorAll("#goals .chip.sel")].map(c => c.textContent);
+  const exp = document.querySelector("#exp .chip.sel")?.textContent || "intermediate";
+  const age = document.getElementById("age").value;
+  const challenge = document.getElementById("challenge").value;
+
+  if (!age) { document.getElementById("age").focus(); return; }
+
+  profile = { ...profile, goals, experience: exp, age, challenge };
+
+  const intro = `Hey ${userName}. Ich hab dein Profil initialisiert. ${goals.length > 0 ? `Ziele: ${goals.join(", ")}. ` : ""}${challenge ? `Challenge: "${challenge}". ` : ""}Ich habe deinen optimalen Bio-Stack im System hinterlegt. Lass uns mit dem kognitiven Feintuning beginnen!`;
+  document.getElementById("firstMsg").textContent = intro;
+  chatHistory = [{ role: "assistant", content: intro }];
+
+  sendToWebsite({ event: "onboarding_complete", profile });
+  
+  // Hide onboarding form and show success state
+  document.getElementById("onboardForm").innerHTML = `
+    <div class="card-title">System initialisiert</div>
+    <div class="card-subtitle">Bio-Performance Status</div>
+    <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 0.5rem;">
+      Dein Profil wurde erfolgreich mit der Pronoia Datenbank abgeglichen. Alle KI-Module sind scharf geschaltet.
+    </p>
+    <div class="pillar-badge focus" style="margin-top: 8px;">CONNECTED</div>
+  `;
+  
+  switchTab("chat");
+}
+
+// ── Biometrics Sync ──
+async function syncBiometrics() {
+  const hrv = parseInt(hrvSlider.value);
+  const sleep = parseInt(sleepSlider.value);
+  
+  const btn = document.getElementById("biometricsSyncBtn");
+  btn.textContent = "SYNCING...";
+  btn.disabled = true;
+  
+  profile.metrics.hrv = hrv;
+  profile.metrics.sleep = sleep;
+
+  const data = await sendToWebsite({
+    event: "biometrics_update",
+    hrv,
+    sleep
+  });
+
+  if (data && data.status) {
+    updateCompanionState(data.status, data.debug);
+  }
+
+  btn.textContent = "✓ SYNCHRONISIERT";
+  btn.style.borderColor = varColorString("--green");
+  btn.style.color = varColorString("--green");
+
+  if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+
+  setTimeout(() => {
+    btn.textContent = "AN LIFE OS SENDEN";
+    btn.style.borderColor = "";
+    btn.style.color = "";
+    btn.disabled = false;
+  }, 2000);
+}
+
+// Helper to get variable value
+function varColorString(varName) {
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+
+// ── Chat ──
+function handleKey(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+function autoResize(el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 100) + "px"; }
+function sendQuick(text) { document.getElementById("chatInput").value = text; sendMessage(); }
+
+async function sendMessage() {
+  const input = document.getElementById("chatInput");
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  input.style.height = "auto";
+
+  appendMsg(text, "user");
+  document.getElementById("quickActions").style.display = "none";
+
+  if (text.toLowerCase() === "/link") {
+    const siteUrl = "https://pronoia-3g6y.vercel.app";
+    const userTgId = userId || "";
+    const linkUrl = userTgId ? `${siteUrl}/life-os?tg_id=${userTgId}` : `${siteUrl}/life-os`;
+    appendMsg(`🔗 Klicke auf den folgenden Link, um dein Telegram-Konto mit deinem Pronoia Web-Account zu verbinden:\n\n👉 ${linkUrl}\n\n(Hinweis: Logge dich danach einfach auf der Website ein, die Verknüpfung erfolgt dann automatisch!)`, "bot");
+    return;
+  }
+
+  chatHistory.push({ role: "user", content: text });
+
+  const typingEl = appendTyping();
+
+  try {
+    const res = await fetch("/api/mistral", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: text,
+        profile,
+        history: chatHistory.slice(-10),
+        telegramUser: tgUser || null
+      })
+    });
+    const data = await res.json();
+    typingEl.remove();
+    const reply = data.reply || "Verbindung instabil. Bitte versuche es noch einmal.";
+    appendMsg(reply, "bot");
+    chatHistory.push({ role: "assistant", content: reply });
+
+    if (data.stackUpdate) { userStack = data.stackUpdate; }
+    if (data.score) { document.getElementById("stackScore").textContent = data.score; }
+    if (data.status) {
+      updateCompanionState(data.status, data.debug);
+    }
+  } catch (err) {
+    typingEl.remove();
+    appendMsg("Verbindungsfehler. Bitte versuche es noch einmal.", "bot");
+  }
+}
+
+function appendMsg(text, role) {
+  const container = document.getElementById("chatMessages");
+  const div = document.createElement("div");
+  div.className = "msg " + role;
+  div.textContent = text;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+function appendTyping() {
+  const container = document.getElementById("chatMessages");
+  const div = document.createElement("div");
+  div.className = "typing-indicator";
+  div.innerHTML = "<span></span><span></span><span></span>";
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+// ── Life OS Timer & Controls ──
+// ── Life OS Timer & Controls ──
+function applyCustomization(customization) {
+  if (!customization) return;
+  const ACCENT_MAP = {
+    blue:  { accent: '#1A6AFF', dark: '#0047AB', dim: 'rgba(26,106,255,0.12)', glow: 'rgba(26,106,255,0.18)' },
+    green: { accent: '#00C48C', dark: '#00855A', dim: 'rgba(0,196,140,0.12)', glow: 'rgba(0,196,140,0.18)' },
+    tan:   { accent: '#d5b893', dark: '#8A6E4D', dim: 'rgba(213,184,147,0.12)', glow: 'rgba(213,184,147,0.18)' },
+    amber: { accent: '#F5A623', dark: '#A06000', dim: 'rgba(245,166,35,0.12)', glow: 'rgba(245,166,35,0.18)' },
+    red:   { accent: '#FF4D4D', dark: '#B30000', dim: 'rgba(255,77,77,0.12)', glow: 'rgba(255,77,77,0.18)' },
+    pink:  { accent: '#FF33A8', dark: '#B30071', dim: 'rgba(255,51,168,0.12)', glow: 'rgba(255,51,168,0.18)' }
+  };
+  
+  const colors = ACCENT_MAP[customization.accent] || ACCENT_MAP.blue;
+  const root = document.documentElement;
+  root.style.setProperty('--accent', colors.accent);
+  root.style.setProperty('--accent-glow', colors.glow);
+  root.style.setProperty('--border', colors.dim);
+  root.style.setProperty('--border-strong', colors.glow);
+
+  // Update dynamic gradient stops in the circular progress SVG
+  const stop1 = document.querySelector("#progGrad stop:first-child");
+  const stop2 = document.querySelector("#progGrad stop:last-child");
+  if (stop1) stop1.setAttribute("stop-color", colors.accent);
+  if (stop2) stop2.setAttribute("stop-color", colors.accent);
+}
+
+function formatMinToTime(min) {
+  const h = Math.floor((min % (24 * 60)) / 60);
+  const m = Math.floor(min % 60);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function calculateVirtualTimeline(blocks) {
+  if (!blocks || blocks.length === 0) return [];
+
+  // 1. Identify all anchors
+  const anchors = [];
+  for (let i = 0; i < blocks.length; i++) {
+    if (blocks[i].startTime || i === 0 || i === blocks.length - 1) {
+      anchors.push({
+        idx: i,
+        startTime: blocks[i].startTime || (i === 0 ? "08:00" : "22:00"),
+        duration: blocks[i].duration
+      });
+    }
+  }
+
+  // Ensure sorted by index
+  anchors.sort((a, b) => a.idx - b.idx);
+
+  const parseTimeToMin = (timeStr) => {
+    if (typeof timeStr !== 'string') return 480;
+    const parts = timeStr.split(':').map(Number);
+    if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return 480;
+    return parts[0] * 60 + parts[1];
+  };
+
+  const virtualBlocks = blocks.map(b => ({
+    ...b,
+    virtualDuration: b.duration // fallback
+  }));
+
+  // Process anchors
+  for (let a = 0; a < anchors.length; a++) {
+    const anchor = anchors[a];
+    const startMin = parseTimeToMin(anchor.startTime);
+    virtualBlocks[anchor.idx].calculatedStartMin = startMin;
+    virtualBlocks[anchor.idx].calculatedEndMin = startMin + (anchor.duration / 60);
+    virtualBlocks[anchor.idx].virtualDuration = anchor.duration;
+  }
+
+  // Process windows between anchors
+  for (let a = 0; a < anchors.length - 1; a++) {
+    const startAnchor = anchors[a];
+    const endAnchor = anchors[a + 1];
+    
+    // Window start is when the start anchor ends
+    const windowStartMin = parseTimeToMin(startAnchor.startTime) + (startAnchor.duration / 60);
+    // Window end is when the next anchor starts
+    let windowEndMin = parseTimeToMin(endAnchor.startTime);
+    
+    // Wrap around for overnight
+    if (windowEndMin < windowStartMin) {
+      windowEndMin += 24 * 60;
+    }
+    
+    const windowSizeMin = windowEndMin - windowStartMin;
+    
+    // Floating blocks are strictly between the two anchors (index startAnchor.idx + 1 to endAnchor.idx - 1)
+    const floatingIndices = [];
+    let sumFloatingDuration = 0;
+    
+    for (let i = startAnchor.idx + 1; i < endAnchor.idx; i++) {
+      floatingIndices.push(i);
+      sumFloatingDuration += blocks[i].duration;
+    }
+    
+    if (floatingIndices.length === 0) {
+      // If there are no floating blocks, the space between anchors is a "gap".
+      // We stretch the start anchor to fill it for contiguous flow.
+      if (windowSizeMin > 0) {
+        virtualBlocks[startAnchor.idx].calculatedEndMin = windowEndMin;
+        virtualBlocks[startAnchor.idx].virtualDuration = (windowEndMin - parseTimeToMin(startAnchor.startTime)) * 60;
+      }
+      continue;
+    }
+    
+    // Scale factor for floating blocks in this window
+    const sumFloatingDurationMin = sumFloatingDuration / 60;
+    const scaleFactor = sumFloatingDurationMin > 0 ? (windowSizeMin / sumFloatingDurationMin) : 1;
+    
+    let currentStart = windowStartMin;
+    for (const idx of floatingIndices) {
+      const b = virtualBlocks[idx];
+      const scaledDurationSec = b.duration * scaleFactor;
+      const durationMin = scaledDurationSec / 60;
+      
+      b.calculatedStartMin = currentStart;
+      b.calculatedEndMin = currentStart + durationMin;
+      b.virtualDuration = scaledDurationSec;
+      
+      currentStart += durationMin;
+    }
+  }
+
+  return virtualBlocks;
+}
+
+function findLiveBlockIdx() {
+  if (!userBlocks || userBlocks.length === 0) return 0;
+  
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  
+  for (let i = 0; i < userBlocks.length; i++) {
+    const b = userBlocks[i];
+    if (b.calculatedStartMin !== undefined && b.calculatedEndMin !== undefined) {
+      if (nowMin >= b.calculatedStartMin && nowMin < b.calculatedEndMin) {
+        return i;
+      }
+    }
+  }
+  
+  if (userBlocks[0] && nowMin < userBlocks[0].calculatedStartMin) {
+    return 0;
+  }
+  return userBlocks.length - 1;
+}
+
+function updateWebappToBlock(idx) {
+  if (!userBlocks || userBlocks.length === 0) return;
+  const block = userBlocks[idx];
+  if (block) {
+    if (isCircadianMode && block.calculatedStartMin !== undefined && block.calculatedEndMin !== undefined) {
+      const startStr = formatMinToTime(block.calculatedStartMin);
+      const endStr = formatMinToTime(block.calculatedEndMin);
+      document.getElementById("activeBlockTitle").innerHTML = `<span style="font-size: 10.5px; opacity: 0.6; font-family: 'JetBrains Mono', monospace; display: block; margin-bottom: 2px;">${startStr} – ${endStr}</span>${block.title}`;
+    } else {
+      document.getElementById("activeBlockTitle").textContent = block.title;
+    }
+    document.getElementById("activeBlockPillar").textContent = block.pillar.toUpperCase();
+    document.getElementById("activeBlockPillar").className = "pillar-badge " + block.pillar;
+    currentBlockDuration = block.virtualDuration || block.duration;
+    
+    // Update metadata strip
+    document.getElementById("metaBlockIdx").textContent = `${idx + 1} / ${userBlocks.length}`;
+    document.getElementById("metaBlockPillar").textContent = block.pillar.toUpperCase();
+  }
+}
+
+function nextWebappBlock() {
+  if (isCircadianMode) {
+    if (userBlocks && userBlocks.length > 0) {
+      const currentIdx = webappPeekIdx !== null ? webappPeekIdx : findLiveBlockIdx();
+      if (currentIdx < userBlocks.length - 1) {
+        setWebappPeek(currentIdx + 1);
+      }
+    }
+  } else {
+    nextBlock();
+  }
+}
+
+function prevWebappBlock() {
+  if (isCircadianMode) {
+    if (userBlocks && userBlocks.length > 0) {
+      const currentIdx = webappPeekIdx !== null ? webappPeekIdx : findLiveBlockIdx();
+      if (currentIdx > 0) {
+        setWebappPeek(currentIdx - 1);
+      }
+    }
+  } else {
+    prevBlock();
+  }
+}
+
+function setWebappPeek(idx) {
+  webappPeekIdx = idx;
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("light");
+  
+  // Show/Hide Live button
+  document.getElementById("restoreLiveBlockBtn").style.display = "block";
+  document.getElementById("chronoStatus").textContent = "PEEK (TEMP)";
+  
+  // Reset existing timer
+  if (webappPeekTimer) clearTimeout(webappPeekTimer);
+  webappPeekTimer = setTimeout(() => {
+    resetWebappPeek();
+  }, 8000);
+  
+  // Update local display immediately
+  updateWebappToBlock(idx);
+  updateTimerUI();
+}
+
+function resetWebappPeek(e) {
+  if (e) e.stopPropagation();
+  webappPeekIdx = null;
+  if (webappPeekTimer) clearTimeout(webappPeekTimer);
+  document.getElementById("restoreLiveBlockBtn").style.display = "none";
+  document.getElementById("chronoStatus").textContent = "ZIRKADIAN";
+  
+  // Trigger update
+  const liveIdx = findLiveBlockIdx();
+  updateWebappToBlock(liveIdx);
+  updateTimerUI();
+}
+
+function startLocalTimerTicker() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    if (isCircadianMode) {
+      const activeIdx = webappPeekIdx !== null ? webappPeekIdx : findLiveBlockIdx();
+      
+      document.getElementById("metaBlockIdx").textContent = `${activeIdx + 1} / ${userBlocks.length || 1}`;
+      if (userBlocks[activeIdx]) {
+        document.getElementById("metaBlockPillar").textContent = userBlocks[activeIdx].pillar.toUpperCase();
+      }
+      
+      if (userBlocks && userBlocks.length > 0 && userBlocks[activeIdx]) {
+        const blockToUse = userBlocks[activeIdx];
+        const startMin = blockToUse.calculatedStartMin;
+        const endMin = blockToUse.calculatedEndMin;
+        
+        const now = new Date();
+        const nowMin = now.getHours() * 60 + now.getMinutes();
+        const s = now.getSeconds();
+        
+        if (startMin !== undefined && endMin !== undefined) {
+          if (nowMin >= startMin && nowMin < endMin) {
+            const diffMin = endMin - nowMin;
+            timeLeft = Math.max(0, Math.round(diffMin * 60 - s));
+          } else if (nowMin < startMin) {
+            timeLeft = Math.round(blockToUse.virtualDuration || blockToUse.duration);
+          } else {
+            timeLeft = 0;
+          }
+        } else {
+          timeLeft = blockToUse.duration;
+        }
+        currentBlockDuration = blockToUse.virtualDuration || blockToUse.duration;
+      }
+      updateTimerUI();
+    } else {
+      if (isTimerRunning && timeLeft > 0) {
+        timeLeft--;
+        updateTimerUI();
+      }
+    }
+  }, 1000);
+}
+
+function stopLocalTimerTicker() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
+
+function updateTimerUI() {
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  document.getElementById("timerDisplay").textContent = 
+    `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  
+  const circle = document.getElementById("timerProgressCircle");
+  if (circle) {
+    const circumference = 534.07;
+    // progress goes from 0% (fully empty) to 100% (fully filled)
+    const progressPercent = Math.min(100, Math.max(0, ((currentBlockDuration - timeLeft) / currentBlockDuration)));
+    const offset = circumference * (1 - progressPercent);
+    circle.style.strokeDashoffset = offset;
+  }
+  
+  const playPauseBtn = document.getElementById("playPauseBtn");
+  if (isTimerRunning) {
+    playPauseBtn.innerHTML = `<svg viewBox="0 0 24 24" style="fill: #fff;"><rect x="5" y="4" width="4" height="16"/><rect x="15" y="4" width="4" height="16"/></svg>`;
+  } else {
+    playPauseBtn.innerHTML = `<svg viewBox="0 0 24 24" style="fill: #fff;"><polygon points="5 3 20 12 5 21 5 3"/></svg>`;
+  }
+}
+
+async function toggleBlockTimer() {
+  isTimerRunning = !isTimerRunning;
+  updateTimerUI();
+  
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("medium");
+
+  const data = await sendToWebsite({
+    event: "block_control",
+    action: "toggle"
+  });
+  if (data && data.status) {
+    updateCompanionState(data.status, data.debug);
+  }
+}
+
+async function nextBlock() {
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("light");
+  const data = await sendToWebsite({
+    event: "block_control",
+    action: "next"
+  });
+  if (data && data.status) {
+    updateCompanionState(data.status, data.debug);
+  }
+}
+
+async function prevBlock() {
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("light");
+  const data = await sendToWebsite({
+    event: "block_control",
+    action: "prev"
+  });
+  if (data && data.status) {
+    updateCompanionState(data.status, data.debug);
+  }
+}
+
+async function toggleCircadianMode() {
+  isCircadianMode = !isCircadianMode;
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("medium");
+
+  const data = await sendToWebsite({
+    event: "circadian_toggle",
+    mode: isCircadianMode
+  });
+  if (data && data.status) {
+    updateCompanionState(data.status, data.debug);
+  }
+}
+
+async function submitFrictionLog(status) {
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("medium");
+  
+  const data = await sendToWebsite({
+    event: "friction_log",
+    status
+  });
+  if (data && data.status) {
+    updateCompanionState(data.status, data.debug);
+  }
+}
+
+function updateCompanionState(status, debug = null) {
+  // Handle debug console display
+  const debugEl = document.getElementById("debugConsole");
+  if (debug) {
+    debugEl.style.display = "block";
+    debugEl.innerHTML = `
+      <strong>DIAGNOSE-KONSOLE:</strong><br/>
+      • DB-Status: ${debug.dbInitialized ? "🟢 BEREIT" : "🔴 OFFLINE"}<br/>
+      • Telegram-ID: ${debug.telegramId || "null"}<br/>
+      • Dokumente gefunden: ${debug.matchedDocs}<br/>
+      • Status: ${debug.error ? `⚠️ ${debug.error}` : "✅ Erfolgreich verknüpft"}
+    `;
+    if (!debug.error) {
+      debugEl.style.color = "var(--green)";
+      debugEl.style.background = "rgba(0, 196, 140, 0.05)";
+      debugEl.style.borderColor = "rgba(0, 196, 140, 0.25)";
+    } else {
+      debugEl.style.color = "#ff5555";
+      debugEl.style.background = "rgba(255, 85, 85, 0.05)";
+      debugEl.style.borderColor = "rgba(255, 85, 85, 0.25)";
+    }
+  } else {
+    debugEl.style.display = "none";
+  }
+
+  if (status.blocks) {
+    userBlocks = calculateVirtualTimeline(status.blocks);
+  }
+
+  if (status.activeBlock) {
+    isTimerRunning = status.isRunning;
+    
+    if (!isCircadianMode) {
+      document.getElementById("activeBlockTitle").textContent = status.activeBlock.title;
+      document.getElementById("activeBlockPillar").textContent = status.activeBlock.pillar.toUpperCase();
+      document.getElementById("activeBlockPillar").className = "pillar-badge " + status.activeBlock.pillar;
+      currentBlockDuration = status.activeBlock.duration;
+      
+      if (status.blockIdx !== undefined && status.blockIdx !== currentBlockIdx) {
+        timeLeft = status.activeBlock.duration;
+        currentBlockIdx = status.blockIdx;
+      }
+      
+      // Update meta strip index
+      document.getElementById("metaBlockIdx").textContent = `${(status.blockIdx || 0) + 1} / ${userBlocks.length || 1}`;
+      document.getElementById("metaBlockPillar").textContent = status.activeBlock.pillar.toUpperCase();
+    } else {
+      // In circadian mode, if we are NOT peeking, update display to correct live block
+      if (webappPeekIdx === null) {
+        const liveIdx = findLiveBlockIdx();
+        updateWebappToBlock(liveIdx);
+      }
+    }
+    updateTimerUI();
+  }
+  
+  if (status.circadianMode !== undefined) {
+    isCircadianMode = status.circadianMode;
+    const label = document.getElementById("circadianLabel");
+    const dot = document.getElementById("circadianDot");
+    if (status.circadianMode) {
+      label.textContent = "Zirkadianer Sync: Aktiv";
+      dot.style.background = varColorString("--green");
+      dot.style.boxShadow = `0 0 6px ${varColorString("--green")}`;
+      document.getElementById("playPauseBtn").style.opacity = 0.5;
+      document.getElementById("playPauseBtn").style.pointerEvents = "none";
+    } else {
+      label.textContent = "Zirkadianer Sync: Manuell";
+      dot.style.background = varColorString("--amber");
+      dot.style.boxShadow = `0 0 6px ${varColorString("--amber")}`;
+      document.getElementById("playPauseBtn").style.opacity = 1;
+      document.getElementById("playPauseBtn").style.pointerEvents = "auto";
+    }
+  }
+
+  if (status.customization) {
+    applyCustomization(status.customization);
+  }
+
+  if (status.hrv) {
+    hrvSlider.value = status.hrv;
+    hrvValueDisplay.textContent = status.hrv + " ms";
+    profile.metrics.hrv = status.hrv;
+    document.getElementById("metaHRV").textContent = status.hrv + "ms";
+  }
+  if (status.sleep) {
+    sleepSlider.value = status.sleep;
+    sleepValueDisplay.textContent = status.sleep + "%";
+    profile.metrics.sleep = status.sleep;
+    document.getElementById("metaSleep").textContent = status.sleep + "%";
+  }
+  if (status.calendar) {
+    userCalendar = status.calendar;
+    renderCalendar();
+  }
+  if (status.stack) {
+    userStack = status.stack;
+    renderStack();
+  }
+  if (status.email) {
+    document.getElementById("userEmail").textContent = "EMAIL: " + status.email;
+  } else {
+    document.getElementById("userEmail").textContent = "EMAIL: NICHT VERKNÜPFT";
+  }
+
+  // Update System Directives Panel
+  if (status.directives) {
+    const directivesCard = document.getElementById("directivesCard");
+    const directivesList = document.getElementById("directivesList");
+    if (status.directives.length > 0) {
+      directivesCard.style.display = "block";
+      directivesList.innerHTML = status.directives.map((dir, idx) => {
+        const timeStr = dir.timestamp ? new Date(dir.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+        return `
+          <div class="directive-item">
+            <div class="directive-meta">
+              <span>DIREKTIVE #${status.directives.length - idx}</span>
+              <span>${timeStr}</span>
+            </div>
+            <strong>Anweisung:</strong> ${dir.text}
+          </div>
+        `;
+      }).join("");
+    } else {
+      directivesCard.style.display = "none";
+    }
+  }
+}
+
+// ── Mini Calendar ──
+function getWeekDays() {
+  const today = new Date();
+  const day = today.getDay();
+  const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+  const monday = new Date(today.setDate(diff));
+  
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    days.push(d);
+  }
+  return days;
+}
+
+function renderCalendar() {
+  const weekDays = getWeekDays();
+  const container = document.getElementById("calendarStrip");
+  const todayStr = formatDateStr(new Date());
+  
+  if (!selectedCalendarDateStr) {
+    selectedCalendarDateStr = todayStr;
+  }
+
+  // Label display
+  const labelEl = document.getElementById("selectedCalendarDateLabel");
+  const dayNameList = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+  const parsedDate = new Date(selectedCalendarDateStr);
+  labelEl.textContent = selectedCalendarDateStr === todayStr ? "Heute" : `${dayNameList[parsedDate.getDay()]} (${parsedDate.getDate()}.${parsedDate.getMonth()+1}.)`;
+  
+  container.innerHTML = weekDays.map(d => {
+    const dStr = formatDateStr(d);
+    const dayNum = d.getDate();
+    const isSelected = dStr === selectedCalendarDateStr;
+    const isToday = dStr === todayStr;
+    const hasBlocks = userCalendar[dStr] && userCalendar[dStr].blocks && userCalendar[dStr].blocks.length > 0;
+    
+    const dayNames = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+    const dayName = dayNames[d.getDay()];
+    
+    return `
+      <div class="cal-day ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''}" onclick="selectCalendarDate('${dStr}')">
+        <div class="cal-day-name">${dayName}</div>
+        <div class="cal-day-num">${dayNum}</div>
+        ${hasBlocks ? '<div class="cal-dot"></div>' : ''}
+      </div>
+    `;
+  }).join("");
+  
+  renderSelectedDayBlocks();
+}
+
+function formatDateStr(d) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function selectCalendarDate(dateStr) {
+  selectedCalendarDateStr = dateStr;
+  renderCalendar();
+}
+
+function renderSelectedDayBlocks() {
+  const blocksContainer = document.getElementById("calendarDayBlocks");
+  const dayData = userCalendar[selectedCalendarDateStr];
+  
+  if (!dayData || !dayData.blocks || dayData.blocks.length === 0) {
+    blocksContainer.innerHTML = `<div class="empty-state">Keine Life OS Blöcke geplant.</div>`;
+    return;
+  }
+  
+  blocksContainer.innerHTML = dayData.blocks.map(b => {
+    const durationMin = Math.round(b.duration / 60);
+    return `
+      <div class="cal-block-item ${b.pillar}">
+        <div class="cal-block-info">
+          <div class="cal-block-time">${b.startTime} (${durationMin} Min.)</div>
+          <div class="cal-block-title">${b.title}</div>
+        </div>
+        <span class="pillar-label">${b.pillar}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+async function addCalendarBlockSubmit() {
+  const title = document.getElementById("calNewTitle").value.trim();
+  const time = document.getElementById("calNewTime").value;
+  const durationMin = parseInt(document.getElementById("calNewDuration").value);
+  const pillar = document.getElementById("calNewPillar").value;
+  
+  if (!title || !time || isNaN(durationMin)) {
+    return;
+  }
+  
+  const block = {
+    date: selectedCalendarDateStr,
+    title,
+    startTime: time,
+    duration: durationMin * 60,
+    pillar
+  };
+  
+  // Clear title
+  document.getElementById("calNewTitle").value = "";
+  
+  // Add locally immediately
+  if (!userCalendar[selectedCalendarDateStr]) {
+    userCalendar[selectedCalendarDateStr] = { blocks: [] };
+  }
+  userCalendar[selectedCalendarDateStr].blocks.push(block);
+  userCalendar[selectedCalendarDateStr].blocks.sort((a,b) => a.startTime.localeCompare(b.startTime));
+  
+  renderCalendar();
+  
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("medium");
+
+  const data = await sendToWebsite({
+    event: "calendar_add",
+    block
+  });
+  if (data && data.status) {
+    updateCompanionState(data.status, data.debug);
+  }
+}
+
+// ── Stack Tab ──
+function renderStack() {
+  const container = document.getElementById("stackItems");
+  container.innerHTML = userStack.map((s, idx) => `
+    <div class="stack-item" style="padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border);">
+      <div class="si-info">
+        <div class="name">${s.name}</div>
+        <div class="dose" style="font-size: 10px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; margin-top: 3px;">
+          ${s.dose} ${s.supply !== undefined ? `(${s.supply}% Vorrat)` : '(100% Vorrat)'}
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button class="btn-outline" style="padding: 4px 8px; font-size: 9px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; border-radius: 6px; cursor: pointer; display: inline-flex; width: auto;" onclick="consumeStackItem(${idx})">Nehmen</button>
+        <div class="badge ${s.time}">${s.time === "am" ? "morgen" : "nacht"}</div>
+      </div>
+    </div>
+  `).join("");
+  document.getElementById("stackSubtitle").textContent = `Geladen: ${userStack.length} Supplements`;
+}
+
+async function consumeStackItem(idx) {
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("medium");
+  
+  const item = userStack[idx];
+  const currentSupply = item.supply !== undefined ? item.supply : 100;
+  const newSupply = Math.max(0, currentSupply - 5);
+  item.supply = newSupply;
+  
+  renderStack();
+  
+  const data = await sendToWebsite({
+    event: "stack_consume",
+    idx
+  });
+  if (data && data.status) {
+    updateCompanionState(data.status, data.debug);
+  }
+}
+
+async function syncToWebsite() {
+  const btn = document.getElementById("syncBtn");
+  btn.textContent = "SENDET...";
+  btn.disabled = true;
+
+  await sendToWebsite({
+    event: "stack_sync",
+    profile,
+    stack: userStack,
+    chatSummary: chatHistory.slice(-6)
+  });
+
+  btn.textContent = "✓ MIT WEBSITE SYNCHRONISIERT";
+  btn.style.background = varColorString("--green");
+  btn.style.boxShadow = "0 4px 15px rgba(0, 196, 140, 0.25)";
+
+  if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+
+  setTimeout(() => {
+    btn.textContent = "STACK AN PRONOIA SENDEN";
+    btn.style.background = "";
+    btn.style.boxShadow = "";
+    btn.disabled = false;
+  }, 2500);
+}
+
+// ── Website API Sync ──
+async function sendToWebsite(payload) {
+  try {
+    const res = await fetch("/api/agent-webhook", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Bot-Secret": "DEIN_WEBHOOK_SECRET_HIER"
+      },
+      body: JSON.stringify({
+        source: "telegram_webapp",
+        telegramUser: tgUser || null,
+        ...payload
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data;
+    }
+  } catch (err) {
+    console.warn("Webhook sync failed:", err.message);
+  }
+  return null;
+}
+
+// ── Initial Status Query ──
+async function loadInitialStatus() {
+  const data = await sendToWebsite({ event: "get_status" });
+  if (data && data.status) {
+    updateCompanionState(data.status, data.debug);
+  }
+}
+
+// ── Theme Control ──
+function applyTelegramTheme() {
+  if (tg) {
+    const isLight = tg.colorScheme === "light";
+    if (isLight) {
+      document.body.classList.add("light-theme");
+    } else {
+      document.body.classList.remove("light-theme");
+    }
+    updateThemeIcon(isLight);
+  }
+}
+
+function toggleThemeManual() {
+  const isLight = document.body.classList.toggle("light-theme");
+  updateThemeIcon(isLight);
+}
+
+function updateThemeIcon(isLight) {
+  const icon = document.getElementById("themeToggleIcon");
+  if (!icon) return;
+  if (isLight) {
+    // Show Moon Icon for dark mode switch
+    icon.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>`;
+  } else {
+    // Show Sun Icon for light mode switch
+    icon.innerHTML = `
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    `;
+  }
+}
+
+// Register Telegram events if available
+if (tg) {
+  tg.onEvent("themeChanged", applyTelegramTheme);
+}
+applyTelegramTheme();
+
+// ── Chronometer Swipe & Drag Micro-interactions ──
+(function() {
+  const chronoDisplay = document.querySelector(".chrono-display");
+  if (!chronoDisplay) return;
+
+  let startX = 0;
+  let startY = 0;
+  let diffX = 0;
+  let diffY = 0;
+  let isDragging = false;
+  let directionLocked = null; // 'horizontal', 'vertical', or null
+  let isAnimatingSwipe = false;
+
+  // Ensure card has smooth transition by default
+  chronoDisplay.style.transition = "transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.3s ease, box-shadow 0.3s ease";
+  chronoDisplay.style.cursor = "grab";
+
+  function onStart(clientX, clientY, target) {
+    if (isAnimatingSwipe) return;
+    // Avoid dragging on interactive elements
+    if (target.closest("button, .tc-btn, .circadian-sync-row, a")) {
+      return;
+    }
+    isDragging = true;
+    startX = clientX;
+    startY = clientY;
+    diffX = 0;
+    diffY = 0;
+    directionLocked = null;
+    chronoDisplay.style.transition = "none";
+    chronoDisplay.style.cursor = "grabbing";
+  }
+
+  function onMove(clientX, clientY, e) {
+    if (!isDragging) return;
+    diffX = clientX - startX;
+    diffY = clientY - startY;
+
+    if (!directionLocked) {
+      const absX = Math.abs(diffX);
+      const absY = Math.abs(diffY);
+      if (absX > 10 || absY > 10) {
+        if (absY > absX) {
+          directionLocked = "vertical";
+          isDragging = false;
+          chronoDisplay.style.transition = "transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)";
+          chronoDisplay.style.transform = "";
+          chronoDisplay.style.cursor = "grab";
+        } else {
+          directionLocked = "horizontal";
+        }
+      }
+    }
+
+    if (directionLocked === "horizontal") {
+      if (e.cancelable) e.preventDefault();
+      // Tinder-like card deck swipe rotation & translation
+      const rotation = diffX * 0.05;
+      chronoDisplay.style.transform = `translateX(${diffX}px) rotate(${rotation}deg)`;
+      chronoDisplay.style.boxShadow = `0 10px 30px rgba(0,0,0,0.3), ${diffX * 0.1}px 10px 20px rgba(0,0,0,0.1)`;
+    }
+  }
+
+  async function onEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    chronoDisplay.style.cursor = "grab";
+    chronoDisplay.style.transition = "transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.3s ease, box-shadow 0.3s ease";
+
+    const threshold = 100; // Swipe threshold in pixels
+    if (directionLocked === "horizontal" && Math.abs(diffX) > threshold) {
+      isAnimatingSwipe = true;
+      if (diffX > 0) {
+        // Swipe Right -> Prev Block
+        chronoDisplay.style.transform = "translateX(120%) rotate(15deg)";
+        chronoDisplay.style.opacity = "0";
+        if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("medium");
+        await prevWebappBlock();
+      } else {
+        // Swipe Left -> Next Block
+        chronoDisplay.style.transform = "translateX(-120%) rotate(-15deg)";
+        chronoDisplay.style.opacity = "0";
+        if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("medium");
+        await nextWebappBlock();
+      }
+      
+      // Animate card back in from opposite direction
+      setTimeout(() => {
+        chronoDisplay.style.transition = "none";
+        chronoDisplay.style.transform = diffX > 0 ? "translateX(-120%) rotate(-15deg)" : "translateX(120%) rotate(15deg)";
+        chronoDisplay.offsetHeight; // Force reflow
+        chronoDisplay.style.transition = "transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.3s ease, box-shadow 0.3s ease";
+        chronoDisplay.style.transform = "";
+        chronoDisplay.style.opacity = "1";
+        chronoDisplay.style.boxShadow = "";
+        isAnimatingSwipe = false;
+      }, 350);
+    } else {
+      // Snap back if swipe threshold wasn't met
+      chronoDisplay.style.transform = "";
+      chronoDisplay.style.boxShadow = "";
+    }
+    directionLocked = null;
+  }
+
+  // Mouse listeners
+  chronoDisplay.addEventListener("mousedown", (e) => {
+    onStart(e.clientX, e.clientY, e.target);
+  });
+  window.addEventListener("mousemove", (e) => {
+    onMove(e.clientX, e.clientY, e);
+  });
+  window.addEventListener("mouseup", () => {
+    onEnd();
+  });
+
+  // Touch listeners
+  chronoDisplay.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 1) {
+      onStart(e.touches[0].clientX, e.touches[0].clientY, e.target);
+    }
+  }, { passive: true });
+  chronoDisplay.addEventListener("touchmove", (e) => {
+    if (e.touches.length === 1) {
+      onMove(e.touches[0].clientX, e.touches[0].clientY, e);
+    }
+  }, { passive: false });
+  chronoDisplay.addEventListener("touchend", () => {
+    onEnd();
+  });
+})();
+
+// Start up
+loadInitialStatus().then(() => {
+  startLocalTimerTicker();
+});
+updateTimerUI();
+renderCalendar();
+</script>
+</body>
+</html>

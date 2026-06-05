@@ -2651,7 +2651,13 @@
   </div>
 
   <div id="stack-editor" class="stack-editor-modal">
-      <div style="display: flex; gap: .5rem;">
+    <div class="stack-editor-card" style="max-height: 85vh; overflow-y: auto;">
+      <h2 class="auth-title" style="margin-bottom: 1.5rem; font-size: 1.2rem;">Bio-Stack Editor</h2>
+      <div id="stack-editor-list" style="margin-bottom: 1.5rem;">
+        <!-- Dynamically rendered rows -->
+      </div>
+      <div style="display: flex; gap: .5rem; justify-content: space-between;">
+        <button class="auth-btn" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-s);" onclick="Agent.addStackItem()">+ Supplement</button>
         <button class="auth-btn" onclick="Agent.closeStackEditor()">Speichern & Schließen</button>
       </div>
     </div>

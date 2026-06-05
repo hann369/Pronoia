@@ -20,11 +20,21 @@ export class PronoiaAgent {
     
     this.profile = JSON.parse(localStorage.getItem('px_profile')) || { goals: '', metrics: { hrv: 0, sleep: 0 }, skill: '', skillLevel: 1, xp: 0, nextLevelXp: 1000 };
     this.stack = JSON.parse(localStorage.getItem('px_stack')) || [];
+    if (this.stack.length === 0) {
+      this.stack = [
+        { name: 'Creatin', dose: '5g', time: 'am', supply: 100 },
+        { name: 'Taurin', dose: '2g', time: 'am', supply: 100 },
+        { name: 'Bromantane', dose: '50mg', time: 'am', supply: 100 },
+        { name: 'Magnesiumglycinat', dose: '400mg', time: 'pm', supply: 100 },
+        { name: 'Glycin', dose: '3g', time: 'pm', supply: 100 }
+      ];
+      localStorage.setItem('px_stack', JSON.stringify(this.stack));
+    }
     StackManager.init(this.stack);
     
     this.calendar = JSON.parse(localStorage.getItem('px_calendar')) || {};
     this.directives = [];
-    this.sources = [];
+    this.sources = JSON.parse(localStorage.getItem('px_sources')) || [];
     this.env = JSON.parse(localStorage.getItem('px_env')) || { city: 'Unknown', temp: '--', weatherDesc: '--', sun: '--', time: '--' };
     
     this.currentMonth = new Date();
@@ -278,7 +288,7 @@ export class PronoiaAgent {
       this.stack = StackManager.stack;
       this.renderUI();
       ProtocolUI.triggerToast('Logged', `${item.name} konsumiert.`);
-      this.syncProfile();
+      this.syncState();
     }
   }
 
@@ -462,5 +472,205 @@ export class PronoiaAgent {
 
   generateSkillMaterials() {
     if (this.skillLab) this.skillLab.generate();
+  }
+
+  jumpToBlock(idx) {
+    if (idx < 0 || idx >= this.blocks.length) return;
+    this.pause();
+    this.blockIdx = idx;
+    this.timeLeft = this.blocks[idx].duration;
+    this.totalTime = this.timeLeft;
+    this.renderUI();
+    this.syncState();
+    ProtocolUI.triggerToast('Jumped', `Zu Block ${idx + 1} "${this.blocks[idx].title}" gewechselt.`, true, () => this.start());
+  }
+
+  deleteSource(id) {
+    this.sources = this.sources.filter(s => s.id !== id);
+    localStorage.setItem('px_sources', JSON.stringify(this.sources));
+    ProtocolUI.renderSources(this.sources);
+    ProtocolUI.setAgentMsg("Datenquelle gelöscht.");
+  }
+
+  ingestFiles(files) {
+    if (!files || files.length === 0) return;
+    
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target.result;
+        this.sources.push({
+          id: Math.random().toString(36).substr(2, 9),
+          name: file.name,
+          type: file.type || 'text/plain',
+          size: file.size,
+          content: content
+        });
+        localStorage.setItem('px_sources', JSON.stringify(this.sources));
+        ProtocolUI.renderSources(this.sources);
+        ProtocolUI.setAgentMsg(`QUELLE INHALIERT: ${file.name.toUpperCase()}`);
+        this.generateDirective("SOURCE", `Neuer Kontext durch Datei: ${file.name}. Analysiere.`);
+      };
+      
+      if (file.type.match('image.*')) {
+        ProtocolUI.setAgentMsg(`BILD-DATEN ERKANNT. OCR-MODUL NOCH NICHT AKTIV.`);
+      } else {
+        reader.readAsText(file);
+      }
+    });
+  }
+
+  triggerToast(title, msg, hasActions = false, acceptFn = null) {
+    ProtocolUI.triggerToast(title, msg, hasActions, acceptFn);
+  }
+
+  openStackEditor() {
+    const modal = document.getElementById('stack-editor');
+    const list = document.getElementById('stack-editor-list');
+    if (!modal || !list) return;
+
+    modal.style.display = 'flex';
+    list.innerHTML = '';
+
+    this.stack.forEach((item, idx) => {
+      list.innerHTML += `
+        <div class="stack-item-row" data-idx="${idx}">
+          <input type="text" class="stack-name-input cmd-input" value="${item.name}" placeholder="Supplement Name" style="margin:0; font-size:.8rem;">
+          <input type="text" class="stack-dose-input cmd-input" value="${item.dose}" placeholder="Dosis" style="margin:0; font-size:.8rem;">
+          <select class="stack-time-select cmd-input" style="margin:0; font-size:.8rem; background: var(--bg-card); border: 1px solid var(--border-s); color: var(--text);">
+            <option value="am" ${item.time === 'am' ? 'selected' : ''}>AM</option>
+            <option value="pm" ${item.time === 'pm' ? 'selected' : ''}>PM</option>
+          </select>
+          <button onclick="Agent.deleteStackItem(${idx})" style="background:none; border:none; color:var(--text3); font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center;">&times;</button>
+        </div>
+      `;
+    });
+  }
+
+  addStackItem() {
+    this.stack.push({ name: '', dose: '', time: 'am', supply: 100 });
+    this.openStackEditor();
+  }
+
+  deleteStackItem(idx) {
+    this.stack.splice(idx, 1);
+    this.openStackEditor();
+  }
+
+  closeStackEditor() {
+    const list = document.getElementById('stack-editor-list');
+    if (list) {
+      const rows = list.querySelectorAll('.stack-item-row');
+      const newStack = [];
+      rows.forEach(row => {
+        const name = row.querySelector('.stack-name-input').value.trim();
+        const dose = row.querySelector('.stack-dose-input').value.trim();
+        const time = row.querySelector('.stack-time-select').value;
+        const originalIdx = parseInt(row.getAttribute('data-idx'));
+        const originalItem = this.stack[originalIdx];
+        
+        if (name) {
+          newStack.push({
+            name,
+            dose,
+            time,
+            supply: originalItem ? (originalItem.supply ?? 100) : 100
+          });
+        }
+      });
+      this.stack = newStack;
+      StackManager.stack = newStack;
+      localStorage.setItem('px_stack', JSON.stringify(this.stack));
+      this.syncState();
+      this.renderUI();
+    }
+    
+    const modal = document.getElementById('stack-editor');
+    if (modal) modal.style.display = 'none';
+  }
+
+  formatDate(d) {
+    if (typeof d === 'string') return d;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}.${month}.${year}`;
+  }
+
+  repairAndParseJSON(str) {
+    let cleaned = str.replace(/```json|```/g, '').trim();
+    try { return JSON.parse(cleaned); } catch(e) {}
+    
+    const closures = [
+      '"]}', '"}', ']', '}', 
+      '""}]}}', '""}]}', '"]}}', '"}}', '}}',
+      '}]}', '}]}}', '"}]}', '"}]}}'
+    ];
+    
+    for (let c of closures) {
+      try { return JSON.parse(cleaned + c); } catch(e) {}
+    }
+    
+    try {
+      const lastValidBrace = cleaned.lastIndexOf('}');
+      if (lastValidBrace > 0) {
+         const stripped = cleaned.substring(0, lastValidBrace + 1);
+         return JSON.parse(stripped + ']}');
+      }
+    } catch(e) {}
+    
+    throw new Error("JSON could not be repaired: " + str.substring(0, 50) + "...");
+  }
+
+  async chatWithDayAI() {
+    const input = document.getElementById('day-chat-input');
+    if (!input || !input.value.trim()) return;
+    const msg = input.value.trim();
+    const dateStr = this.formatDate(this.selectedDate || new Date());
+    
+    input.value = '';
+    ProtocolUI.setAgentMsg(`Passe Plan für ${dateStr} an…`, true);
+    
+    const currentPlan = this.calendar[dateStr] ? JSON.stringify(this.calendar[dateStr]) : "[]";
+    
+    const prompt = `
+      Date: ${dateStr}
+      Goals: ${this.profile.goals || 'Maximale Produktivität und Gesundheit'}
+      Current Plan: ${currentPlan}
+      User Instruction: "${msg}"
+      Task: Passe den Tagesplan an die User Instruction an. Formatiere den GESAMTEN neuen Tagesplan als JSON.
+      Format: [ {"title":"...","startTime":"HH:MM","duration":3600,"pillar":"focus","rec":"","insight":""} ]
+      WICHTIG: Antworte AUSSCHLIESSLICH mit dem validen JSON Array, ohne Markdown-Zäune (keine \`\`\`json). Halte "rec" und "insight" extrem kurz ("" falls möglich).
+    `;
+    
+    try {
+      const res = await MistralService.chat(prompt, "Du bist der Pronoia Protocol Architect. Antworte ausschließlich in validem JSON.");
+      const data = this.repairAndParseJSON(res);
+      const rawBlocks = Array.isArray(data) ? data : (data && Array.isArray(data.blocks) ? data.blocks : null);
+      
+      if (rawBlocks) {
+        // Sort and normalize
+        const sorted = rawBlocks.map(b => {
+          if (!b.startTime && b.time) b.startTime = b.time;
+          return b;
+        });
+        sorted.sort((a, b) => {
+          const [aH, aM] = (a.startTime || "00:00").split(':').map(Number);
+          const [bH, bM] = (b.startTime || "00:00").split(':').map(Number);
+          return (aH * 60 + aM) - (bH * 60 + bM);
+        });
+
+        this.calendar[dateStr] = sorted;
+        localStorage.setItem('px_calendar', JSON.stringify(this.calendar));
+        this.renderCalendar();
+        this.showDayDetail(dateStr);
+        ProtocolUI.setAgentMsg(`Plan für ${dateStr} erfolgreich angepasst.`);
+      } else {
+        throw new Error("Invalid format: expected array of blocks");
+      }
+    } catch(e) {
+      console.error("Day Chat AI Error", e);
+      ProtocolUI.setAgentMsg("AI Plan-Zuschnitt fehlgeschlagen.");
+    }
   }
 }

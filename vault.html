@@ -733,6 +733,19 @@
       }
     });
 
+    // Robust LocalStorage fallbacks
+    function getLocalVaultItems() {
+      try {
+        return JSON.parse(localStorage.getItem('px_vault_items')) || [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveLocalVaultItems(items) {
+      localStorage.setItem('px_vault_items', JSON.stringify(items));
+    }
+
     async function handleFiles(files) {
         showToast(`Preparing ${files.length} file(s)...`);
         for (const file of Array.from(files)) {
@@ -747,17 +760,27 @@
             let finalContent = content;
             if (finalContent.length > 50000) finalContent = finalContent.substring(0, 50000);
 
-            const { error } = await sb.from('vault_items').insert([{
+            const newItem = {
+                id: Math.random().toString(36).substr(2, 9),
                 user_id: MOCK_USER_ID,
                 type: 'file',
                 title: file.name,
                 content: finalContent,
                 tags: ['ingested', 'file-drop'],
                 created_at: new Date().toISOString()
-            }]);
+            };
 
-            if (error) showToast(`Error uploading ${file.name}`, 'error');
-            else showToast(`Ingested ${file.name}`);
+            try {
+              const { error } = await sb.from('vault_items').insert([newItem]);
+              if (error) throw error;
+              showToast(`Ingested ${file.name}`);
+            } catch (e) {
+              console.warn("Supabase upload failed, saving locally:", e);
+              const local = getLocalVaultItems();
+              local.unshift(newItem);
+              saveLocalVaultItems(local);
+              showToast(`Saved locally: ${file.name}`);
+            }
         }
         fetchVaultItems();
     }
@@ -790,7 +813,6 @@
 
       if (type === 'file' && fileInput.files.length > 0) {
         const file = fileInput.files[0];
-        // Read file as text if it's a text file, else as data URL
         const isText = file.type.startsWith('text/') || file.name.endsWith('.md') || file.name.endsWith('.js') || file.name.endsWith('.html');
         
         const fileContent = await new Promise((resolve) => {
@@ -807,21 +829,36 @@
         }
       }
 
-      const { data, error } = await sb
-        .from('vault_items')
-        .insert([{ user_id: MOCK_USER_ID, type, title, content: finalContent, url, tags }])
-        .select();
+      const newItem = {
+        id: Math.random().toString(36).substr(2, 9),
+        user_id: MOCK_USER_ID,
+        type,
+        title,
+        content: finalContent,
+        url,
+        tags,
+        created_at: new Date().toISOString()
+      };
 
-      if (error) {
-        console.error('Supabase error:', error);
-        showToast('Failed to ingest: ' + error.message, 'error');
-      } else {
+      try {
+        const { error } = await sb
+          .from('vault_items')
+          .insert([newItem])
+          .select();
+        if (error) throw error;
         showToast('Context ingested successfully.');
-        clearForm();
-        ingestForm.style.display = 'none';
-        ingestZone.style.display = 'block';
-        fetchVaultItems();
+      } catch (e) {
+        console.warn('Supabase insert failed, saving locally:', e);
+        const local = getLocalVaultItems();
+        local.unshift(newItem);
+        saveLocalVaultItems(local);
+        showToast('Saved locally.');
       }
+
+      clearForm();
+      ingestForm.style.display = 'none';
+      ingestZone.style.display = 'block';
+      fetchVaultItems();
 
       saveItemBtn.textContent = 'Ingest into Vault';
       saveItemBtn.disabled = false;
@@ -838,16 +875,21 @@
     async function fetchVaultItems() {
       vaultGrid.innerHTML = '<div class="empty-state"><div class="empty-icon">◎</div><p>Syncing with spatial database...</p></div>';
 
-      const { data, error } = await sb
-        .from('vault_items')
-        .select('*')
-        .eq('user_id', MOCK_USER_ID)
-        .order('created_at', { ascending: false });
+      let data = [];
+      let isLocal = false;
+      try {
+        const { data: sbData, error } = await sb
+          .from('vault_items')
+          .select('*')
+          .eq('user_id', MOCK_USER_ID)
+          .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Fetch error:', error);
-        vaultGrid.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠</div><p>Connection error: ${error.message}</p></div>`;
-        return;
+        if (error) throw error;
+        data = sbData || [];
+      } catch (e) {
+        console.warn('Supabase fetch failed, falling back to LocalStorage:', e);
+        data = getLocalVaultItems();
+        isLocal = true;
       }
 
       // Update stats
@@ -868,7 +910,7 @@
         const card = document.createElement('div');
         card.className = 'vault-item';
         card.innerHTML = `
-          <div class="item-type-badge ${typeClass}">${item.type}</div>
+          <div class="item-type-badge ${typeClass}">${item.type} ${isLocal ? '(Offline)' : ''}</div>
           <div class="item-title">${escapeHtml(item.title)}</div>
           <div class="item-content">${escapeHtml(item.content)}</div>
           <div class="item-meta">
@@ -893,9 +935,17 @@
 
     async function deleteItem(id) {
       if (!confirm('Remove this item from the vault?')) return;
-      const { error } = await sb.from('vault_items').delete().eq('id', id);
-      if (error) { showToast('Failed to delete.', 'error'); return; }
-      showToast('Item removed.');
+      try {
+        const { error } = await sb.from('vault_items').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Item removed.');
+      } catch (e) {
+        console.warn('Supabase delete failed, removing locally:', e);
+        const local = getLocalVaultItems();
+        const filtered = local.filter(item => item.id !== id);
+        saveLocalVaultItems(filtered);
+        showToast('Item removed locally.');
+      }
       fetchVaultItems();
     }
 

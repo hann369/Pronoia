@@ -69,7 +69,7 @@ export default function SkillLabModal({ isOpen, onClose }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100000
     }}>
       <div style={{
-        background: 'var(--bg-panel, #111)', border: '1px solid var(--border)', borderRadius: '12px',
+        background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '12px',
         width: '90%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', padding: '2rem',
         color: 'var(--text)'
       }}>
