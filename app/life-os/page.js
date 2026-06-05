@@ -257,7 +257,7 @@ function LifeOSDashboard() {
     blocks, blockIdx, timeLeft, totalTime, isRunning,
     circadianMode, setCircadianMode, overrideActiveBlockDuration,
     profile, profileLoading, stack, frictionLogs, dataSources, agentMsg, isTyping, directives,
-    calendar, selectedDate, currentMonth, formatDate, selectDate, prevMonth, nextMonth,
+    calendar, setCalendar, selectedDate, currentMonth, formatDate, selectDate, prevMonth, nextMonth,
     addCalendarBlock, editCalendarBlock, deleteCalendarBlock,
     generateDayAI, generateMonthAI, chatWithDayAI, syncToActive,
     generateSkillMaterials, completeSkillSession,
