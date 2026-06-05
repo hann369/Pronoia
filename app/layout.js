@@ -1,29 +1,25 @@
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import Nav from '@/components/Nav';
-import FloatingChat from '@/components/social/FloatingChat';
 
 export const metadata = {
   title: { default: 'Pronoia', template: '%s | Pronoia' },
-  description: 'Agentic Optimization System — Protocol, Knowledge, Biological Integrity.',
-  metadataBase: new URL('https://pronoia-kappa.vercel.app'),
+  description: 'Bio-Cognitive Operating System',
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="de">
+    <html lang="de" data-theme="dark" data-ui-mode="cyber">
       <body>
-        <AuthProvider>
-          {/* Fixed ambient background */}
-          <div className="orb-bg" aria-hidden="true">
-            <div className="orb orb-1" />
-            <div className="orb orb-2" />
-            <div className="orb orb-3" />
-          </div>
+        <div className="orb-bg">
+          <div className="orb orb-1" />
+          <div className="orb orb-2" />
+          <div className="orb orb-3" />
+        </div>
 
+        <AuthProvider>
           <Nav />
           <main>{children}</main>
-          <FloatingChat />
         </AuthProvider>
       </body>
     </html>

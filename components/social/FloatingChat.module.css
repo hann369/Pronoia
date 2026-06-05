@@ -412,3 +412,408 @@
     height: 400px;
   }
 }
+
+/* ─── Horizontal Contacts Scrollbar (Images 1 & 2) ─── */
+.contactsScroll {
+  display: flex;
+  gap: 1rem;
+  padding: 0.85rem 1rem 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  background: rgba(15, 18, 26, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.contactsScroll::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}
+
+.contactCircleBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.2s var(--ease-out);
+  width: 50px;
+}
+
+.contactCircleBox:hover {
+  transform: scale(1.05);
+}
+
+.contactAddBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text3);
+  font-size: 1.2rem;
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.2s ease;
+}
+
+.contactCircleBox:hover .contactAddBtn {
+  border-color: var(--theme-accent, var(--cobalt-bright));
+  color: var(--theme-accent, var(--cobalt-bright));
+  background: rgba(26, 106, 255, 0.05);
+}
+
+.contactAvatarWrapper {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+
+.contactAvatarImg {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  object-fit: cover;
+  transition: border-color 0.2s ease;
+}
+
+.contactCircleBox:hover .contactAvatarImg {
+  border-color: var(--theme-accent, var(--cobalt-bright));
+}
+
+.statusDotOnline {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--green, #00c48c);
+  border: 2px solid rgba(10, 12, 18, 0.95);
+  box-shadow: 0 0 5px var(--green, #00c48c);
+}
+
+.contactName {
+  font-size: 0.62rem;
+  color: var(--text2);
+  font-family: var(--font-body);
+  max-width: 50px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+
+/* ─── Active Chat Window Gradient Header (Image 2) ─── */
+.headerActiveChat {
+  background: linear-gradient(135deg, #eb5e28 0%, #d4a574 100%) !important;
+  border-bottom: none !important;
+}
+
+.headerActiveChat .headerTitle {
+  color: #0d111a !important;
+  font-weight: 700;
+  font-family: var(--font-body) !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  font-size: 0.9rem !important;
+}
+
+.headerActiveChat .backBtn,
+.headerActiveChat .closeBtn {
+  color: #0d111a !important;
+  font-weight: 700;
+}
+
+/* ─── Premium Glassmorphic Message Bubbles (Image 2) ─── */
+.bubbleWrapper {
+  display: flex;
+  margin-bottom: 0.25rem;
+  width: 100%;
+}
+
+.bubbleSelf {
+  justify-content: flex-end;
+}
+
+.bubbleOther {
+  justify-content: flex-start;
+}
+
+.bubble {
+  max-width: 80%;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  position: relative;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.bubbleSelf .bubble {
+  background: rgba(235, 94, 40, 0.18); /* Warm tint matches sunset header */
+  border: 1px solid rgba(235, 94, 40, 0.35);
+  border-radius: 16px 16px 4px 16px;
+  color: var(--text);
+}
+
+.bubbleOther .bubble {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px 16px 16px 4px;
+  color: var(--text);
+}
+
+.bubbleSender {
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  color: var(--tan, #d5b893);
+  margin-bottom: 0.25rem;
+  font-weight: 700;
+}
+
+.bubbleText {
+  margin: 0;
+  word-break: break-word;
+}
+
+.bubbleMeta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  font-size: 0.52rem;
+  color: var(--text3);
+}
+
+.bubbleLock {
+  font-size: 0.5rem;
+  opacity: 0.6;
+}
+
+/* Share Cards inside bubble */
+.shareCard {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 0.5rem;
+  margin: 0.25rem 0;
+  min-width: 180px;
+}
+
+.shareCardHeader {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--tan);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 0.25rem;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+}
+
+.shareCardBody {
+  font-size: 0.68rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.shareCardItem {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Light Theme Overrides ─── */
+:global([data-theme="light"]) .floatingButton {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1), 0 0 10px rgba(26, 106, 255, 0.05);
+}
+
+:global([data-theme="light"]) .floatingButton:hover {
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.15), 0 0 15px rgba(26, 106, 255, 0.15);
+}
+
+:global([data-theme="light"]) .chatDrawer {
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.12), 0 0 20px rgba(0, 0, 0, 0.04);
+}
+
+:global([data-theme="light"]) .drawerHeader {
+  background: rgba(255, 255, 255, 0.6);
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .drawerHeader .headerTitle,
+:global([data-theme="light"]) .drawerHeader .backBtn,
+:global([data-theme="light"]) .drawerHeader .closeBtn {
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .drawerBody {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+:global([data-theme="light"]) .searchWrapper {
+  background: rgba(255, 255, 255, 0.4);
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .searchInput {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .searchInput:focus {
+  border-color: var(--theme-accent, var(--cobalt-bright));
+}
+
+:global([data-theme="light"]) .searchClearBtn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.06);
+  color: var(--text2);
+}
+
+:global([data-theme="light"]) .searchResultCard {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.04);
+}
+
+:global([data-theme="light"]) .searchResultCard:hover {
+  background: rgba(26, 106, 255, 0.05);
+  border-color: rgba(26, 106, 255, 0.15);
+}
+
+:global([data-theme="light"]) .searchResultName {
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .searchResultId {
+  color: var(--text3);
+}
+
+:global([data-theme="light"]) .chatListItem {
+  border-bottom-color: rgba(0, 0, 0, 0.04);
+}
+
+:global([data-theme="light"]) .chatListItem:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+:global([data-theme="light"]) .chatTitle {
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .chatTime,
+:global([data-theme="light"]) .chatPreview {
+  color: var(--text3);
+}
+
+:global([data-theme="light"]) .avatar {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+:global([data-theme="light"]) .emptyLog,
+:global([data-theme="light"]) .emptyState,
+:global([data-theme="light"]) .loadingBox {
+  color: var(--text3);
+}
+
+:global([data-theme="light"]) .inputForm {
+  background: rgba(255, 255, 255, 0.6);
+  border-top-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .msgInput {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .msgInput:focus {
+  border-color: var(--theme-accent, var(--cobalt-bright));
+}
+
+:global([data-theme="light"]) .contactsScroll {
+  background: rgba(255, 255, 255, 0.4);
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .contactAddBtn {
+  border-color: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.02);
+  color: var(--text2);
+}
+
+:global([data-theme="light"]) .contactCircleBox:hover .contactAddBtn {
+  border-color: var(--theme-accent, var(--cobalt-bright));
+  color: var(--theme-accent, var(--cobalt-bright));
+  background: rgba(26, 106, 255, 0.05);
+}
+
+:global([data-theme="light"]) .contactAvatarImg {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+:global([data-theme="light"]) .contactCircleBox:hover .contactAvatarImg {
+  border-color: var(--theme-accent, var(--cobalt-bright));
+}
+
+:global([data-theme="light"]) .statusDotOnline {
+  border-color: rgba(255, 255, 255, 0.95);
+}
+
+:global([data-theme="light"]) .contactName {
+  color: var(--text2);
+}
+
+/* Active chat gradient header is sunset, which is already great, but we can make sure buttons are dark: */
+:global([data-theme="light"]) .headerActiveChat .backBtn,
+:global([data-theme="light"]) .headerActiveChat .closeBtn,
+:global([data-theme="light"]) .headerActiveChat .headerTitle {
+  color: #0d111a !important;
+}
+
+:global([data-theme="light"]) .bubbleOther .bubble {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.06);
+  color: var(--text);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+:global([data-theme="light"]) .bubbleSelf .bubble {
+  background: rgba(235, 94, 40, 0.15);
+  border-color: rgba(235, 94, 40, 0.25);
+  color: var(--text);
+  box-shadow: 0 4px 12px rgba(235, 94, 40, 0.05);
+}
+
+:global([data-theme="light"]) .bubbleSender {
+  color: #a05c2a;
+}
+
+:global([data-theme="light"]) .bubbleMeta {
+  color: var(--text3);
+}
+
+:global([data-theme="light"]) .bubbleOther .shareCard {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .bubbleSelf .shareCard {
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(235, 94, 40, 0.15);
+}
+
+:global([data-theme="light"]) .shareCardHeader {
+  color: #a05c2a;
+  border-bottom-color: rgba(0, 0, 0, 0.05);
+}
+

@@ -24,6 +24,7 @@ export default function FloatingChat() {
   } = useChat();
 
   const {
+    friends,
     searchResults,
     searching,
     searchUsers
@@ -94,7 +95,7 @@ export default function FloatingChat() {
       <div className={`${styles.chatDrawer} ${isOpen ? styles.drawerOpen : ''}`}>
         
         {/* Header */}
-        <div className={styles.drawerHeader}>
+        <div className={`${styles.drawerHeader} ${selectedChat ? styles.headerActiveChat : ''}`}>
           <div className={styles.headerTitleBox}>
             {selectedChat && (
               <button 
@@ -157,10 +158,46 @@ export default function FloatingChat() {
           ) : (
             /* Chat List & Search */
             <>
+              {/* Active Contacts / Friends (Image 1 & 2) */}
+              <div className={styles.contactsScroll}>
+                <div 
+                  className={styles.contactCircleBox} 
+                  onClick={() => {
+                    const el = document.getElementById('fc-search-input');
+                    if (el) el.focus();
+                  }}
+                  title="Neuen Chat starten"
+                >
+                  <div className={styles.contactAddBtn}>+</div>
+                  <span className={styles.contactName}>Neu</span>
+                </div>
+                {friends.map((friend) => (
+                  <div 
+                    key={friend.friendUid} 
+                    className={styles.contactCircleBox}
+                    onClick={() => handleStartChat(friend.friendUid)}
+                    title={`Chat mit ${friend.profile?.username || 'User'}`}
+                  >
+                    <div className={styles.contactAvatarWrapper}>
+                      <img 
+                        src={friend.profile?.avatar || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=200'} 
+                        alt="Avatar" 
+                        className={styles.contactAvatarImg}
+                      />
+                      <span className={styles.statusDotOnline} />
+                    </div>
+                    <span className={styles.contactName}>
+                      {friend.profile?.username?.split('_')[0] || friend.profile?.username || 'User'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
               {/* User search bar */}
               <div className={styles.searchWrapper}>
                 <form onSubmit={handleSearchSubmit} className={styles.searchForm}>
                   <input 
+                    id="fc-search-input"
                     type="text" 
                     className={styles.searchInput}
                     placeholder="Suche Username / Telegram ID..." 
