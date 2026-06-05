@@ -4,12 +4,13 @@
   display: grid;
   grid-template-columns: 320px 1fr;
   height: 600px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--panel-glass-bg);
+  border: 1px solid var(--panel-glass-border);
   border-radius: 16px;
   overflow: hidden;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: var(--panel-glass-shadow);
 }
 
 @media (max-width: 768px) {
@@ -23,7 +24,7 @@
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  background: rgba(10, 12, 18, 0.4);
+  background: rgba(10, 12, 18, 0.25);
 }
 
 .tabBar {
@@ -392,7 +393,7 @@
 
 /* --- Chat Display Window --- */
 .socialMainContent {
-  background: rgba(5, 7, 10, 0.2);
+  background: transparent;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -675,4 +676,217 @@
   font-size: 0.68rem;
   color: var(--text3);
   text-align: center;
+}
+
+/* ─── Light Theme Overrides ─── */
+:global([data-theme="light"]) .socialSidebar {
+  background: rgba(253, 251, 249, 0.3);
+  border-right-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .tabBar {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .tabBtn {
+  color: var(--text3);
+}
+
+:global([data-theme="light"]) .tabBtn:hover {
+  background: rgba(0, 0, 0, 0.02);
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .tabBtnActive {
+  color: var(--theme-accent, var(--cobalt-bright));
+  background: rgba(26, 106, 255, 0.05);
+}
+
+:global([data-theme="light"]) .groupCreateRow {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .groupInput {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .groupInput:focus {
+  border-color: var(--theme-accent, var(--cobalt-bright));
+}
+
+:global([data-theme="light"]) .groupMemberList {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+:global([data-theme="light"]) .groupMemberLabel {
+  color: var(--text2);
+}
+
+:global([data-theme="light"]) .chatListItem {
+  border-bottom-color: rgba(0, 0, 0, 0.04);
+}
+
+:global([data-theme="light"]) .chatListItem:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+:global([data-theme="light"]) .chatListItemActive {
+  background: rgba(26, 106, 255, 0.05) !important;
+}
+
+:global([data-theme="light"]) .chatListAvatar {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+:global([data-theme="light"]) .chatListTitle {
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .chatListTime,
+:global([data-theme="light"]) .chatListPreview {
+  color: var(--text3);
+}
+
+:global([data-theme="light"]) .friendRow {
+  border-bottom-color: rgba(0, 0, 0, 0.04);
+}
+
+:global([data-theme="light"]) .friendName {
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .requestRow {
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .requestName {
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .reqDeclineBtn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.06);
+  color: var(--text2);
+}
+
+:global([data-theme="light"]) .searchInput {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .searchInput:focus {
+  border-color: var(--theme-accent, var(--cobalt-bright));
+}
+
+:global([data-theme="light"]) .userCard {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .userCardAvatar {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+:global([data-theme="light"]) .userCardName {
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .userCardClass {
+  color: var(--text3);
+}
+
+:global([data-theme="light"]) .emptyState,
+:global([data-theme="light"]) .loadingText,
+:global([data-theme="light"]) .chatEmptyState {
+  color: var(--text2) !important;
+}
+
+:global([data-theme="light"]) .noChatSelected h2 {
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .noChatSelected p {
+  color: var(--text2);
+}
+
+:global([data-theme="light"]) .chatHeader {
+  background: rgba(255, 255, 255, 0.4);
+  border-bottom-color: rgba(0, 0, 0, 0.05);
+}
+
+:global([data-theme="light"]) .chatHeaderTitle {
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .chatInputForm {
+  background: rgba(255, 255, 255, 0.4);
+  border-top-color: rgba(0, 0, 0, 0.05);
+}
+
+:global([data-theme="light"]) .chatMsgInput {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .chatMsgInput:focus {
+  border-color: var(--theme-accent, var(--cobalt-bright));
+}
+
+:global([data-theme="light"]) .bubbleOther .bubble {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.06);
+  color: var(--text);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+:global([data-theme="light"]) .bubbleSelf .bubble {
+  background: rgba(26, 106, 255, 0.12);
+  border-color: rgba(26, 106, 255, 0.25);
+  color: var(--text);
+  box-shadow: 0 4px 12px rgba(26, 106, 255, 0.05);
+}
+
+:global([data-theme="light"]) .bubbleSender {
+  color: var(--theme-accent-dark, var(--cobalt));
+}
+
+:global([data-theme="light"]) .bubbleOther .bubbleTime {
+  color: var(--text3);
+}
+
+:global([data-theme="light"]) .bubbleSelf .bubbleTime {
+  color: var(--text2);
+}
+
+:global([data-theme="light"]) .shareCard {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .shareCardHeader {
+  color: var(--theme-accent-dark, var(--cobalt));
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .shareCardItem {
+  color: var(--text2);
+}
+
+:global([data-theme="light"]) .bubbleSelf .shareCard {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(26, 106, 255, 0.15);
+}
+
+:global([data-theme="light"]) .bubbleSelf .shareCardHeader {
+  color: var(--theme-accent-dark, var(--cobalt));
+  border-bottom-color: rgba(26, 106, 255, 0.15);
+}
+
+:global([data-theme="light"]) .bubbleSelf .shareCardItem {
+  color: var(--text2);
 }

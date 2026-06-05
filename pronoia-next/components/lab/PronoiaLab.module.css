@@ -7,13 +7,13 @@
   inset: 0;
   width: 100vw;
   height: 100vh;
-  background: #080a0f;
+  background: rgba(8, 10, 15, 0.72);
   border: none;
   border-radius: 0;
   overflow: hidden;
   z-index: 9000;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
 }
 
 @media (max-width: 768px) {
@@ -27,7 +27,7 @@
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  background: rgba(10, 12, 18, 0.4);
+  background: rgba(10, 12, 18, 0.25);
 }
 
 .tabBar {
@@ -182,7 +182,7 @@
 
 /* --- Main Content --- */
 .labMainContent {
-  background: rgba(5, 7, 10, 0.2);
+  background: transparent;
   padding: 2rem;
   overflow-y: auto;
 }
@@ -661,7 +661,7 @@
   left: 0;
   right: 0;
   height: 50%;
-  background: #080a0f;
+  background: var(--bg);
   transition: transform 1.2s cubic-bezier(0.85, 0, 0.15, 1);
 }
 
@@ -728,4 +728,179 @@
     transform: scale(1.2);
     box-shadow: 0 0 24px rgba(26, 106, 255, 0.95), 0 0 8px rgba(26, 106, 255, 0.95);
   }
+}
+
+/* ─── Light Theme Overrides ─── */
+:global([data-theme="light"]) .labShell {
+  background: rgba(253, 251, 249, 0.72);
+}
+
+:global([data-theme="light"]) .labSidebar {
+  background: rgba(253, 251, 249, 0.3);
+  border-right-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .sidebarExitSection {
+  background: rgba(253, 251, 249, 0.5);
+  border-top-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .tabBtn {
+  color: var(--text3);
+}
+
+:global([data-theme="light"]) .tabBtn:hover {
+  background: rgba(0, 0, 0, 0.02);
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .tabBtnActive {
+  color: var(--theme-accent, var(--cobalt-bright));
+  background: rgba(26, 106, 255, 0.05);
+}
+
+:global([data-theme="light"]) .tabBar {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .searchInput {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .searchInput:focus {
+  border-color: var(--theme-accent, var(--cobalt-bright));
+}
+
+:global([data-theme="light"]) .catBtn {
+  color: var(--text2);
+}
+
+:global([data-theme="light"]) .catBtn:hover {
+  background: rgba(0, 0, 0, 0.02);
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .catBtnActive {
+  background: rgba(26, 106, 255, 0.06) !important;
+  border-color: rgba(26, 106, 255, 0.15);
+  color: var(--theme-accent, var(--cobalt-bright)) !important;
+}
+
+:global([data-theme="light"]) .compoundCard {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+}
+
+:global([data-theme="light"]) .compoundCard:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: var(--theme-accent, var(--cobalt-bright));
+  box-shadow: 0 8px 25px rgba(26, 106, 255, 0.06);
+}
+
+:global([data-theme="light"]) .compoundName {
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .compoundCat {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.05);
+  color: var(--text2);
+}
+
+:global([data-theme="light"]) .compoundDesc {
+  color: var(--text2);
+}
+
+:global([data-theme="light"]) .stackBuilderItem {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .stackBuilderItem span {
+  color: var(--text2);
+}
+
+:global([data-theme="light"]) .removeItemBtn {
+  color: var(--text3);
+}
+
+:global([data-theme="light"]) .removeItemBtn:hover {
+  color: var(--red);
+}
+
+/* Detail View in Light Mode */
+:global([data-theme="light"]) .backBtn {
+  color: var(--text3);
+}
+
+:global([data-theme="light"]) .backBtn:hover {
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .detailHeaderLeft h2 {
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .pharmacokineticsCard,
+:global([data-theme="light"]) .benefitsCard,
+:global([data-theme="light"]) .warningsCard {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .chronoChartCanvas {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+:global([data-theme="light"]) .infoGroup strong,
+:global([data-theme="light"]) .benefitsCard strong,
+:global([data-theme="light"]) .warningsCard strong {
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .infoGroup p,
+:global([data-theme="light"]) .benefitsCard li,
+:global([data-theme="light"]) .warningItem {
+  color: var(--text2);
+}
+
+:global([data-theme="light"]) .warningItem {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* Quiz in Light Mode */
+:global([data-theme="light"]) .quizFlowCard {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .quizProgressRow span {
+  color: var(--text3);
+}
+
+:global([data-theme="light"]) .quizProgressBar {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+:global([data-theme="light"]) .quizQuestionTitle {
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .quizOptionBtn {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(0, 0, 0, 0.06);
+  color: var(--text2);
+}
+
+:global([data-theme="light"]) .quizOptionBtn:hover {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--theme-accent, var(--cobalt-bright));
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .introWordmark {
+  color: var(--text);
 }
