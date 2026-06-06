@@ -723,10 +723,23 @@ export function useProtocol() {
 
   // Profile / Goals Management
   const saveProfile = (updatedProfile) => {
-    setProfile(prev => ({
-      ...prev,
-      ...updatedProfile
-    }));
+    setProfile(prev => {
+      const merged = { ...prev, ...updatedProfile };
+      // Save immediately to avoid race conditions with debounced sync
+      if (user && db) {
+        setDoc(doc(db, 'users', user.uid), { profile: merged }, { merge: true })
+          .catch(err => console.error("Immediate profile sync failed:", err));
+      } else if (!user) {
+        try {
+          const localState = JSON.parse(localStorage.getItem('pronoia_protocol_state') || '{}');
+          localState.profile = merged;
+          localStorage.setItem('pronoia_protocol_state', JSON.stringify(localState));
+        } catch (e) {
+          console.error("Local storage save failed:", e);
+        }
+      }
+      return merged;
+    });
     setAgentMsg("Profil-Parameter erfolgreich aktualisiert.");
   };
 
@@ -740,22 +753,48 @@ export function useProtocol() {
       liabilities: liabilitiesList
     };
     
-    setProfile(prev => ({
-      ...prev,
-      ...updatedProfile
-    }));
-    
     // Sync active queue for today
     const todayStr = formatDate(new Date());
     const todayData = weekCalendar[todayStr];
+    let normalizedBlocks = [];
     if (todayData && todayData.blocks && todayData.blocks.length > 0) {
-      const normalizedBlocks = normalizeBlockList(todayData.blocks);
+      normalizedBlocks = normalizeBlockList(todayData.blocks);
       setBlocks(normalizedBlocks);
       setBlockIdx(0);
       setTimeLeft(normalizedBlocks[0].duration);
       setTotalTime(normalizedBlocks[0].duration);
       setCircadianMode(true);
     }
+
+    setProfile(prev => {
+      const merged = { ...prev, ...updatedProfile };
+      // Save immediately to avoid race conditions with debounced sync
+      if (user && db) {
+        setDoc(doc(db, 'users', user.uid), {
+          profile: merged,
+          calendar: weekCalendar,
+          circadianMode: true,
+          blocks: normalizedBlocks.length > 0 ? normalizedBlocks : blocks,
+          blockIdx: 0
+        }, { merge: true })
+          .catch(err => console.error("Immediate protocol activation sync failed:", err));
+      } else if (!user) {
+        try {
+          const localState = JSON.parse(localStorage.getItem('pronoia_protocol_state') || '{}');
+          localState.profile = merged;
+          localState.calendar = weekCalendar;
+          localState.circadianMode = true;
+          if (normalizedBlocks.length > 0) {
+            localState.blocks = normalizedBlocks;
+            localState.blockIdx = 0;
+          }
+          localStorage.setItem('pronoia_protocol_state', JSON.stringify(localState));
+        } catch (e) {
+          console.error("Local storage save failed:", e);
+        }
+      }
+      return merged;
+    });
     
     setAgentMsg("Optimales Wochenprotokoll erfolgreich generiert und geladen.");
   };
