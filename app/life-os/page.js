@@ -15,6 +15,7 @@ import PronoiaLab from '@/components/lab/PronoiaLab';
 import { useChat } from '@/hooks/useChat';
 import FloatingChat from '@/components/social/FloatingChat';
 import OnboardingWizard from '@/components/onboarding/OnboardingWizard';
+import TabManager from '@/components/manager/TabManager';
 
 
 /* ─── Constants ─── */
@@ -114,6 +115,14 @@ const renderNavIcon = (id, active) => {
           <path d="M4.7 19h14.6" />
           <path d="M9 3h6" />
           <path d="M10 3v5L5.8 17.6A2 2 0 0 0 7.6 20h8.8a2 2 0 0 0 1.8-2.4L14 8V3h-4z" />
+        </svg>
+      );
+    case 'manager':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+          <polyline points="15 3 21 3 21 9" />
+          <line x1="10" y1="14" x2="21" y2="3" />
         </svg>
       );
     default:
@@ -499,6 +508,9 @@ function LifeOSDashboard() {
   const [completedSteps, setCompletedSteps] = useState({});
   const [watchedVideos, setWatchedVideos] = useState({});
 
+  /* ─── Manager Tab State ─── */
+  const [managerHistory, setManagerHistory] = useState([]);
+
   /* ─── Tutorial ─── */
   const [tutorialStep, setTutorialStep] = useState(0);
 
@@ -523,6 +535,7 @@ function LifeOSDashboard() {
     { id: 'agents',     name: 'Agenten',     desc: 'Kognitive Sub-Agenten consensus status',   icon: 'agents' },
     { id: 'social',     name: 'Social Hub',  desc: 'Freunde, Chats & Community Channel',       icon: 'social' },
     { id: 'lab',        name: 'Pronoia Lab', desc: 'Nootropics Library & Stack Builder',      icon: 'lab' },
+    { id: 'manager',    name: 'Manager',     desc: 'Automatischer Link-Öffner für aktive Blöcke', icon: 'manager' },
   ], []);
 
   const appsList = useMemo(() => profile?.appConfig?.apps || defaultApps, [profile?.appConfig?.apps, defaultApps]);
@@ -828,6 +841,52 @@ function LifeOSDashboard() {
       chatEndRef.current.scrollTop = chatEndRef.current.scrollHeight;
     }
   }, [messages, isTyping]);
+
+  const lastOpenedBlockRef = useRef('');
+
+  useEffect(() => {
+    const activeBlock = blocks[blockIdx];
+    if (!activeBlock || !activeBlock.title || activeBlock.title === 'Kein aktiver Block') return;
+    if (activeBlock.title === lastOpenedBlockRef.current) return;
+    
+    lastOpenedBlockRef.current = activeBlock.title;
+
+    const managerConfig = profile?.managerConfig;
+    if (managerConfig && managerConfig.autoOpenEnabled && managerConfig.mappings) {
+      const titleLower = activeBlock.title.toLowerCase();
+      // Find matching mappings (case-insensitive substring match)
+      const matches = managerConfig.mappings.filter(m => 
+        m.pattern && titleLower.includes(m.pattern.toLowerCase())
+      );
+
+      if (matches.length > 0) {
+        setAgentMsg(`Öffne Links für den aktiven Block "${activeBlock.title}"...`);
+        matches.forEach(m => {
+          let url = m.url.trim();
+          if (url) {
+            if (!/^https?:\/\//i.test(url)) {
+              url = 'https://' + url;
+            }
+            try {
+              window.open(url, '_blank');
+              setManagerHistory(prev => [
+                {
+                  id: `hist_${Date.now()}_${Math.random()}`,
+                  time: new Date().toLocaleTimeString('de-DE'),
+                  blockTitle: activeBlock.title,
+                  url,
+                  success: true
+                },
+                ...prev
+              ].slice(0, 50));
+            } catch (err) {
+              console.error("Failed to auto-open tab:", err);
+            }
+          }
+        });
+      }
+    }
+  }, [blocks, blockIdx, profile?.managerConfig]);
 
   useEffect(() => {
     if (profile && profile.hasCompletedTutorial === false && tutorialStep === 0) {
@@ -2840,6 +2899,18 @@ function LifeOSDashboard() {
               </div>
             </div>
           </div>
+        );
+      case 'manager':
+        return (
+          <TabManager
+            profile={profile}
+            saveProfile={saveProfile}
+            blocks={blocks}
+            blockIdx={blockIdx}
+            managerHistory={managerHistory}
+            setManagerHistory={setManagerHistory}
+            setAgentMsg={setAgentMsg}
+          />
         );
       default:
         return null;
