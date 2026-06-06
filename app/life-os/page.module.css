@@ -1702,6 +1702,47 @@
   }
 }
 
+/* Light Mode Overrides for Calendar Modal and Overlay */
+:global([data-theme="light"]) .modalOverlay {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+:global([data-theme="light"]) .calModal {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(213, 184, 147, 0.25);
+  box-shadow: 0 30px 60px rgba(31, 38, 135, 0.08);
+}
+
+:global([data-theme="light"]) .calSidebar {
+  background: rgba(255, 255, 255, 0.55);
+  border-left: 1px solid rgba(213, 184, 147, 0.15);
+}
+
+:global([data-theme="light"]) .calNavBtn {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(0, 0, 0, 0.06);
+  color: var(--text);
+}
+
+:global([data-theme="light"]) .calNavBtn:hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+:global([data-theme="light"]) .calDay:hover {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+:global([data-theme="light"]) .calDayToday {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+:global([data-theme="light"]) .calDayHasProto {
+  background: rgba(26, 106, 255, 0.08);
+}
+
 .modalClose {
   position: absolute;
   top: 1.25rem;
