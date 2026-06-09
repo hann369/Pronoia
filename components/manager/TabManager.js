@@ -4,6 +4,9 @@ import styles from './TabManager.module.css';
 export default function TabManager({ profile, saveProfile, blocks, blockIdx, managerHistory, setManagerHistory, setAgentMsg }) {
   const [pattern, setPattern] = useState('');
   const [url, setUrl] = useState('');
+  const [researchQuery, setResearchQuery] = useState('');
+  const [researchLoading, setResearchLoading] = useState(false);
+  const [researchCards, setResearchCards] = useState([]);
 
   const config = profile?.managerConfig || { autoOpenEnabled: true, mappings: [] };
   const mappings = config.mappings || [];
@@ -60,6 +63,112 @@ export default function TabManager({ profile, saveProfile, blocks, blockIdx, man
       setAgentMsg(`Test-Öffnen von ${mapping.url} initiiert.`);
     } catch (e) {
       setAgentMsg(`Browser blockiert Popup: ${e.message}`);
+    }
+  };
+
+  // ----- Outlier Research: lightweight YouTube discovery + heuristics -----
+  const computeOutlierScore = (title = '', author = '') => {
+    // Heuristic score: presence of rare keywords, numbers, and concise titles
+    let score = 50;
+    const keywords = ['viral','best','top','how to','tutorial','review','analysis','case study'];
+    const t = title.toLowerCase();
+    const hasKeyword = keywords.some(k => t.includes(k));
+    if (hasKeyword) score += 10;
+    const words = title.split(/\s+/).filter(Boolean).length;
+    if (words <= 5) score += 8; // punchy titles often perform
+    if (/[0-9]{1,3}/.test(title)) score += 6; // lists / numbers
+    if (author && author.length < 10) score += 4; // short brand names
+    // normalize
+    return Math.min(100, Math.round(score));
+  };
+
+  const handleResearchSubmit = async (e) => {
+    e?.preventDefault();
+    if (!researchQuery.trim()) return;
+    setResearchLoading(true);
+    try {
+      const resp = await fetch(`/api/youtube-search?q=${encodeURIComponent(researchQuery.trim())}`);
+      const data = await resp.json();
+      // If API returned channel mode with a list of videos, prefer channel-only results
+      if (data && data.mode === 'channel' && Array.isArray(data.videos) && data.videos.length > 0) {
+        // fetch oEmbed metadata for each video in parallel
+        const metas = await Promise.all(data.videos.map(async (v) => {
+          try {
+            const url = v.watchUrl || `https://www.youtube.com/watch?v=${v.videoId}`;
+            const oembed = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+            const r = await fetch(oembed);
+            return r.ok ? await r.json() : null;
+          } catch (e) {
+            return null;
+          }
+        }));
+
+        const cards = data.videos.map((v, idx) => {
+          const meta = metas[idx] || {};
+          const vid = v.videoId || (v.videoUrl && v.videoUrl.split('v=')[1]) || null;
+          return {
+            id: `r_${Date.now()}_${idx}`,
+            videoId: vid,
+            videoUrl: v.watchUrl || `https://www.youtube.com/watch?v=${vid}`,
+            embedUrl: v.embedUrl || `https://www.youtube.com/embed/${vid}`,
+            title: meta?.title || v.title || `Video ${vid}`,
+            author: meta?.author_name || data.channelUrl || 'Channel',
+            thumbnail: meta?.thumbnail_url || `https://img.youtube.com/vi/${vid}/hqdefault.jpg`,
+            outlierScore: computeOutlierScore(meta?.title || v.title || '', meta?.author_name || ''),
+            tags: (meta?.title || v.title || '').split(/\s+/).filter(w => w.length > 4).slice(0,6)
+          };
+        });
+
+        setResearchCards(prev => [...cards, ...prev]);
+        setAgentMsg(`Channel-Ergebnisse für "${researchQuery.trim()}" geladen.`);
+        setResearchQuery('');
+      } else {
+        const videoId = data.videoId;
+        if (!videoId) throw new Error('Kein Video gefunden');
+
+        // Fetch public oEmbed metadata for rich card info
+        const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
+        const metaRes = await fetch(oembedUrl);
+        const meta = metaRes.ok ? await metaRes.json() : null;
+
+        const card = {
+          id: `r_${Date.now()}`,
+          videoId,
+          videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
+          embedUrl: data.videoUrl || `https://www.youtube.com/embed/${videoId}`,
+          title: meta?.title || `Video ${videoId}`,
+          author: meta?.author_name || 'Unknown',
+          thumbnail: meta?.thumbnail_url || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+          outlierScore: computeOutlierScore(meta?.title || '', meta?.author_name || ''),
+          tags: (meta?.title || '').split(/\s+/).filter(w => w.length > 4).slice(0,6)
+        };
+
+        setResearchCards(prev => [card, ...prev]);
+        setAgentMsg(`Research Ergebnis für "${researchQuery.trim()}" geladen.`);
+        setResearchQuery('');
+      }
+    } catch (err) {
+      console.error('Research error:', err);
+      setAgentMsg(`Research fehlgeschlagen: ${err.message}`);
+    } finally {
+      setResearchLoading(false);
+    }
+  };
+
+  const handleResearchOpen = (card) => {
+    try {
+      window.open(card.videoUrl, '_blank');
+      setAgentMsg(`Öffne Video ${card.title}`);
+      // append to manager history for easy reference
+      const entry = {
+        id: `hist_${Date.now()}`,
+        time: new Date().toLocaleTimeString(),
+        blockTitle: 'Research',
+        url: card.videoUrl
+      };
+      setManagerHistory && setManagerHistory(prev => [entry, ...(prev || [])].slice(0, 200));
+    } catch (e) {
+      setAgentMsg(`Popup blockiert: ${e.message}`);
     }
   };
 
@@ -166,8 +275,66 @@ export default function TabManager({ profile, saveProfile, blocks, blockIdx, man
             </div>
           </div>
 
-          {/* Session History */}
-          <div className={styles.card} style={{ flex: 1 }}>
+            {/* Research / Outlier Analysis */}
+            <div className={styles.card} style={{ flex: 1 }}>
+              <h3 className={styles.cardTitle}>🔬 Outlier Research — YouTube & Skills</h3>
+              <div className={styles.researchLayout}>
+                <form className={styles.researchTopBar} onSubmit={handleResearchSubmit}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>YouTuber / Suchbegriff</label>
+                    <input
+                      type="text"
+                      placeholder="z.B. Kanalname oder Thema (z.B. 'deliberate practice Pomodoro')"
+                      className={styles.input}
+                      value={researchQuery}
+                      onChange={e => setResearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <button type="submit" className={styles.submitBtn} disabled={researchLoading}>
+                    {researchLoading ? 'Suchen…' : 'Research'}
+                  </button>
+                </form>
+
+                <div className={styles.researchGrid}>
+                  {researchCards.map(c => (
+                    <div key={c.id} className={styles.researchCard}>
+                      <div className={styles.researchCardHeader}>
+                        <div>
+                          <div className={styles.researchCardTitle}>{c.title}</div>
+                          <div className={styles.researchCardCategory}>{c.author}</div>
+                        </div>
+                        <img src={c.thumbnail} alt="thumb" style={{ width: 86, height: 54, borderRadius: 6, objectFit: 'cover' }} />
+                      </div>
+                      <div className={styles.researchCardBody}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                          <div style={{ fontSize: 12, color: 'var(--text3)' }}>Outlier Score:</div>
+                          <div style={{ fontWeight: 700, color: 'var(--theme-accent, #1a6aff)' }}>{c.outlierScore}</div>
+                        </div>
+                        <div className={styles.researchCardTags}>
+                          {c.tags.map(t => <div key={t} className={styles.researchTag}>{t}</div>)}
+                        </div>
+                      </div>
+                      <div className={styles.researchCardFooter}>
+                        <div className={styles.researchDate}>{new Date().toLocaleDateString()}</div>
+                        <div className={styles.researchCardActions}>
+                          <button className={styles.researchActionBtn} onClick={() => handleResearchOpen(c)}>Open</button>
+                          <a className={styles.researchActionBtn} href={c.embedUrl} target="_blank" rel="noreferrer">Embed</a>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {researchCards.length === 0 && (
+                    <div className={styles.emptyState} style={{ padding: '1rem' }}>
+                      <div className={styles.emptyIcon}>🔎</div>
+                      <div className={styles.emptyText}>Gib einen Kanalnamen oder ein Thema ein und klicke auf "Research", um relevante Videos und Schlagworte zu finden.</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Session History */}
+            <div className={styles.card} style={{ flex: 1 }}>
             <h3 className={styles.cardTitle}>📜 Verlauf (Aktuelle Session)</h3>
             <div className={styles.historyList}>
               {managerHistory.map(h => (
