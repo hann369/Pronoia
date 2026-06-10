@@ -373,8 +373,8 @@ export function useChat() {
           }
         }
         
-        // 2. Fallback to deriving shared secret (old format)
-        if (!activeKey) {
+        // 2. Fallback to deriving shared secret (old format) - ONLY if groupKey is not present
+        if (!activeKey && !chatData.groupKey) {
           try {
             const peerDoc = await getDoc(doc(db, 'users', peerUid));
             if (peerDoc.exists() && peerDoc.data().publicKey?.jwk) {
@@ -572,8 +572,8 @@ export function useChat() {
           }
         }
         
-        // 2. Fallback to deriving shared secret
-        if (!activeKey) {
+        // 2. Fallback to deriving shared secret - ONLY if groupKey is not present
+        if (!activeKey && !chatData.groupKey) {
           const peerDoc = await getDoc(doc(db, 'users', peerUid));
           if (peerDoc.exists() && peerDoc.data().publicKey?.jwk) {
             const peerPub = await importPublicKey(peerDoc.data().publicKey.jwk);
