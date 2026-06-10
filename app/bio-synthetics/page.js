@@ -501,6 +501,357 @@ function BioStoreScanner() {
   );
 }
 
+/* ─── Environmental Telemetry Component ─── */
+function EnvironmentalTelemetry() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [data, setData] = useState(null);
+  const [lat, setLat] = useState(52.5200);
+  const [lon, setLon] = useState(13.4050);
+  const [city, setCity] = useState('Berlin');
+  const [activeChart, setActiveChart] = useState('pm25'); // 'pm25' | 'uv'
+  const [hoveredIdx, setHoveredIdx] = useState(null);
+
+  const fetchEnvData = async (latitude, longitude, cityName) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/environment?lat=${latitude}&lon=${longitude}`);
+      if (!res.ok) throw new Error("Fehler beim Laden der Umweltdaten");
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+      
+      setData(result);
+      setLat(latitude);
+      setLon(longitude);
+      setCity(cityName);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const latitude = pos.coords.latitude;
+          const longitude = pos.coords.longitude;
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+            if (res.ok) {
+              const data = await res.json();
+              const cityName = data.address.city || data.address.town || data.address.village || 'Dein Standort';
+              fetchEnvData(latitude, longitude, cityName);
+            } else {
+              fetchEnvData(latitude, longitude, 'Dein Standort');
+            }
+          } catch (e) {
+            fetchEnvData(latitude, longitude, 'Dein Standort');
+          }
+        },
+        () => {
+          fetchEnvData(52.5200, 13.4050, 'Berlin');
+        }
+      );
+    } else {
+      fetchEnvData(52.5200, 13.4050, 'Berlin');
+    }
+  }, []);
+
+  if (loading) {
+    return (
+      <div className={styles.envContainer} style={{ textAlign: 'center', padding: '3rem' }}>
+        <span className={styles.scannerSpinner} style={{ margin: '0 auto 1rem' }} />
+        <p style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text3)' }}>LADE_UMWELT_TELEMETRIE...</p>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className={styles.envContainer} style={{ padding: '2rem', textAlign: 'center', borderColor: 'var(--red)' }}>
+        <p style={{ color: 'var(--red)' }}>⚠️ Fehler beim Laden der Umweltdaten: {error || 'Keine Antwort'}</p>
+        <button className="btn btn-secondary" style={{ marginTop: '1rem', fontSize: '0.75rem' }} onClick={() => fetchEnvData(lat, lon, city)}>
+          Erneut versuchen ↻
+        </button>
+      </div>
+    );
+  }
+
+  const cur = data.current;
+  const pm25Val = cur.pm2_5;
+  const pm10Val = cur.pm10;
+  const uvVal = cur.uv_index;
+
+  // AQI Rating Heuristics
+  let aqiRating = 'Sehr Gut';
+  let aqiColor = '#00c48c';
+  if (pm25Val > 35 || pm10Val > 50) {
+    aqiRating = 'Kritisch';
+    aqiColor = '#ff4d4d';
+  } else if (pm25Val > 15 || pm10Val > 30) {
+    aqiRating = 'Mäßig';
+    aqiColor = '#f5a623';
+  }
+
+  // UV Exposure Advice
+  let uvAdvice = 'Minimale Intensität. Tritt für 20-30 Min. nach draußen, um den Rhythmus zu synchronisieren.';
+  if (uvVal >= 6) {
+    uvAdvice = 'Sehr hohe Strahlung! Lichtschutzfaktor dringend empfohlen. Vermeide direkte Mittagssonne.';
+  } else if (uvVal >= 3) {
+    uvAdvice = 'Mäßige Strahlung. Perfekt für Vitamin D: 10-15 Min. direkte Exposition genügen.';
+  }
+
+  // Pollen Thresholds
+  const getPollenStatus = (val) => {
+    if (val > 80) return { label: 'Hoch', color: '#ff4d4d' };
+    if (val > 10) return { label: 'Mäßig', color: '#f5a623' };
+    return { label: 'Gering', color: '#00c48c' };
+  };
+
+  const getGrassPollenStatus = (val) => {
+    if (val > 30) return { label: 'Hoch', color: '#ff4d4d' };
+    if (val > 5) return { label: 'Mäßig', color: '#f5a623' };
+    return { label: 'Gering', color: '#00c48c' };
+  };
+
+  const birch = getPollenStatus(cur.birch_pollen);
+  const grass = getGrassPollenStatus(cur.grass_pollen);
+  const ragweed = getPollenStatus(cur.ragweed_pollen);
+  const olive = getPollenStatus(cur.olive_pollen);
+
+  // SVG Chart Calculation
+  const hourlyTimes = data.hourly.time.slice(0, 24);
+  const hourlyPm = data.hourly.pm2_5.slice(0, 24);
+  const hourlyUv = data.hourly.uv_index.slice(0, 24);
+
+  const chartW = 460;
+  const chartH = 150;
+  const padL = 40;
+  const padR = 20;
+  const padT = 20;
+  const padB = 25;
+  const graphW = chartW - padL - padR;
+  const graphH = chartH - padT - padB;
+
+  const chartPoints = activeChart === 'pm25' ? hourlyPm : hourlyUv;
+  const maxChartVal = Math.max(...chartPoints, 5);
+  const minChartVal = Math.min(...chartPoints, 0);
+  const chartRange = maxChartVal - minChartVal || 1;
+
+  const getChartX = (idx) => padL + (idx / (chartPoints.length - 1)) * graphW;
+  const getChartY = (val) => padT + graphH - ((val - minChartVal) / chartRange) * graphH;
+
+  let pathD = '';
+  let areaD = '';
+  chartPoints.forEach((val, idx) => {
+    const x = getChartX(idx);
+    const y = getChartY(val);
+    if (idx === 0) {
+      pathD = `M ${x} ${y}`;
+      areaD = `M ${x} ${padT + graphH} L ${x} ${y}`;
+    } else {
+      pathD += ` L ${x} ${y}`;
+      areaD += ` L ${x} ${y}`;
+    }
+  });
+  if (chartPoints.length > 0) {
+    areaD += ` L ${getChartX(chartPoints.length - 1)} ${padT + graphH} Z`;
+  }
+
+  const formatHour = (timeStr) => {
+    try {
+      const d = new Date(timeStr);
+      return `${d.getHours().toString().padStart(2, '0')}:00`;
+    } catch(e) {
+      return '';
+    }
+  };
+
+  return (
+    <div className={styles.envContainer}>
+      <div className={styles.scannerHeader} style={{ marginBottom: '1.5rem' }}>
+        <span className={styles.scannerIcon} style={{ background: 'linear-gradient(135deg, #00c48c 0%, #00cec9 100%)' }}>🍃</span>
+        <div>
+          <div className={styles.scannerTitle}>Umwelt-Expositions-Telemetrie</div>
+          <div className={styles.scannerSub}>
+            Echtzeit-Luftqualität, biologischer Licht-Index & Allergen-Tracker für deinen aktuellen Standort.
+          </div>
+        </div>
+        <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+          <span className={styles.locationBadge}>📍 {city}</span>
+          <div style={{ fontSize: '0.55rem', fontFamily: 'monospace', color: 'var(--text3)', marginTop: '0.2rem' }}>
+            LAT: {lat.toFixed(4)} · LON: {lon.toFixed(4)}
+          </div>
+        </div>
+      </div>
+
+      {/* Grid: 3 Telemetry Cards */}
+      <div className={styles.envGrid}>
+        
+        {/* Card 1: Air Quality */}
+        <div className={styles.envCard}>
+          <div className={styles.envCardTop}>
+            <span className={styles.envCardEmoji}>💨</span>
+            <span className={styles.envCardBadge} style={{ color: aqiColor, borderColor: aqiColor }}>AQI: {aqiRating}</span>
+          </div>
+          <div className={styles.envCardValue}>{pm25Val.toFixed(1)} <span className={styles.envCardUnit}>µg/m³</span></div>
+          <div className={styles.envCardSub}>Feinstaubkonzentration (PM2.5)</div>
+          
+          <div className={styles.envGaugeContainer}>
+            <div style={{ flex: 1 }}>
+              <div className={styles.envGaugeLabel}>PM10: <strong>{pm10Val.toFixed(1)} µg/m³</strong></div>
+              <div className={styles.envGaugeLabel}>Ammoniak: <strong>{cur.ammonia.toFixed(2)} µg/m³</strong></div>
+            </div>
+            <svg width="40" height="40" viewBox="0 0 36 36" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="18" cy="18" r="14" fill="transparent" stroke="var(--border)" strokeWidth="3" />
+              <circle cx="18" cy="18" r="14" fill="transparent" stroke={aqiColor} strokeWidth="3.5"
+                strokeDasharray="88" strokeDashoffset={88 - Math.min(88, (pm25Val / 50) * 88)} />
+            </svg>
+          </div>
+        </div>
+
+        {/* Card 2: Circadian Sun */}
+        <div className={styles.envCard}>
+          <div className={styles.envCardTop}>
+            <span className={styles.envCardEmoji}>☀️</span>
+            <span className={styles.envCardBadge} style={{ color: uvVal > 4 ? '#f5a623' : '#1a6aff', borderColor: uvVal > 4 ? '#f5a623' : '#1a6aff' }}>
+              UV-INDEX: {uvVal.toFixed(1)}
+            </span>
+          </div>
+          <div className={styles.envCardValue}>{uvVal.toFixed(1)} <span className={styles.envCardUnit}>UVI</span></div>
+          <p className={styles.envCardDesc}>{uvAdvice}</p>
+        </div>
+
+        {/* Card 3: Pollen Count */}
+        <div className={styles.envCard}>
+          <div className={styles.envCardTop}>
+            <span className={styles.envCardEmoji}>🌾</span>
+            <span className={styles.envCardBadge} style={{ color: grass.color, borderColor: grass.color }}>Pollenbelastung</span>
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.2rem' }}>
+            <div className={styles.pollenRow}>
+              <span>Birke (Birch)</span>
+              <span className={styles.pollenBadge} style={{ backgroundColor: birch.color + '15', color: birch.color, borderColor: birch.color }}>
+                {birch.label}
+              </span>
+            </div>
+            <div className={styles.pollenRow}>
+              <span>Gräser (Grass)</span>
+              <span className={styles.pollenBadge} style={{ backgroundColor: grass.color + '15', color: grass.color, borderColor: grass.color }}>
+                {grass.label}
+              </span>
+            </div>
+            <div className={styles.pollenRow}>
+              <span>Olivenbaum (Olive)</span>
+              <span className={styles.pollenBadge} style={{ backgroundColor: olive.color + '15', color: olive.color, borderColor: olive.color }}>
+                {olive.label}
+              </span>
+            </div>
+            <div className={styles.pollenRow}>
+              <span>Beifußambrosie (Ragweed)</span>
+              <span className={styles.pollenBadge} style={{ backgroundColor: ragweed.color + '15', color: ragweed.color, borderColor: ragweed.color }}>
+                {ragweed.label}
+              </span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* SVG Forecast Section */}
+      <div className={styles.chartWrapper} style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <h4 className={styles.chartTitle} style={{ fontSize: '0.8rem', fontWeight: 600 }}>24-Stunden Trend-Prognose</h4>
+          <div className={styles.categoryTabs}>
+            <button type="button" className={`${styles.categoryTab} ${activeChart === 'pm25' ? styles.categoryTabActive : ''}`} onClick={() => { setActiveChart('pm25'); setHoveredIdx(null); }}>
+              PM2.5 Feinstaub
+            </button>
+            <button type="button" className={`${styles.categoryTab} ${activeChart === 'uv' ? styles.categoryTabActive : ''}`} onClick={() => { setActiveChart('uv'); setHoveredIdx(null); }}>
+              UV-Index
+            </button>
+          </div>
+        </div>
+
+        <div style={{ position: 'relative', width: '100%' }}>
+          <svg width="100%" height={chartH} viewBox={`0 0 ${chartW} ${chartH}`} style={{ overflow: 'visible' }}>
+            <defs>
+              <linearGradient id="envAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={activeChart === 'pm25' ? '#1a6aff' : '#f5a623'} stopOpacity="0.2" />
+                <stop offset="100%" stopColor={activeChart === 'pm25' ? '#1a6aff' : '#f5a623'} stopOpacity="0.0" />
+              </linearGradient>
+            </defs>
+
+            {/* Horizontal Grid */}
+            {[0, 0.5, 1].map((r) => {
+              const val = minChartVal + r * chartRange;
+              const y = getChartY(val);
+              return (
+                <g key={r}>
+                  <line x1={padL} y1={y} x2={chartW - padR} y2={y} stroke="var(--border)" strokeDasharray="3 5" strokeWidth="1" />
+                  <text x={padL - 10} y={y + 3} fill="var(--text3)" fontSize="8" fontFamily="monospace" textAnchor="end">
+                    {val.toFixed(1)}
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Path and Area */}
+            <path d={areaD} fill="url(#envAreaGrad)" />
+            <path d={pathD} fill="none" stroke={activeChart === 'pm25' ? '#1a6aff' : '#f5a623'} strokeWidth="2" />
+
+            {/* Interactive Circles */}
+            {chartPoints.map((val, idx) => {
+              const x = getChartX(idx);
+              const y = getChartY(val);
+              const isH = hoveredIdx === idx;
+              return (
+                <circle
+                  key={idx}
+                  cx={x}
+                  cy={y}
+                  r={isH ? 6 : 3}
+                  fill={isH ? (activeChart === 'pm25' ? '#1a6aff' : '#f5a623') : 'var(--bg-card)'}
+                  stroke={activeChart === 'pm25' ? '#1a6aff' : '#f5a623'}
+                  strokeWidth="1.5"
+                  style={{ cursor: 'pointer', transition: 'r 0.1s ease' }}
+                  onMouseEnter={() => setHoveredIdx(idx)}
+                  onMouseLeave={() => setHoveredIdx(null)}
+                />
+              );
+            })}
+          </svg>
+
+          {/* Tooltip */}
+          {hoveredIdx !== null && hourlyTimes[hoveredIdx] && (
+            <div
+              className={styles.chartTooltip}
+              style={{
+                position: 'absolute',
+                left: `${(getChartX(hoveredIdx) / chartW) * 100}%`,
+                top: `${getChartY(chartPoints[hoveredIdx]) - 50}px`,
+                transform: 'translateX(-50%)',
+                pointerEvents: 'none',
+                zIndex: 10
+              }}
+            >
+              <div style={{ fontSize: '0.55rem', color: 'var(--text3)', fontFamily: 'monospace' }}>
+                {formatHour(hourlyTimes[hoveredIdx])}
+              </div>
+              <div style={{ fontSize: '0.72rem', fontWeight: 'bold', marginTop: '0.1rem' }}>
+                {chartPoints[hoveredIdx].toFixed(1)} {activeChart === 'pm25' ? 'µg/m³' : 'UVI'}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main Page ─── */
 export default function BioSyntheticsPage() {
   const [activeWear, setActiveWear] = useState('casual');
@@ -623,6 +974,13 @@ export default function BioSyntheticsPage() {
 
           {/* Bio Store Scanner */}
           <BioStoreScanner />
+        </div>
+      </section>
+
+      {/* ─── ENVIRONMENTAL TELEMETRY SECTION ─── */}
+      <section className={styles.section}>
+        <div className="container">
+          <EnvironmentalTelemetry />
         </div>
       </section>
 

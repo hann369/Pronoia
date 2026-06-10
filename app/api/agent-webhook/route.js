@@ -85,6 +85,194 @@ export async function POST(req) {
     return NextResponse.json({ ok: true, status: blockStatus, debug });
   }
 
+  if (event === "hermes_trigger") {
+    const hermesAgentUrl = process.env.HERMES_AGENT_URL || 'http://localhost:8080/pronoia-webhook';
+    try {
+      console.log(`[Pronoia Webhook] Forwarding hermes_trigger to ${hermesAgentUrl}`);
+      const fResponse = await fetch(hermesAgentUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-bot-secret': secret
+        },
+        body: JSON.stringify(payload)
+      });
+      return NextResponse.json({ ok: fResponse.ok, status: fResponse.status });
+    } catch (err) {
+      console.error("[Agent Webhook] Failed to forward to Hermes Agent daemon:", err.message);
+      return NextResponse.json({ ok: false, error: err.message }, { status: 502 });
+    }
+  }
+
+  if (event === "hermes_register") {
+    const { publicKey } = payload;
+    try {
+      const docRef = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/users/hermes_agent_node?key=${FIREBASE_API_KEY}`;
+      const fields = {
+        profile: toFirestoreValue({
+          username: "hermes_agent_node",
+          displayName: "Hermes AI Agent",
+          avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=hermes",
+          role: "companion",
+          telegramId: "hermes_agent_node",
+          tempSecret: WEBHOOK_SECRET
+        }),
+        publicKey: toFirestoreValue(publicKey),
+        role: { stringValue: "companion" }
+      };
+      
+      const res = await fetch(docRef, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fields })
+      });
+      return NextResponse.json({ ok: res.ok });
+    } catch (e) {
+      return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
+    }
+  }
+
+  if (event === "hermes_reply") {
+    const { chatId, ciphertext, iv } = payload;
+    try {
+      const timestamp = new Date().toISOString();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      
+      const msgUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/chats/${chatId}/messages?key=${FIREBASE_API_KEY}`;
+      const msgFields = {
+        senderUid: { stringValue: "hermes_agent_node" },
+        senderName: { stringValue: "Hermes AI Agent" },
+        timestamp: { stringValue: timestamp },
+        expiresAt: { stringValue: expiresAt },
+        type: { stringValue: "text" },
+        ciphertext: { stringValue: ciphertext },
+        iv: { stringValue: iv },
+        readBy: { arrayValue: { values: [{ stringValue: "hermes_agent_node" }] } }
+      };
+      
+      const msgRes = await fetch(msgUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fields: msgFields })
+      });
+      
+      const chatUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/chats/${chatId}?key=${FIREBASE_API_KEY}&updateMask.fieldPaths=lastMessage`;
+      const chatFields = {
+        lastMessage: {
+          mapValue: {
+            fields: {
+              ciphertext: { stringValue: ciphertext },
+              iv: { stringValue: iv },
+              senderUid: { stringValue: "hermes_agent_node" },
+              timestamp: { stringValue: timestamp },
+              readBy: { arrayValue: { values: [{ stringValue: "hermes_agent_node" }] } }
+            }
+          }
+        }
+      };
+      await fetch(chatUrl, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fields: chatFields })
+      });
+      
+      return NextResponse.json({ ok: msgRes.ok });
+    } catch (e) {
+      return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
+    }
+  }
+
+  if (event === "hermes_get_calendar") {
+    const { uid } = payload;
+    try {
+      const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${uid}?key=${FIREBASE_API_KEY}`;
+      const res = await fetch(url);
+      if (!res.ok) return NextResponse.json({ ok: false, error: "User not found" }, { status: 404 });
+      const doc = await res.json();
+      const data = parseFirestoreFields(doc.fields || {});
+      return NextResponse.json({ ok: true, calendar: data.calendar || {} });
+    } catch (e) {
+      return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
+    }
+  }
+
+  if (event === "hermes_update_calendar") {
+    const { uid, calendar } = payload;
+    try {
+      const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${uid}?key=${FIREBASE_API_KEY}&updateMask.fieldPaths=calendar`;
+      const fields = {
+        calendar: toFirestoreValue(calendar),
+        profile: {
+          mapValue: {
+            fields: {
+              tempSecret: { stringValue: WEBHOOK_SECRET }
+            }
+          }
+        }
+      };
+      const res = await fetch(url, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fields })
+      });
+      return NextResponse.json({ ok: res.ok });
+    } catch (e) {
+      return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
+    }
+  }
+
+  if (event === "hermes_get_suggestions") {
+    const { uid } = payload;
+    try {
+      const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${uid}/suggestions?key=${FIREBASE_API_KEY}`;
+      const res = await fetch(url);
+      if (!res.ok) return NextResponse.json({ ok: true, suggestions: [] });
+      const data = await res.json();
+      const suggestions = [];
+      for (const d of data.documents || []) {
+        const nameParts = d.name.split("/");
+        const docId = nameParts[nameParts.length - 1];
+        const fields = parseFirestoreFields(d.fields || {});
+        suggestions.push({ id: docId, ...fields });
+      }
+      return NextResponse.json({ ok: true, suggestions });
+    } catch (e) {
+      return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
+    }
+  }
+
+  if (event === "hermes_update_suggestion") {
+    const { uid, suggestionId, suggestion } = payload;
+    try {
+      const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${uid}/suggestions/${suggestionId}`;
+      const fields = {};
+      for (const k in suggestion) {
+        fields[k] = toFirestoreValue(suggestion[k]);
+      }
+      fields["profile"] = {
+        mapValue: {
+          fields: {
+            tempSecret: { stringValue: WEBHOOK_SECRET }
+          }
+        }
+      };
+      const queryParams = new URLSearchParams();
+      queryParams.append("key", FIREBASE_API_KEY);
+      for (const key in fields) {
+        queryParams.append("updateMask.fieldPaths", key);
+      }
+      const fullUrl = `${url}?${queryParams.toString()}`;
+      const res = await fetch(fullUrl, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fields })
+      });
+      return NextResponse.json({ ok: res.ok });
+    } catch (e) {
+      return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
+    }
+  }
+
   return NextResponse.json({ ok: true, event, timestamp: new Date().toISOString() });
 }
 

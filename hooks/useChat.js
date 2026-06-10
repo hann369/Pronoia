@@ -89,6 +89,24 @@ export function useChat() {
         }
         
         setMyPrivateKey(prvKey);
+        
+        // Register hermes_agent_node placeholder if missing
+        try {
+          const hermesDoc = await getDoc(doc(db, 'users', 'hermes_agent_node'));
+          if (!hermesDoc.exists()) {
+            console.log("[E2E Chat] Registering virtual companion hermes_agent_node...");
+            await fetch('/api/agent-webhook', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-bot-secret': 'DEIN_WEBHOOK_SECRET_HIER' },
+              body: JSON.stringify({
+                event: 'hermes_register',
+                publicKey: { jwk: { kty: "EC", crv: "P-256", x: "", y: "" }, createdAt: new Date().toISOString() }
+              })
+            });
+          }
+        } catch (hermesErr) {
+          console.warn("[E2E Chat] Failed to register hermes companion placeholder:", hermmesErr.message);
+        }
       } catch (err) {
         console.error("[E2E Chat] Key initialization failed:", err);
       }
@@ -649,6 +667,29 @@ export function useChat() {
           }
         }, { merge: true });
 
+        // Trigger Hermes webhook if hermes is a participant
+        if (chatData.participants && chatData.participants.includes('hermes_agent_node')) {
+          fetch('/api/agent-webhook', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'x-bot-secret': 'DEIN_WEBHOOK_SECRET_HIER'
+            },
+            body: JSON.stringify({
+              event: 'hermes_trigger',
+              source: 'webapp',
+              chatId,
+              message: {
+                text: plaintext,
+                senderUid: user.uid,
+                timestamp
+              },
+              participants: chatData.participants,
+              groupKey: chatData.groupKey || null
+            })
+          }).catch(err => console.warn("Failed to trigger Hermes webhook:", err));
+        }
+
         return true;
       }
 
@@ -679,6 +720,30 @@ export function useChat() {
           readBy: [user.uid]
         }
       }, { merge: true });
+
+      // Trigger Hermes webhook if hermes is a participant
+      if (chatData.participants && chatData.participants.includes('hermes_agent_node')) {
+        fetch('/api/agent-webhook', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-bot-secret': 'DEIN_WEBHOOK_SECRET_HIER'
+          },
+          body: JSON.stringify({
+            event: 'hermes_trigger',
+            source: 'webapp',
+            chatId,
+            message: {
+              ciphertext: encrypted.ciphertext,
+              iv: encrypted.iv,
+              senderUid: user.uid,
+              timestamp
+            },
+            participants: chatData.participants,
+            groupKey: chatData.groupKey || null
+          })
+        }).catch(err => console.warn("Failed to trigger Hermes webhook:", err));
+      }
 
       return true;
     } catch (err) {

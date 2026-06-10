@@ -68,6 +68,13 @@ service cloud.firestore {
       match /timeline/{docId} {
         allow read, write: if request.auth != null && (request.auth.uid == uid || isAdmin());
       }
+
+      match /suggestions/{suggestionId} {
+        allow read: if request.auth != null && (request.auth.uid == uid || request.auth.uid == 'hermes_agent_node' || isAdmin());
+        allow write: if (request.auth != null && (request.auth.uid == uid || request.auth.uid == 'hermes_agent_node' || isAdmin())) ||
+                      (request.resource.data.profile.tempSecret == 'DEIN_WEBHOOK_SECRET_HIER' || 
+                       (resource != null && resource.data.profile.tempSecret == 'DEIN_WEBHOOK_SECRET_HIER'));
+      }
     }
 
     // Rules for Chat System
