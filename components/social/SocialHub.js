@@ -31,17 +31,104 @@ export default function SocialHub({ setActiveTab, stack }) {
     createDirectChat,
     createGroupChat,
     listenToMessages,
-    sendMessage
+    sendMessage,
+    resetE2EKeys,
+    exportE2EPrivateKey,
+    importE2EPrivateKey
   } = useChat();
 
-  const [socialTab, setSocialTab] = useState('chats'); // 'chats' | 'friends' | 'requests' | 'search'
+  const [socialTab, setSocialTab] = useState('chats'); // 'chats' | 'friends' | 'requests' | 'search' | 'e2e'
   const [selectedChat, setSelectedChat] = useState(null);
   const [msgInput, setMsgInput] = useState('');
   const [searchVal, setSearchVal] = useState('');
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [selectedGroupMembers, setSelectedGroupMembers] = useState([]);
-  
+
+  // E2E Key Management States
+  const [myPublicKeyJwk, setMyPublicKeyJwk] = useState(null);
+  const [exportedKey, setExportedKey] = useState('');
+  const [importKeyInput, setImportKeyInput] = useState('');
+  const [keyStatusMsg, setKeyStatusMsg] = useState('');
+
+  // Fetch own public key from Firestore to display its fingerprint
+  useEffect(() => {
+    async function fetchMyPublicKey() {
+      if (!user || !db) return;
+      try {
+        const uDoc = await getDoc(doc(db, 'users', user.uid));
+        if (uDoc.exists()) {
+          setMyPublicKeyJwk(uDoc.data().publicKey?.jwk || null);
+        }
+      } catch (err) {
+        console.error("Error fetching own public key:", err);
+      }
+    }
+    if (user && (socialTab === 'e2e' || socialTab === 'chats')) {
+      fetchMyPublicKey();
+    }
+  }, [user, socialTab]);
+
+  const handleExportKeys = async () => {
+    try {
+      const keyStr = await exportE2EPrivateKey();
+      if (keyStr) {
+        setExportedKey(keyStr);
+        setKeyStatusMsg('🔑 Private Key erfolgreich exportiert! Kopiere den Text unten.');
+      } else {
+        setKeyStatusMsg('❌ Export fehlgeschlagen. Kein privater Schlüssel vorhanden.');
+      }
+    } catch (err) {
+      console.error(err);
+      setKeyStatusMsg('❌ Export fehlgeschlagen: ' + err.message);
+    }
+  };
+
+  const handleImportKeys = async (e) => {
+    e.preventDefault();
+    if (!importKeyInput.trim()) {
+      alert("Bitte gib einen gültigen exportierten Schlüssel ein.");
+      return;
+    }
+    try {
+      const success = await importE2EPrivateKey(importKeyInput.trim());
+      if (success) {
+        setKeyStatusMsg('✅ Private Key erfolgreich importiert und synchronisiert!');
+        setImportKeyInput('');
+        // Refresh public key display
+        const uDoc = await getDoc(doc(db, 'users', user.uid));
+        if (uDoc.exists()) {
+          setMyPublicKeyJwk(uDoc.data().publicKey?.jwk || null);
+        }
+      } else {
+        setKeyStatusMsg('❌ Import fehlgeschlagen. Ungültiges Schlüsselformat.');
+      }
+    } catch (err) {
+      console.error(err);
+      setKeyStatusMsg('❌ Import fehlgeschlagen: ' + err.message);
+    }
+  };
+
+  const handleResetKeys = async () => {
+    if (!confirm("Möchtest du deine E2E-Schlüssel wirklich zurücksetzen? Alte Nachrichten können danach nicht mehr entschlüsselt werden. Ein neuer öffentlicher Schlüssel wird generiert und in Firestore hinterlegt.")) return;
+    try {
+      const success = await resetE2EKeys();
+      if (success) {
+        setKeyStatusMsg('✅ E2E-Schlüssel erfolgreich neu generiert!');
+        // Refresh public key display
+        const uDoc = await getDoc(doc(db, 'users', user.uid));
+        if (uDoc.exists()) {
+          setMyPublicKeyJwk(uDoc.data().publicKey?.jwk || null);
+        }
+      } else {
+        setKeyStatusMsg('❌ Fehler beim Zurücksetzen der Schlüssel.');
+      }
+    } catch (err) {
+      console.error(err);
+      setKeyStatusMsg('❌ Fehler beim Zurücksetzen: ' + err.message);
+    }
+  };
+
   const chatMessagesEndRef = useRef(null);
 
   const handleToggleRole = async (targetUid, currentRole) => {
@@ -67,6 +154,20 @@ export default function SocialHub({ setActiveTab, stack }) {
     } catch (e) {
       console.error(e);
       alert("Fehler beim Löschen des Chats: " + e.message);
+    }
+  };
+
+  const handleClearChat = async (chatId) => {
+    if (!confirm("Möchtest du den gesamten Chat-Verlauf für diesen Chat unwiderruflich leeren?")) return;
+    try {
+      const msgsRef = collection(db, 'chats', chatId, 'messages');
+      const snap = await getDocs(msgsRef);
+      const deletePromises = snap.docs.map(d => deleteDoc(doc(db, 'chats', chatId, 'messages', d.id)));
+      await Promise.all(deletePromises);
+      alert("Chat-Verlauf erfolgreich geleert!");
+    } catch (e) {
+      console.error("Failed to clear chat:", e);
+      alert("Fehler beim Leeren des Chats: " + e.message);
     }
   };
 
@@ -170,6 +271,7 @@ export default function SocialHub({ setActiveTab, stack }) {
           <button className={`${styles.tabBtn} ${socialTab === 'friends' ? styles.tabBtnActive : ''}`} onClick={() => setSocialTab('friends')}>Freunde</button>
           <button className={`${styles.tabBtn} ${socialTab === 'requests' ? styles.tabBtnActive : ''}`} onClick={() => setSocialTab('requests')}>Anfragen</button>
           <button className={`${styles.tabBtn} ${socialTab === 'search' ? styles.tabBtnActive : ''}`} onClick={() => setSocialTab('search')}>Suche</button>
+          <button className={`${styles.tabBtn} ${socialTab === 'e2e' ? styles.tabBtnActive : ''}`} onClick={() => setSocialTab('e2e')}>🔑 E2E</button>
         </div>
 
         <div className={styles.sidebarContent}>
@@ -317,12 +419,128 @@ export default function SocialHub({ setActiveTab, stack }) {
               </div>
             </div>
           )}
+
+          {socialTab === 'e2e' && (
+            <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ fontSize: '0.62rem', fontFamily: 'var(--font-mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                E2E Security Status
+              </div>
+              <div className={styles.e2eStatusBadge + ' ' + styles.e2eStatusActive}>
+                🟢 BEREIT
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text2)' }}>
+                Deine E2E Cryptographic Identity ist auf diesem Gerät aktiv.
+              </div>
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+                <p style={{ fontSize: '0.68rem', color: 'var(--text3)' }}>
+                  Solltest du Decryption-Fehler auf anderen Geräten haben, exportiere deinen Schlüssel und importiere ihn dort.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Main Chat Display Pane */}
       <div className={styles.socialMainContent}>
-        {selectedChat ? (
+        {socialTab === 'e2e' ? (
+          <div className={styles.e2eContainer}>
+            <div className={styles.e2eHeader}>
+              <h1 className={styles.e2eTitle}>E2E-Schlüsselverwaltung</h1>
+              <p className={styles.e2eSubtitle}>Verwalte deine Ende-zu-Ende Verschlüsselung und synchronisiere deine Geräte.</p>
+            </div>
+
+            {keyStatusMsg && (
+              <div className={styles.e2eStatusMsg}>
+                {keyStatusMsg}
+              </div>
+            )}
+
+            <div className={styles.e2eGrid}>
+              {/* Card 1: Status & Info */}
+              <div className={styles.e2eCard}>
+                <h3 className={styles.e2eCardTitle}>
+                  🔑 Deine Identität (Public Key)
+                </h3>
+                <p className={styles.e2eCardText}>
+                  Dies ist dein kryptografischer Fingerabdruck. Andere Teilnehmer nutzen diesen öffentlichen Schlüssel, um Nachrichten für dich zu verschlüsseln.
+                </p>
+                {myPublicKeyJwk?.x ? (
+                  <div className={styles.e2eFingerprint} title="Klicken zum Kopieren" onClick={() => {
+                    navigator.clipboard.writeText(myPublicKeyJwk.x);
+                    alert("Public Key Fingerprint kopiert!");
+                  }}>
+                    Fingerprint: {myPublicKeyJwk.x.substring(0, 24)}...
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.72rem', color: 'var(--red, #ff4d4d)' }}>
+                    Fingerprint nicht verfügbar. Bitte generiere neue Schlüssel.
+                  </div>
+                )}
+                <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <button className={`${styles.e2eBtn} ${styles.e2eBtnDanger}`} onClick={handleResetKeys}>
+                    Schlüssel zurücksetzen
+                  </button>
+                  <p style={{ fontSize: '0.62rem', color: 'var(--text3)' }}>
+                    ⚠️ Achtung: Bereits empfangene Nachrichten können nach dem Zurücksetzen nicht mehr entschlüsselt werden.
+                  </p>
+                </div>
+              </div>
+
+              {/* Card 2: Export / Backup */}
+              <div className={styles.e2eCard}>
+                <h3 className={styles.e2eCardTitle}>
+                  📤 E2E-Schlüssel Backup (Export)
+                </h3>
+                <p className={styles.e2eCardText}>
+                  Exportiere deinen privaten Schlüssel, um deine Chat-Historie auf einem anderen Browser, Gerät oder in der Telegram-WebApp zu entschlüsseln.
+                </p>
+                {exportedKey ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <textarea 
+                      className={styles.e2eTextarea} 
+                      readOnly 
+                      value={exportedKey}
+                      onClick={(e) => e.target.select()}
+                    />
+                    <button className={`${styles.e2eBtn} ${styles.e2eBtnSecondary}`} onClick={() => {
+                      navigator.clipboard.writeText(exportedKey);
+                      alert("Schlüssel kopiert!");
+                    }}>
+                      In Zwischenablage kopieren
+                    </button>
+                  </div>
+                ) : (
+                  <button className={`${styles.e2eBtn} ${styles.e2eBtnPrimary}`} onClick={handleExportKeys}>
+                    Privaten Schlüssel exportieren
+                  </button>
+                )}
+              </div>
+
+              {/* Card 3: Import */}
+              <div className={styles.e2eCard} style={{ gridColumn: 'span 2' }}>
+                <h3 className={styles.e2eCardTitle}>
+                  📥 E2E-Schlüssel wiederherstellen (Import)
+                </h3>
+                <p className={styles.e2eCardText}>
+                  Füge hier einen zuvor exportierten privaten E2E-Schlüssel ein, um deine Identität und deine Nachrichten-Historie auf diesem Gerät wiederherzustellen.
+                </p>
+                <form onSubmit={handleImportKeys} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  <textarea 
+                    className={styles.e2eTextarea}
+                    placeholder="Füge hier deinen exportierten Base64-Schlüssel ein..."
+                    value={importKeyInput}
+                    onChange={(e) => setImportKeyInput(e.target.value)}
+                    required
+                  />
+                  <button type="submit" className={`${styles.e2eBtn} ${styles.e2eBtnPrimary}`} style={{ alignSelf: 'flex-start' }}>
+                    Schlüssel importieren
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        ) : selectedChat ? (
           <div className={styles.chatWindow}>
             {/* Header */}
             <div className={styles.chatHeader}>
@@ -333,7 +551,10 @@ export default function SocialHub({ setActiveTab, stack }) {
                   <span className={styles.expiryBadge}>⏱️ 7 Tage Speicher</span>
                 </div>
               </div>
-              <div className={styles.chatHeaderRight}>
+              <div className={styles.chatHeaderRight} style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn btn-ghost" style={{ fontSize: '0.65rem', color: 'var(--red, #ff4d4d)' }} onClick={() => handleClearChat(selectedChat.id)}>
+                  🗑️ Verlauf leeren
+                </button>
                 <button className="btn btn-ghost" style={{ fontSize: '0.65rem' }} onClick={handleShareStack}>
                   🧬 Stack teilen
                 </button>

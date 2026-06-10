@@ -6,6 +6,8 @@ export default function ChatBubble({ message, isSelf, styles }) {
     ? new Date(message.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
     : '';
 
+  const isE2EError = message.text && message.text.includes('E2E-Schlüssel');
+
   const renderMessageContent = () => {
     if (message.type === 'stack-share') {
       try {
@@ -44,19 +46,30 @@ export default function ChatBubble({ message, isSelf, styles }) {
       }
     }
 
+    if (isE2EError) {
+      return (
+        <p className={styles.bubbleText} style={{ color: 'var(--red, #ff4d4d)', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <span>⚠️</span>
+          <span>{message.text}</span>
+        </p>
+      );
+    }
+
     return <p className={styles.bubbleText}>{message.text}</p>;
   };
 
   return (
     <div className={`${styles.bubbleWrapper} ${isSelf ? styles.bubbleSelf : styles.bubbleOther}`}>
-      <div className={styles.bubble}>
+      <div className={styles.bubble} style={isE2EError ? { border: '1px dashed rgba(255, 77, 77, 0.4)', background: 'rgba(255, 77, 77, 0.05)' } : {}}>
         {!isSelf && <div className={styles.bubbleSender}>{message.senderName || 'Hacker'}</div>}
         
         {renderMessageContent()}
         
         <div className={styles.bubbleMeta}>
           <span className={styles.bubbleTime}>{timestamp}</span>
-          <span className={styles.bubbleLock} title="Ende-zu-Ende verschlüsselt">🔒</span>
+          <span className={styles.bubbleLock} title="Ende-zu-Ende verschlüsselt" style={isE2EError ? { color: 'var(--red, #ff4d4d)' } : {}}>
+            {isE2EError ? '⚠️' : '🔒'}
+          </span>
         </div>
       </div>
     </div>

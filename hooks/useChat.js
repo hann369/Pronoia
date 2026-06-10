@@ -28,8 +28,9 @@ import {
   generateGroupKey,
   wrapGroupKey,
   unwrapGroupKey,
-  encryptWithGroupKey, // Wait! We will implement message encryption in crypto.js
-  // Let's use AES key raw bytes wrapping/unwrapping directly.
+  exportPrivateKey,
+  importPrivateKey,
+  getPublicKeyJwkFromPrivateKey
 } from '@/lib/crypto';
 
 export function useChat() {
@@ -56,7 +57,7 @@ export function useChat() {
           const keyPair = await generateKeyPair();
           prvKey = keyPair.privateKey;
           
-          // Save private key locally in IndexedDB
+          // Save private key locally in IndexedDB/localStorage
           await storeLocalPrivateKey(user.uid, prvKey);
           
           // Export and upload public key to Firestore
@@ -67,6 +68,22 @@ export function useChat() {
               createdAt: new Date().toISOString()
             }
           }, { merge: true });
+        } else {
+          // Verify public key in Firestore exists and matches
+          const userDocRef = doc(db, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          const pubJwk = await getPublicKeyJwkFromPrivateKey(prvKey);
+          const currentPubJwk = userDoc.exists() ? userDoc.data().publicKey?.jwk : null;
+          
+          if (!currentPubJwk || currentPubJwk.x !== pubJwk.x || currentPubJwk.y !== pubJwk.y) {
+            console.log("[E2E Chat] Firestore public key missing or mismatch. Syncing public key...");
+            await setDoc(userDocRef, {
+              publicKey: {
+                jwk: pubJwk,
+                createdAt: new Date().toISOString()
+              }
+            }, { merge: true });
+          }
         }
         
         setMyPrivateKey(prvKey);
@@ -455,8 +472,71 @@ export function useChat() {
       return false;
     }
   }, [user, myPrivateKey, profileName]);
+  // --- Manual Reset of E2E Keys ---
+  const resetE2EKeys = useCallback(async () => {
+    if (!user || !db) return false;
+    try {
+      console.log("[E2E Chat] Resetting E2E key pair...");
+      const keyPair = await generateKeyPair();
+      const prvKey = keyPair.privateKey;
+      
+      // Save locally in IndexedDB/localStorage
+      await storeLocalPrivateKey(user.uid, prvKey);
+      
+      // Upload public key to Firestore
+      const pubJwk = await exportPublicKey(keyPair.publicKey);
+      await setDoc(doc(db, 'users', user.uid), {
+        publicKey: {
+          jwk: pubJwk,
+          createdAt: new Date().toISOString()
+        }
+      }, { merge: true });
+      
+      setMyPrivateKey(prvKey);
+      return true;
+    } catch (err) {
+      console.error("[E2E Chat] Resetting keys failed:", err);
+      return false;
+    }
+  }, [user]);
 
+  // --- Export E2E Private Key (base64 string) ---
+  const exportE2EPrivateKey = useCallback(async () => {
+    if (!myPrivateKey) return null;
+    try {
+      return await exportPrivateKey(myPrivateKey);
+    } catch (err) {
+      console.error("[E2E Chat] Exporting private key failed:", err);
+      return null;
+    }
+  }, [myPrivateKey]);
 
+  // --- Import E2E Private Key (base64 string) ---
+  const importE2EPrivateKey = useCallback(async (base64Jwk) => {
+    if (!user || !db) return false;
+    try {
+      console.log("[E2E Chat] Importing E2E private key...");
+      const prvKey = await importPrivateKey(base64Jwk);
+      
+      // Save locally in IndexedDB/localStorage
+      await storeLocalPrivateKey(user.uid, prvKey);
+      
+      // Extract public key and upload to Firestore
+      const pubJwk = await getPublicKeyJwkFromPrivateKey(prvKey);
+      await setDoc(doc(db, 'users', user.uid), {
+        publicKey: {
+          jwk: pubJwk,
+          createdAt: new Date().toISOString()
+        }
+      }, { merge: true });
+      
+      setMyPrivateKey(prvKey);
+      return true;
+    } catch (err) {
+      console.error("[E2E Chat] Importing private key failed:", err);
+      return false;
+    }
+  }, [user]);
 
   // Clean up active listener on unmount
   useEffect(() => {
@@ -473,6 +553,9 @@ export function useChat() {
     createDirectChat,
     createGroupChat,
     listenToMessages,
-    sendMessage
+    sendMessage,
+    resetE2EKeys,
+    exportE2EPrivateKey,
+    importE2EPrivateKey
   };
 }
