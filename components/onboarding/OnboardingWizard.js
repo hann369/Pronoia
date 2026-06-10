@@ -2,9 +2,94 @@ import React, { useState, useEffect } from 'react';
 import styles from './OnboardingWizard.module.css';
 import { generateCompleteWeekCalendar } from '@/lib/circadian_scheduler';
 
+function extractJson(str) {
+  if (!str) return null;
+  let cleaned = str.trim();
+  const firstBrace = cleaned.indexOf('{');
+  const firstBracket = cleaned.indexOf('[');
+  
+  if (firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace)) {
+    const lastBracket = cleaned.lastIndexOf(']');
+    if (lastBracket !== -1) {
+      return cleaned.substring(firstBracket, lastBracket + 1);
+    }
+  } else if (firstBrace !== -1) {
+    const lastBrace = cleaned.lastIndexOf('}');
+    if (lastBrace !== -1) {
+      return cleaned.substring(firstBrace, lastBrace + 1);
+    }
+  }
+  return cleaned;
+}
+
 export default function OnboardingWizard({ profile, activateOptimalProtocol, setCalendar, saveProfile, onClose }) {
   const [step, setStep] = useState(1);
   const [onboardingMode, setOnboardingMode] = useState('circadian'); // 'circadian' | 'import'
+
+  const [isListening, setIsListening] = useState(false);
+  const [recognition, setRecognition] = useState(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const rec = new SpeechRecognition();
+        rec.continuous = true;
+        rec.interimResults = false;
+        rec.lang = 'de-DE';
+
+        rec.onresult = (event) => {
+          const transcript = Array.from(event.results)
+            .map(result => result[0])
+            .map(result => result.transcript)
+            .join('');
+          
+          if (onboardingMode === 'circadian') {
+            setNlpText(prev => prev + (prev ? ' ' : '') + transcript);
+          } else {
+            setImportText(prev => prev + (prev ? ' ' : '') + transcript);
+          }
+        };
+
+        rec.onerror = (event) => {
+          console.error("Speech recognition error:", event.error);
+          setIsListening(false);
+        };
+
+        rec.onend = () => {
+          setIsListening(false);
+        };
+
+        setRecognition(rec);
+      }
+    }
+  }, [onboardingMode]);
+
+  useEffect(() => {
+    if (isListening && recognition) {
+      recognition.stop();
+      setIsListening(false);
+    }
+  }, [step, onboardingMode]);
+
+  const toggleListening = () => {
+    if (!recognition) {
+      alert("Spracherkennung wird von deinem Browser nicht unterstützt.");
+      return;
+    }
+
+    if (isListening) {
+      recognition.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognition.start();
+        setIsListening(true);
+      } catch (err) {
+        console.error("Failed to start speech recognition:", err);
+      }
+    }
+  };
   
   // Step 1: Chronotype & Times
   const [chronotype, setChronotype] = useState(profile?.optimalWeek?.chronotype || 'balanced');
@@ -72,7 +157,8 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, set
         const data = await response.json();
         const content = data.choices?.[0]?.message?.content;
         if (content) {
-          const parsed = JSON.parse(content);
+          const jsonStr = extractJson(content);
+          const parsed = JSON.parse(jsonStr);
           if (Array.isArray(parsed)) {
             setLiabilities(prev => {
               const updated = [...prev];
@@ -174,7 +260,8 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, set
         const data = await response.json();
         const content = data.choices?.[0]?.message?.content;
         if (content) {
-          const parsed = JSON.parse(content);
+          const jsonStr = extractJson(content);
+          const parsed = JSON.parse(jsonStr);
           
           const today = new Date();
           const currentDayOfWeek = today.getDay();
@@ -217,15 +304,25 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, set
     e.preventDefault();
     if (!manualTitle.trim()) return;
     
-    const newLiab = {
-      id: `manual_${Date.now()}`,
-      title: manualTitle,
-      day: manualDay,
-      startTime: manualStart,
-      endTime: manualEnd
-    };
-    
-    setLiabilities(prev => [...prev, newLiab]);
+    if (manualDay === 'Jeden Tag') {
+      const newLiabs = daysList.map((day, idx) => ({
+        id: `manual_${Date.now()}_${idx}`,
+        title: manualTitle,
+        day: day,
+        startTime: manualStart,
+        endTime: manualEnd
+      }));
+      setLiabilities(prev => [...prev, ...newLiabs]);
+    } else {
+      const newLiab = {
+        id: `manual_${Date.now()}`,
+        title: manualTitle,
+        day: manualDay,
+        startTime: manualStart,
+        endTime: manualEnd
+      };
+      setLiabilities(prev => [...prev, newLiab]);
+    }
     setManualTitle('');
   };
 
@@ -268,6 +365,11 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, set
   return (
     <div className={styles.overlay}>
       <div className={styles.wizardCard}>
+        {onClose && (
+          <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Schließen">
+            ✕
+          </button>
+        )}
         <div className={styles.header}>
           <span className={styles.stepIndicator}>SCHRITT {step} von 4</span>
           <h2 className={styles.title}>
@@ -448,7 +550,18 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, set
                       value={nlpText}
                       onChange={e => setNlpText(e.target.value)}
                     />
-                    <div className={styles.nlpBtnRow}>
+                    <div className={styles.nlpBtnRow} style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                      {recognition ? (
+                        <button
+                          type="button"
+                          className={`${styles.micBtn} ${isListening ? styles.listening : ''}`}
+                          onClick={toggleListening}
+                        >
+                          {isListening ? '🛑 Aufnahme...' : '🎙️ Diktieren'}
+                        </button>
+                      ) : (
+                        <div />
+                      )}
                       <button 
                         type="button" 
                         className={`${styles.nextBtn} ${styles.parseBtn}`}
@@ -477,6 +590,7 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, set
                         value={manualDay}
                         onChange={e => setManualDay(e.target.value)}
                       >
+                        <option value="Jeden Tag">🔁 Jeden Tag</option>
                         {daysList.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
                       <input
@@ -533,7 +647,18 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, set
                       value={importText}
                       onChange={e => setImportText(e.target.value)}
                     />
-                    <div className={styles.nlpBtnRow}>
+                    <div className={styles.nlpBtnRow} style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                      {recognition ? (
+                        <button
+                          type="button"
+                          className={`${styles.micBtn} ${isListening ? styles.listening : ''}`}
+                          onClick={toggleListening}
+                        >
+                          {isListening ? '🛑 Aufnahme...' : '🎙️ Diktieren'}
+                        </button>
+                      ) : (
+                        <div />
+                      )}
                       <button
                         type="button"
                         className={`${styles.nextBtn} ${styles.primaryAction}`}

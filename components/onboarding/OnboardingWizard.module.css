@@ -24,6 +24,7 @@
 }
 
 .wizardCard {
+  position: relative;
   width: 90%;
   max-width: 680px;
   background: rgba(10, 14, 24, 0.78);
@@ -38,6 +39,32 @@
   -webkit-backdrop-filter: blur(45px) saturate(180%) !important;
   animation: scaleUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+.closeBtn {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-s);
+  color: var(--text2);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.closeBtn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: var(--red, #ef4444);
+  transform: scale(1.05);
+}
+
 
 :global([data-theme="light"]) .wizardCard {
   background: rgba(255, 255, 255, 0.88);
@@ -598,3 +625,45 @@
   overflow: hidden;
   white-space: nowrap;
 }
+
+.micBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-s);
+  color: var(--text2);
+  border-radius: 8px;
+  padding: 0.45rem 1rem;
+  font-size: 0.65rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+}
+
+.micBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  border-color: var(--text3);
+}
+
+.listening {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  color: #ff4d4d !important;
+  animation: pulseRed 1.5s infinite;
+}
+
+@keyframes pulseRed {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
