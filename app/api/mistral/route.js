@@ -672,24 +672,21 @@ async function runRestQuery(collectionId, fieldPath, value) {
   if (!projectId || !apiKey) return [];
 
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery?key=${apiKey}`;
-  
-  const payload = {
-    structuredQuery: {
-      from: [{ collectionId }],
-      where: {
-        fieldFilter: {
-          field: { fieldPath },
-          op: "EQUAL",
-          value: { stringValue: String(value) }
-        }
-      }
+  const webhookSecret = process.env.WEBHOOK_SECRET || "DEIN_WEBHOOK_SECRET_HIER";
+
+  let filter;
+  const baseFilter = {
+    fieldFilter: {
+      field: { fieldPath },
+      op: "EQUAL",
+      value: { stringValue: String(value) }
     }
   };
 
   // Handle special case for lookup by telegramId where type can be number or string
   if (collectionId === "users" && fieldPath === "profile.telegramId" && !isNaN(Number(value))) {
-    payload.structuredQuery.where.fieldFilter.op = "IN";
-    payload.structuredQuery.where.fieldFilter.value = {
+    baseFilter.fieldFilter.op = "IN";
+    baseFilter.fieldFilter.value = {
       arrayValue: {
         values: [
           { integerValue: String(value) },
@@ -698,6 +695,33 @@ async function runRestQuery(collectionId, fieldPath, value) {
       }
     };
   }
+
+  if (collectionId === "users") {
+    filter = {
+      compositeFilter: {
+        op: "AND",
+        filters: [
+          baseFilter,
+          {
+            fieldFilter: {
+              field: { fieldPath: "profile.tempSecret" },
+              op: "EQUAL",
+              value: { stringValue: webhookSecret }
+            }
+          }
+        ]
+      }
+    };
+  } else {
+    filter = baseFilter;
+  }
+
+  const payload = {
+    structuredQuery: {
+      from: [{ collectionId }],
+      where: filter
+    }
+  };
 
   const res = await fetch(url, {
     method: "POST",

@@ -177,17 +177,31 @@ async function restGetTelegramUser(telegramId) {
     structuredQuery: {
       from: [{ collectionId: "users" }],
       where: {
-        fieldFilter: {
-          field: { fieldPath: "profile.telegramId" },
-          op: "IN",
-          value: {
-            arrayValue: {
-              values: [
-                { integerValue: idStr },
-                { stringValue: idStr }
-              ]
+        compositeFilter: {
+          op: "AND",
+          filters: [
+            {
+              fieldFilter: {
+                field: { fieldPath: "profile.telegramId" },
+                op: "IN",
+                value: {
+                  arrayValue: {
+                    values: [
+                      { integerValue: idStr },
+                      { stringValue: idStr }
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              fieldFilter: {
+                field: { fieldPath: "profile.tempSecret" },
+                op: "EQUAL",
+                value: { stringValue: WEBHOOK_SECRET }
+              }
             }
-          }
+          ]
         }
       }
     }
