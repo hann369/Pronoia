@@ -667,3 +667,18 @@
   }
 }
 
+.disabledMic {
+  opacity: 0.4;
+  cursor: not-allowed !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.disabledMic:hover {
+  background: rgba(255, 255, 255, 0.02) !important;
+  color: var(--text2) !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+  transform: none !important;
+}
+
+

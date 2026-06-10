@@ -28,42 +28,58 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, set
 
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState(null);
+  const [sttSupported, setSttSupported] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     if (typeof window !== 'undefined') {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (SpeechRecognition) {
-        const rec = new SpeechRecognition();
-        rec.continuous = true;
-        rec.interimResults = false;
-        rec.lang = 'de-DE';
-
-        rec.onresult = (event) => {
-          const transcript = Array.from(event.results)
-            .map(result => result[0])
-            .map(result => result.transcript)
-            .join('');
-          
-          if (onboardingMode === 'circadian') {
-            setNlpText(prev => prev + (prev ? ' ' : '') + transcript);
-          } else {
-            setImportText(prev => prev + (prev ? ' ' : '') + transcript);
-          }
-        };
-
-        rec.onerror = (event) => {
-          console.error("Speech recognition error:", event.error);
-          setIsListening(false);
-        };
-
-        rec.onend = () => {
-          setIsListening(false);
-        };
-
-        setRecognition(rec);
+        setSttSupported(true);
       }
     }
-  }, [onboardingMode]);
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted || !sttSupported) return;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = new SpeechRecognition();
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.lang = 'de-DE';
+
+    rec.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map(result => result[0])
+        .map(result => result.transcript)
+        .join('');
+      
+      if (onboardingMode === 'circadian') {
+        setNlpText(prev => prev + (prev ? ' ' : '') + transcript);
+      } else {
+        setImportText(prev => prev + (prev ? ' ' : '') + transcript);
+      }
+    };
+
+    rec.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      setIsListening(false);
+    };
+
+    rec.onend = () => {
+      setIsListening(false);
+    };
+
+    setRecognition(rec);
+
+    return () => {
+      try {
+        rec.stop();
+      } catch (e) {}
+    };
+  }, [isMounted, sttSupported, onboardingMode]);
 
   useEffect(() => {
     if (isListening && recognition) {
@@ -73,7 +89,7 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, set
   }, [step, onboardingMode]);
 
   const toggleListening = () => {
-    if (!recognition) {
+    if (!sttSupported || !recognition) {
       alert("Spracherkennung wird von deinem Browser nicht unterstützt.");
       return;
     }
@@ -551,17 +567,18 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, set
                       onChange={e => setNlpText(e.target.value)}
                     />
                     <div className={styles.nlpBtnRow} style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                      {recognition ? (
+                      {isMounted && (
                         <button
                           type="button"
-                          className={`${styles.micBtn} ${isListening ? styles.listening : ''}`}
+                          className={`${styles.micBtn} ${isListening ? styles.listening : ''} ${!sttSupported ? styles.disabledMic : ''}`}
                           onClick={toggleListening}
+                          disabled={!sttSupported}
+                          title={!sttSupported ? "Spracherkennung wird von deinem Browser nicht unterstützt" : (isListening ? "Aufnahme stoppen" : "Diktieren starten")}
                         >
                           {isListening ? '🛑 Aufnahme...' : '🎙️ Diktieren'}
                         </button>
-                      ) : (
-                        <div />
                       )}
+                      {!isMounted && <div />}
                       <button 
                         type="button" 
                         className={`${styles.nextBtn} ${styles.parseBtn}`}
@@ -648,17 +665,18 @@ export default function OnboardingWizard({ profile, activateOptimalProtocol, set
                       onChange={e => setImportText(e.target.value)}
                     />
                     <div className={styles.nlpBtnRow} style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                      {recognition ? (
+                      {isMounted && (
                         <button
                           type="button"
-                          className={`${styles.micBtn} ${isListening ? styles.listening : ''}`}
+                          className={`${styles.micBtn} ${isListening ? styles.listening : ''} ${!sttSupported ? styles.disabledMic : ''}`}
                           onClick={toggleListening}
+                          disabled={!sttSupported}
+                          title={!sttSupported ? "Spracherkennung wird von deinem Browser nicht unterstützt" : (isListening ? "Aufnahme stoppen" : "Diktieren starten")}
                         >
                           {isListening ? '🛑 Aufnahme...' : '🎙️ Diktieren'}
                         </button>
-                      ) : (
-                        <div />
                       )}
+                      {!isMounted && <div />}
                       <button
                         type="button"
                         className={`${styles.nextBtn} ${styles.primaryAction}`}
