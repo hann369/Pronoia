@@ -1,167 +1,422 @@
 import { NextResponse } from 'next/server';
 
+// Helper: Extract ytInitialData JSON object from YouTube HTML
+function extractYtInitialData(html) {
+  const match = html.match(/ytInitialData\s*=\s*({.*?});/);
+  if (match) {
+    try {
+      return JSON.parse(match[1]);
+    } catch (e) {
+      // Ignore
+    }
+  }
+  
+  // Try with scripting tags
+  const scriptMatch = html.match(/<script[^>]*>[\s\S]*?ytInitialData\s*=\s*({[\s\S]*?});[\s\S]*?<\/script>/);
+  if (scriptMatch) {
+    try {
+      return JSON.parse(scriptMatch[1]);
+    } catch (e) {
+      // Ignore
+    }
+  }
+  
+  // Fallback substring matching
+  const startStr = 'ytInitialData = ';
+  const startIdx = html.indexOf(startStr);
+  if (startIdx !== -1) {
+    const subset = html.substring(startIdx + startStr.length);
+    let openBraces = 0;
+    let endIdx = -1;
+    for (let i = 0; i < subset.length; i++) {
+      if (subset[i] === '{') openBraces++;
+      else if (subset[i] === '}') {
+        openBraces--;
+        if (openBraces === 0) {
+          endIdx = i + 1;
+          break;
+        }
+      }
+    }
+    if (endIdx !== -1) {
+      try {
+        return JSON.parse(subset.substring(0, endIdx));
+      } catch (e) {
+        // Ignore
+      }
+    }
+  }
+  return null;
+}
+
+// Helper: Recursively search JSON object for videoRenderers
+function findVideoRenderers(obj, results = []) {
+  if (!obj || typeof obj !== 'object') return results;
+  
+  if (obj.videoRenderer) {
+    const r = obj.videoRenderer;
+    const videoId = r.videoId;
+    const title = r.title?.runs?.[0]?.text || r.title?.accessibility?.accessibilityData?.label || '';
+    const thumbnail = r.thumbnail?.thumbnails?.[0]?.url || '';
+    const viewsText = r.viewCountText?.simpleText || r.shortViewCountText?.simpleText || '';
+    const publishedText = r.publishedTimeText?.simpleText || '';
+    if (videoId) {
+      results.push({
+        videoId,
+        title,
+        thumbnail: thumbnail.startsWith('//') ? `https:${thumbnail}` : thumbnail,
+        viewsText,
+        publishedText,
+        videoUrl: `https://www.youtube.com/embed/${videoId}`,
+        watchUrl: `https://www.youtube.com/watch?v=${videoId}`
+      });
+    }
+  } else if (obj.gridVideoRenderer) {
+    const r = obj.gridVideoRenderer;
+    const videoId = r.videoId;
+    const title = r.title?.runs?.[0]?.text || r.title?.accessibility?.accessibilityData?.label || '';
+    const thumbnail = r.thumbnail?.thumbnails?.[0]?.url || '';
+    const viewsText = r.viewCountText?.simpleText || r.shortViewCountText?.simpleText || '';
+    const publishedText = r.publishedTimeText?.simpleText || '';
+    if (videoId) {
+      results.push({
+        videoId,
+        title,
+        thumbnail: thumbnail.startsWith('//') ? `https:${thumbnail}` : thumbnail,
+        viewsText,
+        publishedText,
+        videoUrl: `https://www.youtube.com/embed/${videoId}`,
+        watchUrl: `https://www.youtube.com/watch?v=${videoId}`
+      });
+    }
+  }
+  
+  for (const key of Object.keys(obj)) {
+    if (typeof obj[key] === 'object') {
+      findVideoRenderers(obj[key], results);
+    }
+  }
+  return results;
+}
+
+// Helper: Recursively search JSON object for channelRenderers
+function extractChannels(ytData) {
+  const channels = [];
+  try {
+    const findChannelRenderers = (obj, list = []) => {
+      if (!obj || typeof obj !== 'object') return list;
+      if (obj.channelRenderer) {
+        list.push(obj.channelRenderer);
+      }
+      for (const key of Object.keys(obj)) {
+        if (typeof obj[key] === 'object') {
+          findChannelRenderers(obj[key], list);
+        }
+      }
+      return list;
+    };
+    
+    const renderers = findChannelRenderers(ytData);
+    for (const r of renderers) {
+      const title = r.title?.simpleText || r.title?.runs?.[0]?.text || '';
+      const channelId = r.channelId;
+      const subCountText = r.subscriberCountText?.simpleText || r.subscriberCountText?.runs?.[0]?.text || '';
+      const videoCountText = r.videoCountText?.simpleText || '';
+      const thumbnail = r.thumbnail?.thumbnails?.[0]?.url || '';
+      const canonicalBaseUrl = r.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || '';
+      const verified = r.ownerBadges?.some(b => b.metadataBadgeRenderer?.style === 'BADGE_STYLE_TYPE_VERIFIED') || false;
+      
+      // Parse subscribers number (e.g. "1.2M subscribers" or "450K Abonnenten")
+      let subscribers = 0;
+      if (subCountText) {
+        const cleaned = subCountText.replace(/[.,\s]/g, '').replace(/&nbsp;/g, '');
+        const match = cleaned.match(/(\d+(?:\.\d+)?)(M|K|mio|tsd|mln|k)?/i);
+        if (match) {
+          let val = parseFloat(match[1]);
+          const suffix = match[2]?.toLowerCase();
+          if (suffix === 'm' || suffix === 'mio' || suffix === 'mln') val *= 1000000;
+          else if (suffix === 'k' || suffix === 'tsd') val *= 1000;
+          subscribers = val;
+        }
+      }
+      
+      if (channelId) {
+        channels.push({
+          title,
+          channelId,
+          handle: canonicalBaseUrl || `@${title.replace(/\s+/g, '')}`,
+          subscribers,
+          subscribersText: subCountText,
+          videoCountText,
+          thumbnail: thumbnail.startsWith('//') ? `https:${thumbnail}` : thumbnail,
+          verified
+        });
+      }
+    }
+  } catch (e) {
+    console.error("Error extracting channels:", e);
+  }
+  
+  // De-duplicate
+  const seen = new Set();
+  return channels.filter(c => {
+    if (seen.has(c.channelId)) return false;
+    seen.add(c.channelId);
+    return true;
+  });
+}
+
+// Helper: Score channel title against user search query
+function scoreChannel(channelTitle, queryText) {
+  const q = queryText.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+  const c = channelTitle.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+  
+  if (q === c) return 100;
+  if (c.includes(q) || q.includes(c)) return 80;
+  
+  // Word matching
+  const qWords = queryText.toLowerCase().split(/\s+/).filter(Boolean);
+  const cWords = channelTitle.toLowerCase().split(/\s+/).filter(Boolean);
+  let matches = 0;
+  for (const qw of qWords) {
+    if (cWords.includes(qw)) matches++;
+  }
+  
+  if (matches > 0) {
+    return (matches / Math.max(qWords.length, cWords.length)) * 70;
+  }
+  
+  return 0;
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
+    const channelId = searchParams.get('channelId');
     
-    if (!query) {
-      return NextResponse.json({ error: 'Missing search query (q)' }, { status: 400 });
-    }
-
-    // Decide search mode: keyword search (default) or channel mode (if input likely a creator/channel)
-    const normalize = (s='') => s.trim().replace(/[^0-9a-zA-Z\s@#_-]/g,'').toLowerCase();
-    const isShort = (s) => s.split(/\s+/).filter(Boolean).length <= 3;
-    const containsStopWords = (s) => /tutorial|how to|how|learn|guide|tips|review|news|tutorials|course|best|top/i.test(s);
-
-    const likelyChannelHeuristic = () => {
-      if (!query) return false;
-      const n = normalize(query);
-      if (!isShort(n)) return false;
-      if (containsStopWords(n)) return false;
-      if (/^@/.test(query.trim())) return true;
-      const words = query.trim().split(/\s+/).filter(Boolean);
-      const capitalized = words.filter(w => /[A-ZÄÖÜ]/.test(w[0] || '')).length;
-      if (capitalized >= Math.min(2, words.length)) return true;
-      return true;
-    };
-
-    const forbiddenIds = ['dQw4w9WgXcQ'];
-
-    const tryFetchChannelVideos = async (channelUrl) => {
-      try {
-        const videosUrl = channelUrl.endsWith('/') ? `${channelUrl}videos` : `${channelUrl}/videos`;
-        const res = await fetch(videosUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
-        });
-        if (!res.ok) return null;
-        const html = await res.text();
-        const videoIdRegex = /"videoId"\s*:\s*"([a-zA-Z0-9_-]{11})"/g;
-        const matches = [...html.matchAll(videoIdRegex)].map(m => m[1]).filter(Boolean).filter(id => !forbiddenIds.includes(id));
-        const unique = [...new Set(matches)];
-        if (unique.length === 0) return null;
-        return unique.slice(0,5);
-      } catch (e) {
-        return null;
-      }
-    };
-
-    // Attempt Channel Mode if heuristic suggests it
-    if (likelyChannelHeuristic()) {
-      try {
-        // Search DuckDuckGo for potential channel pages (more stable for scraping)
-        const ddgUrl = `https://html.duckduckgo.com/html/?q=site:youtube.com+${encodeURIComponent(query)}`;
-        const ddgResp = await fetch(ddgUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-        if (ddgResp.ok) {
-          const ddgHtml = await ddgResp.text();
-          const linkRegex = /https?:\/\/(?:www\.)?youtube\.com\/(channel\/[A-Za-z0-9_-]+|@[^\s"'<>\/]+)/g;
-          const candidates = [];
-          for (const m of ddgHtml.matchAll(linkRegex)) {
-            const path = m[1];
-            if (path.startsWith('channel/')) {
-              candidates.push(`https://www.youtube.com/${path}`);
-            } else if (path.startsWith('@')) {
-              candidates.push(`https://www.youtube.com/${path}`);
-            }
-          }
-
-          const uniqCandidates = [...new Set(candidates)];
-
-          for (const cand of uniqCandidates) {
-            const vids = await tryFetchChannelVideos(cand);
-            if (vids && vids.length > 0) {
-              const videoList = vids.map(id => ({ videoId: id, videoUrl: `https://www.youtube.com/embed/${id}`, watchUrl: `https://www.youtube.com/watch?v=${id}` }));
-              return NextResponse.json({
-                mode: 'channel',
-                channelUrl: cand,
-                videos: videoList
-              });
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('[YouTube Search] Channel detection failed:', e.message);
-      }
-      // If channel detection fails, fall through to keyword search
-    }
-
-    // --- KEYWORD SEARCH (existing logic, preserved) ---
-    const searchQuery = `${query} tutorial deliberate practice`;
-    let videoId = null;
-
-    // 1. Try YouTube results scraping
-    try {
-      const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
-      console.log(`[YouTube Search] Querying YouTube: "${searchQuery}"`);
-      const response = await fetch(url, {
+    // 1. Explicit Channel Fetch (by ID)
+    if (channelId) {
+      console.log(`[YouTube Search] Explicit channel videos request: channelId=${channelId}`);
+      const channelUrl = `https://www.youtube.com/channel/${channelId}/videos`;
+      const res = await fetch(channelUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
           'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
           'Cache-Control': 'no-cache'
         }
       });
-      if (response.ok) {
-        const html = await response.text();
-        const videoIdRegex = /"videoId"\s*:\s*"([a-zA-Z0-9_-]{11})"/g;
-        const matches = [...html.matchAll(videoIdRegex)];
-        for (const match of matches) {
-          const candidate = match[1];
-          if (candidate && !forbiddenIds.includes(candidate)) {
-            videoId = candidate;
-            break;
-          }
+      if (!res.ok) {
+        throw new Error(`YouTube API returned status ${res.status}`);
+      }
+      
+      const html = await res.text();
+      const ytData = extractYtInitialData(html);
+      if (!ytData) {
+        throw new Error("Could not extract ytInitialData from YouTube response");
+      }
+      
+      const videos = findVideoRenderers(ytData).slice(0, 5);
+      return NextResponse.json({
+        mode: 'channel',
+        channelId,
+        videos
+      });
+    }
+
+    if (!query) {
+      return NextResponse.json({ error: 'Missing search query (q)' }, { status: 400 });
+    }
+
+    const queryLower = query.toLowerCase().trim();
+    
+    // 2. Creator Search Heuristic: Run channel search
+    const channelSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}&sp=EgIQAg%253D%253D`;
+    console.log(`[YouTube Search] Searching channels for: "${query}"`);
+    
+    let channels = [];
+    try {
+      const res = await fetch(channelSearchUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+          'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7'
+        }
+      });
+      if (res.ok) {
+        const html = await res.text();
+        const ytData = extractYtInitialData(html);
+        if (ytData) {
+          channels = extractChannels(ytData);
         }
       }
     } catch (e) {
-      console.warn(`[YouTube Search] YouTube scraping failed, trying DuckDuckGo:`, e.message);
+      console.warn("[YouTube Search] Channel search failed, falling back to keywords:", e.message);
     }
 
-    // 2. Try DuckDuckGo scraping as fallback (more robust, doesn't block as easily)
-    if (!videoId) {
+    const topChannel = channels[0];
+    let isCreator = false;
+    let multipleMatches = [];
+    
+    if (topChannel) {
+      const score = scoreChannel(topChannel.title, query);
+      const subCount = topChannel.subscribers;
+      const isVerified = topChannel.verified;
+      
+      const stopWords = ['tutorial', 'how to', 'how', 'learn', 'guide', 'tips', 'review', 'news', 'course', 'best', 'top', 'vs', 'comparison', 'motivation', 'workout', 'music', 'asmr', 'lofi', 'podcast'];
+      const hasStopWord = stopWords.some(w => queryLower.includes(w));
+      
+      // Determine if creator query
+      if (queryLower.startsWith('@')) {
+        isCreator = true;
+      } else if (score >= 90) {
+        if (isVerified) {
+          isCreator = true;
+        } else if (subCount >= 10000) {
+          isCreator = true;
+        } else if (!hasStopWord && subCount >= 2000) {
+          isCreator = true;
+        }
+      } else if (score >= 70 && subCount >= 100000) {
+        isCreator = true;
+      }
+      
+      // Check for multiple close matches
+      if (isCreator) {
+        multipleMatches = channels.filter(c => {
+          const s = scoreChannel(c.title, query);
+          return s >= 85 && c.subscribers >= 50000;
+        });
+      }
+    }
+
+    // 3. Modus 2: Creator Mode activated
+    if (isCreator && topChannel) {
+      // If multiple close matches and user didn't specify via @handle, return selection
+      if (multipleMatches.length > 1 && !queryLower.startsWith('@')) {
+        return NextResponse.json({
+          mode: 'multiple_channels',
+          channels: multipleMatches
+        });
+      }
+      
+      // Fetch channel videos
       try {
-        const ddgUrl = `https://html.duckduckgo.com/html/?q=site:youtube.com+${encodeURIComponent(searchQuery)}`;
-        console.log(`[YouTube Search] Querying DuckDuckGo fallback: "${searchQuery}"`);
-        const ddgResponse = await fetch(ddgUrl, {
+        console.log(`[YouTube Search] Channel recognized: "${topChannel.title}" (ID: ${topChannel.channelId}). Fetching latest videos.`);
+        const channelVideosUrl = `https://www.youtube.com/channel/${topChannel.channelId}/videos`;
+        const vres = await fetch(channelVideosUrl, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+            'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Cache-Control': 'no-cache'
           }
+        });
+        if (vres.ok) {
+          const vhtml = await vres.text();
+          const vytData = extractYtInitialData(vhtml);
+          if (vytData) {
+            const videos = findVideoRenderers(vytData).slice(0, 5);
+            return NextResponse.json({
+              mode: 'channel',
+              channel: topChannel,
+              videos
+            });
+          }
+        }
+      } catch (err) {
+        console.error("[YouTube Search] Failed to fetch channel videos:", err);
+      }
+    }
+
+    // 4. Modus 1: Keyword Search (Default / Fallback)
+    console.log(`[YouTube Search] Keyword Search Mode for: "${query}"`);
+    let videos = [];
+    
+    // Search YouTube results
+    try {
+      const keywordSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+      const res = await fetch(keywordSearchUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+          'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7'
+        }
+      });
+      if (res.ok) {
+        const html = await res.text();
+        const ytData = extractYtInitialData(html);
+        if (ytData) {
+          videos = findVideoRenderers(ytData).slice(0, 10);
+        }
+      }
+    } catch (e) {
+      console.warn("[YouTube Search] Keyword search failed, trying DuckDuckGo fallback:", e.message);
+    }
+    
+    // DuckDuckGo fallback if no videos found
+    if (videos.length === 0) {
+      try {
+        const ddgUrl = `https://html.duckduckgo.com/html/?q=site:youtube.com+${encodeURIComponent(query)}`;
+        const ddgResponse = await fetch(ddgUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
         });
         if (ddgResponse.ok) {
           const html = await ddgResponse.text();
           const regex = /(?:youtube\.com\/watch\?v=|v%3D|v=)([a-zA-Z0-9_-]{11})/g;
-          const matches = [...html.matchAll(regex)];
-          for (const match of matches) {
-            const candidate = match[1];
-            if (candidate && !forbiddenIds.includes(candidate)) {
-              videoId = candidate;
-              break;
-            }
-          }
+          const matches = [...html.matchAll(regex)].map(m => m[1]).slice(0, 5);
+          videos = matches.map(id => ({
+            videoId: id,
+            title: query,
+            thumbnail: `https://img.youtube.com/vi/${id}/mqdefault.jpg`,
+            viewsText: '',
+            publishedText: '',
+            videoUrl: `https://www.youtube.com/embed/${id}`,
+            watchUrl: `https://www.youtube.com/watch?v=${id}`
+          }));
         }
       } catch (e) {
-        console.error(`[YouTube Search] DuckDuckGo scraping failed:`, e.message);
+        console.error("[YouTube Search] DDG scraping failed:", e);
       }
     }
 
-    if (!videoId) {
-      console.warn(`[YouTube Search] No video ID found for query: "${query}". Using study skills fallback.`);
-      videoId = '5eW6Eagr9XM'; // Marty Lobdell - Study Less Study Smart deliberate learning fallback
-    } else {
-      console.log(`[YouTube Search] Resolved query "${query}" to video: ${videoId}`);
+    // If still empty, return default learning fallback video
+    if (videos.length === 0) {
+      videos = [{
+        videoId: '5eW6Eagr9XM',
+        title: 'Marty Lobdell - Study Less Study Smart',
+        thumbnail: 'https://img.youtube.com/vi/5eW6Eagr9XM/mqdefault.jpg',
+        viewsText: '11M views',
+        publishedText: '11 years ago',
+        videoUrl: 'https://www.youtube.com/embed/5eW6Eagr9XM',
+        watchUrl: 'https://www.youtube.com/watch?v=5eW6Eagr9XM'
+      }];
+    }
+
+    // Uncertain Mode: Keyword search results + suggest channels
+    if (channels.length > 0) {
+      return NextResponse.json({
+        mode: 'uncertain',
+        videos,
+        suggestedChannels: channels.slice(0, 3)
+      });
     }
 
     return NextResponse.json({
       mode: 'keyword',
-      videoId,
-      videoUrl: `https://www.youtube.com/embed/${videoId}`
+      videos
     });
 
   } catch (error) {
     console.error('[YouTube Search API Error]:', error);
     return NextResponse.json({
-      videoId: '5eW6Eagr9XM',
-      videoUrl: 'https://www.youtube.com/embed/5eW6Eagr9XM',
-      error: error.message
+      error: error.message,
+      videos: [{
+        videoId: '5eW6Eagr9XM',
+        title: 'Marty Lobdell - Study Less Study Smart',
+        thumbnail: 'https://img.youtube.com/vi/5eW6Eagr9XM/mqdefault.jpg',
+        viewsText: '',
+        publishedText: '',
+        videoUrl: 'https://www.youtube.com/embed/5eW6Eagr9XM',
+        watchUrl: 'https://www.youtube.com/watch?v=5eW6Eagr9XM'
+      }]
     });
   }
 }

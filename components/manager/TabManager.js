@@ -1,6 +1,351 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styles from './TabManager.module.css';
 
+// ═══════════════════════════════════════════════════════════════════
+// CUSTOM INTERACTIVE SVG CHARTS FOR FINANCE TRACKER (No libraries)
+// ═══════════════════════════════════════════════════════════════════
+
+// 1. Line Chart: Cumulative Balance Trend
+function LineChart({ transactions }) {
+  const [hoveredIdx, setHoveredIdx] = useState(null);
+
+  // Sort chronological
+  const sorted = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+  let bal = 0;
+  const points = sorted.map(tx => {
+    if (tx.type === 'income') bal += tx.amount;
+    else bal -= tx.amount;
+    return { date: tx.date, balance: bal, amount: tx.amount, type: tx.type, category: tx.category };
+  });
+
+  if (points.length === 0) {
+    return (
+      <div className={styles.emptyChartState}>
+        <p>Noch keine Daten vorhanden. Füge Transaktionen hinzu, um den Verlauf zu sehen.</p>
+      </div>
+    );
+  }
+
+  const width = 500;
+  const height = 180;
+  const paddingLeft = 50;
+  const paddingRight = 20;
+  const paddingTop = 20;
+  const paddingBottom = 30;
+
+  const chartW = width - paddingLeft - paddingRight;
+  const chartH = height - paddingTop - paddingBottom;
+
+  const balances = points.map(p => p.balance);
+  const maxB = Math.max(...balances, 100);
+  const minB = Math.min(...balances, -100);
+  const range = maxB - minB || 1;
+
+  const getX = (idx) => {
+    if (points.length <= 1) return paddingLeft + chartW / 2;
+    return paddingLeft + (idx / (points.length - 1)) * chartW;
+  };
+
+  const getY = (val) => {
+    return paddingTop + chartH - ((val - minB) / range) * chartH;
+  };
+
+  let pathD = '';
+  let areaD = '';
+  points.forEach((p, idx) => {
+    const x = getX(idx);
+    const y = getY(p.balance);
+    if (idx === 0) {
+      pathD = `M ${x} ${y}`;
+      areaD = `M ${x} ${paddingTop + chartH} L ${x} ${y}`;
+    } else {
+      pathD += ` L ${x} ${y}`;
+      areaD += ` L ${x} ${y}`;
+    }
+  });
+  if (points.length > 0) {
+    areaD += ` L ${getX(points.length - 1)} ${paddingTop + chartH} Z`;
+  }
+
+  return (
+    <div style={{ position: 'relative', width: '100%' }}>
+      <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
+        <defs>
+          <linearGradient id="lineAreaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--theme-accent, #1a6aff)" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="var(--theme-accent, #1a6aff)" stopOpacity="0.0" />
+          </linearGradient>
+        </defs>
+
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((r) => {
+          const val = minB + r * range;
+          const y = getY(val);
+          return (
+            <g key={r}>
+              <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="var(--border)" strokeDasharray="3 4" strokeWidth="1" />
+              <text x={paddingLeft - 10} y={y + 3} fill="var(--text3)" fontSize="8" fontFamily="var(--font-mono)" textAnchor="end">
+                {Math.round(val)} €
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Areas & Path */}
+        <path d={areaD} fill="url(#lineAreaGrad)" />
+        <path d={pathD} fill="none" stroke="var(--theme-accent, #1a6aff)" strokeWidth="2.5" />
+
+        {/* Interactive Circles */}
+        {points.map((p, idx) => {
+          const x = getX(idx);
+          const y = getY(p.balance);
+          const isH = hoveredIdx === idx;
+          return (
+            <circle
+              key={idx}
+              cx={x}
+              cy={y}
+              r={isH ? 7 : 4}
+              fill={isH ? "var(--theme-accent, #1a6aff)" : "var(--bg-card)"}
+              stroke="var(--theme-accent, #1a6aff)"
+              strokeWidth="2.5"
+              style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
+              onMouseEnter={() => setHoveredIdx(idx)}
+              onMouseLeave={() => setHoveredIdx(null)}
+            />
+          );
+        })}
+      </svg>
+
+      {/* Tooltip */}
+      {hoveredIdx !== null && points[hoveredIdx] && (
+        <div
+          className={styles.chartTooltip}
+          style={{
+            position: 'absolute',
+            left: `${(getX(hoveredIdx) / width) * 100}%`,
+            top: `${getY(points[hoveredIdx].balance) - 55}px`,
+            transform: 'translateX(-50%)',
+            zIndex: 10,
+            pointerEvents: 'none'
+          }}
+        >
+          <div className={styles.tooltipDate}>{points[hoveredIdx].date}</div>
+          <div className={styles.tooltipBalance}>
+            Saldo: <strong>{points[hoveredIdx].balance.toFixed(1)} €</strong>
+          </div>
+          <div className={styles.tooltipTx} style={{ color: points[hoveredIdx].type === 'income' ? '#00c48c' : '#ff4d4d' }}>
+            {points[hoveredIdx].type === 'income' ? '+' : '-'}{points[hoveredIdx].amount} € ({points[hoveredIdx].category})
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 2. Bar Chart: Category totals
+function BarChart({ data, total }) {
+  const [hoveredIdx, setHoveredIdx] = useState(null);
+
+  if (data.length === 0) {
+    return (
+      <div className={styles.emptyChartState}>
+        <p>Keine Transaktionen für diese Auswertung gefunden.</p>
+      </div>
+    );
+  }
+
+  const width = 500;
+  const height = 180;
+  const paddingLeft = 50;
+  const paddingRight = 20;
+  const paddingTop = 20;
+  const paddingBottom = 30;
+
+  const chartW = width - paddingLeft - paddingRight;
+  const chartH = height - paddingTop - paddingBottom;
+
+  const maxVal = Math.max(...data.map(d => d.value), 50);
+
+  const getX = (idx) => {
+    const space = chartW / data.length;
+    return paddingLeft + idx * space + space / 2;
+  };
+
+  const colors = ['#1a6aff', '#00c48c', '#f5a623', '#ff4d4d', '#6c5ce7', '#e17055', '#00cec9', '#fd79a8'];
+
+  return (
+    <div style={{ position: 'relative', width: '100%' }}>
+      <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((r) => {
+          const val = r * maxVal;
+          const y = paddingTop + chartH - r * chartH;
+          return (
+            <g key={r}>
+              <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="var(--border)" strokeDasharray="3 4" strokeWidth="1" />
+              <text x={paddingLeft - 10} y={y + 3} fill="var(--text3)" fontSize="8" fontFamily="var(--font-mono)" textAnchor="end">
+                {Math.round(val)} €
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Bars */}
+        {data.map((item, idx) => {
+          const x = getX(idx);
+          const barW = Math.min(26, chartW / data.length - 12);
+          const barH = (item.value / maxVal) * chartH;
+          const y = paddingTop + chartH - barH;
+          const isH = hoveredIdx === idx;
+          const color = colors[idx % colors.length];
+
+          return (
+            <g key={item.category}>
+              <rect
+                x={x - barW / 2}
+                y={y}
+                width={barW}
+                height={Math.max(0, barH)}
+                rx="4"
+                fill={color}
+                opacity={hoveredIdx === null || isH ? 0.85 : 0.5}
+                style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                onMouseEnter={() => setHoveredIdx(idx)}
+                onMouseLeave={() => setHoveredIdx(null)}
+              />
+              <text x={x} y={paddingTop + chartH + 13} fill="var(--text2)" fontSize="8" fontFamily="var(--font-mono)" textAnchor="middle">
+                {item.category.substring(0, 6)}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Tooltip */}
+      {hoveredIdx !== null && data[hoveredIdx] && (
+        <div
+          className={styles.chartTooltip}
+          style={{
+            position: 'absolute',
+            left: `${(getX(hoveredIdx) / width) * 100}%`,
+            top: `${paddingTop + chartH - (data[hoveredIdx].value / maxVal) * chartH - 45}px`,
+            transform: 'translateX(-50%)',
+            zIndex: 10,
+            pointerEvents: 'none'
+          }}
+        >
+          <div className={styles.tooltipDate}>{data[hoveredIdx].category}</div>
+          <div className={styles.tooltipBalance}>
+            Gesamt: <strong>{data[hoveredIdx].value.toFixed(1)} €</strong>
+          </div>
+          <div className={styles.tooltipTx}>
+            {((data[hoveredIdx].value / (total || 1)) * 100).toFixed(1)}% des Gesamtbetrags
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 3. Doughnut Chart: Split circular percentages
+function DoughnutChart({ data, total }) {
+  const [hoveredIdx, setHoveredIdx] = useState(null);
+
+  if (data.length === 0) {
+    return (
+      <div className={styles.emptyChartState}>
+        <p>Keine Transaktionen für diese Auswertung gefunden.</p>
+      </div>
+    );
+  }
+
+  const radius = 50;
+  const circ = 2 * Math.PI * radius; // ~314.16
+  const centerX = 80;
+  const centerY = 80;
+  let accumulatedPercent = 0;
+
+  const colors = ['#1a6aff', '#00c48c', '#f5a623', '#ff4d4d', '#6c5ce7', '#e17055', '#00cec9', '#fd79a8'];
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2rem', flexWrap: 'wrap' }}>
+      <svg width="160" height="160" viewBox="0 0 160 160" style={{ overflow: 'visible' }}>
+        <g transform="rotate(-90 80 80)">
+          {data.map((item, idx) => {
+            const percent = total > 0 ? item.value / total : 0;
+            const strokeL = percent * circ;
+            const rotation = accumulatedPercent * 360;
+            accumulatedPercent += percent;
+            const color = colors[idx % colors.length];
+            const isH = hoveredIdx === idx;
+
+            return (
+              <circle
+                key={item.category}
+                cx={centerX}
+                cy={centerY}
+                r={radius}
+                fill="transparent"
+                stroke={color}
+                strokeWidth={isH ? 16 : 12}
+                strokeDasharray={`${strokeL} ${circ}`}
+                strokeDashoffset={0}
+                transform={`rotate(${rotation} ${centerX} ${centerY})`}
+                style={{
+                  transition: 'stroke-width 0.2s ease, filter 0.2s ease',
+                  cursor: 'pointer',
+                  filter: isH ? `drop-shadow(0 0 5px ${color})` : 'none'
+                }}
+                onMouseEnter={() => setHoveredIdx(idx)}
+                onMouseLeave={() => setHoveredIdx(null)}
+              />
+            );
+          })}
+          {/* Central hole for glassmorphism */}
+          <circle cx={centerX} cy={centerY} r={38} fill="var(--bg-card)" style={{ backdropFilter: 'blur(10px)' }} />
+        </g>
+      </svg>
+
+      {/* Legend */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', minWidth: '180px' }}>
+        {data.map((item, idx) => {
+          const color = colors[idx % colors.length];
+          const percent = total > 0 ? ((item.value / total) * 100).toFixed(1) : 0;
+          const isH = hoveredIdx === idx;
+
+          return (
+            <div
+              key={item.category}
+              onMouseEnter={() => setHoveredIdx(idx)}
+              onMouseLeave={() => setHoveredIdx(null)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                cursor: 'pointer',
+                opacity: hoveredIdx === null || isH ? 1 : 0.5,
+                transition: 'opacity 0.2s ease',
+                fontSize: '0.75rem',
+                fontFamily: 'var(--font-mono)'
+              }}
+            >
+              <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: color, display: 'inline-block' }} />
+              <span style={{ color: 'var(--text)' }}>{item.category}:</span>
+              <strong style={{ marginLeft: 'auto', color: 'var(--text2)' }}>
+                {item.value.toFixed(1)} € ({percent}%)
+              </strong>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MAIN TAB MANAGER COMPONENT
+// ═══════════════════════════════════════════════════════════════════
 export default function TabManager({
   profile,
   saveProfile,
@@ -12,7 +357,7 @@ export default function TabManager({
   setManagerHistory,
   setAgentMsg
 }) {
-  const [activeSubTab, setActiveSubTab] = useState('command'); // 'command' | 'links' | 'research' | 'focus' | 'notes'
+  const [activeSubTab, setActiveSubTab] = useState('command'); // 'command' | 'links' | 'research' | 'focus' | 'notes' | 'finance'
 
   // Settings & Mappings state
   const [pattern, setPattern] = useState('');
@@ -27,6 +372,16 @@ export default function TabManager({
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisStep, setAnalysisStep] = useState(0);
   const [filterCategory, setFilterCategory] = useState('ALL');
+  const [playingVideoId, setPlayingVideoId] = useState(null);
+
+  // Finance state
+  const [finAmount, setFinAmount] = useState('');
+  const [finType, setFinType] = useState('expense'); // 'income' | 'expense'
+  const [finCategory, setFinCategory] = useState('Food');
+  const [finDate, setFinDate] = useState(new Date().toISOString().substring(0, 10));
+  const [finDesc, setFinDesc] = useState('');
+  const [selectedChartType, setSelectedChartType] = useState('line'); // 'line' | 'bar' | 'doughnut'
+  const [doughnutFocusType, setDoughnutFocusType] = useState('expense');
 
   // Focus Mode state
   const [focusTimeLeft, setFocusTimeLeft] = useState(1500); // 25 min in seconds
@@ -37,19 +392,27 @@ export default function TabManager({
   // Quick Notes state
   const [newNote, setNewNote] = useState('');
 
+  // Reset video player when active research target changes
+  useEffect(() => {
+    setPlayingVideoId(null);
+  }, [selectedResearch]);
+
   // Extract config with fallbacks
   const config = profile?.managerConfig || {
     autoOpenEnabled: true,
     mappings: [],
     research: [],
     notes: [],
-    completedSessions: 0
+    completedSessions: 0,
+    finance: { transactions: [] }
   };
   const mappings = config.mappings || [];
   const autoOpenEnabled = config.autoOpenEnabled ?? true;
   const researchList = config.research || [];
   const notesList = config.notes || [];
   const completedSessions = config.completedSessions || 0;
+  const financeConfig = config.finance || { transactions: [] };
+  const transactions = financeConfig.transactions || [];
 
   // Active Block details
   const activeBlock = blocks[blockIdx] || { title: 'Kein aktiver Block', start: '00:00', end: '00:00' };
@@ -60,6 +423,19 @@ export default function TabManager({
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Adjust categories automatically when type changes
+  const expenseCategories = ['Food', 'Living', 'Health/Bio', 'Tech', 'Travel', 'Other'];
+  const incomeCategories = ['Freelance', 'Salary', 'Investments', 'Other'];
+
+  const handleTypeChange = (type) => {
+    setFinType(type);
+    if (type === 'income') {
+      setFinCategory(incomeCategories[0]);
+    } else {
+      setFinCategory(expenseCategories[0]);
+    }
   };
 
   // Auto-Open toggler
@@ -134,7 +510,8 @@ export default function TabManager({
       url: formattedUrl,
       notes: researchNotes.trim(),
       date: new Date().toLocaleDateString('de-DE'),
-      analysisReport: null
+      analysisReport: null,
+      analysisData: null
     };
 
     const updated = {
@@ -162,105 +539,137 @@ export default function TabManager({
     setAgentMsg('Forschungsziel gelöscht.');
   };
 
-  // Outlier analysis simulation matching premium UX
+  // Outlier analysis loading sequence steps
   const analysisSteps = [
     'Initialisiere Outlier-Crawler-Engine...',
     'Analysiere historische Durchschnittswerte & Benchmarks...',
-    'Scanne YouTube-Videos & Content-Katalog nach statistischen Anomalien...',
+    'Scanne YouTube-Videos & Content-Katalog...',
     'Analysiere Titel-Hooks, CTR-Treiber und Thumbnail-Konzepte...',
-    'Synthetisiere strategische Erkenntnisse & Actionable Insights...'
+    'Synthetisiere strategische Erkenntnisse...'
   ];
 
-  const runOutlierAnalysis = (item) => {
+  // Upgraded runOutlierAnalysis: calls real search API and populates rich data
+  const runOutlierAnalysis = async (item, targetChannelId = null) => {
     if (!item) return;
     setAnalysisLoading(true);
     setAnalysisStep(0);
-    
-    // Smooth multi-step loading sequence
-    const interval = setInterval(() => {
-      setAnalysisStep((prev) => {
-        if (prev < analysisSteps.length - 1) {
-          return prev + 1;
-        } else {
-          clearInterval(interval);
-          generateAnalysisReport(item);
-          return prev;
+    setAgentMsg(`Starte Outlier-Recherche für "${item.title}"...`);
+
+    try {
+      setAnalysisStep(1);
+      await new Promise(r => setTimeout(r, 600));
+      setAnalysisStep(2);
+      await new Promise(r => setTimeout(r, 600));
+      setAnalysisStep(3);
+      
+      let queryUrl = `/api/youtube-search?q=${encodeURIComponent(item.title)}`;
+      if (targetChannelId) {
+        queryUrl = `/api/youtube-search?channelId=${targetChannelId}`;
+      } else if (item.url) {
+        const handleMatch = item.url.match(/youtube\.com\/(@[a-zA-Z0-9_-]+)/);
+        const idMatch = item.url.match(/youtube\.com\/channel\/([a-zA-Z0-9_-]+)/);
+        if (idMatch) {
+          queryUrl = `/api/youtube-search?channelId=${idMatch[1]}`;
+        } else if (handleMatch) {
+          queryUrl = `/api/youtube-search?q=${encodeURIComponent(handleMatch[1])}`;
         }
-      });
-    }, 1200);
-  };
+      }
 
-  const generateAnalysisReport = (item) => {
-    // Highly contextual and detailed reports depending on title/category
-    let report = '';
-    const title = item.title.toLowerCase();
+      const res = await fetch(queryUrl);
+      if (!res.ok) {
+        throw new Error(`YouTube API returned HTTP status ${res.status}`);
+      }
+      
+      const searchData = await res.json();
+      setAnalysisStep(4);
+      await new Promise(r => setTimeout(r, 400));
 
-    if (item.category === 'YouTube') {
-      report = `### 🚀 OUTLIER ANALYSE: YOUTUBE PERFORMANCE FÜR "${item.title}"
-**Kanal-Fokus:** Reichweiten-Skalierung & Klickraten-Maximierung
+      if (searchData.error) {
+        throw new Error(searchData.error);
+      }
+
+      let report = '';
+      if (searchData.mode === 'channel') {
+        const chan = searchData.channel || { title: item.title, subscribersText: 'N/A' };
+        const videoListText = searchData.videos.map((v, idx) => 
+          `${idx + 1}. **${v.title}**\n   - Aufrufe: ${v.viewsText || 'N/A'} | Veröffentlicht: ${v.publishedText || 'N/A'}\n   - Link: ${v.watchUrl}`
+        ).join('\n');
+        
+        report = `### 🚀 OUTLIER ANALYSE: KANAL PERFORMANCE FÜR "${chan.title}"
+**Abonnenten:** ${chan.subscribersText || 'N/A'} ${chan.verified ? '✓ (Verifiziert)' : ''}
+**Kanal-URL:** https://youtube.com/${chan.handle || ''}
 **Analyse-Datum:** ${new Date().toLocaleDateString('de-DE')}
 
-#### 1. Die Top-Outlier Videos (Performanz > 300% über Durchschnitt):
-- **Titel 1:** "Warum fast jeder bei ${item.title} scheitert (Und wie du es verhinderst)"
-  - *Views:* 840K (Normaler Schnitt: 120K) — **7.0x Outlier**
-  - *Hook:* Verlustaversion & Identifikation eines kollektiven Fehlers.
-- **Titel 2:** "Ich habe 30 Tage lang ${item.title} praktiziert: Das ehrliche Ergebnis"
-  - *Views:* 550K (Normaler Schnitt: 120K) — **4.5x Outlier**
-  - *Hook:* Transformationsexperiment & Authentizitäts-Garantie.
+#### Die 5 neuesten Videos des Kanals (chronologisch geordnet):
+${videoListText}
 
-#### 2. Kognitive Trigger & Hook-Muster:
-- **Verlustangst & Falschannahmen:** Videos, die etablierte Mythen angreifen ("Der größte Fehler bei..."), erzielen eine um 45% höhere Klickrate (CTR).
-- **Gamification & Zeitfenster:** Klare Framings wie "In 10 Minuten" oder "30-Tage Challenge" senken die Einstiegsbarriere drastisch.
+#### Content- & Nischen-Erkenntnisse:
+- Kanäle wie "${chan.title}" skalieren durch konsistente Branding-Muster und starke visuelle CTR-Driver.
+- Die neuesten Uploads zeigen die aktuelle Themen-Ausrichtung des Creators. Analysiere Titel-Formate und Upload-Zyklen.`;
+      } else if (searchData.mode === 'keyword' || searchData.mode === 'uncertain') {
+        const videoListText = searchData.videos.slice(0, 5).map((v, idx) => 
+          `${idx + 1}. **${v.title}**\n   - Aufrufe: ${v.viewsText || 'N/A'} | Veröffentlicht: ${v.publishedText || 'N/A'}\n   - Link: ${v.watchUrl}`
+        ).join('\n');
 
-#### 3. Konkrete Content-Empfehlungen:
-1. Erstelle eine dreiteilige Miniserie, die ein spezifisches Problem von Grund auf entmystifiziert.
-2. Verwende kontrastreiche Thumbnails mit maximal 3 Wörtern Text und Fokus auf ein Gesicht/Vorher-Nachher-Vergleich.`;
-    } else if (item.category === 'Skill') {
-      report = `### 🧠 OUTLIER ANALYSE: SKILL ACQUISITION FÜR "${item.title}"
-**Fokus:** Ultraschnelles Lernen & 80/20-Regel (Pareto-Prinzip)
-**Analyse-Datum:** ${new Date().toLocaleDateString('de-DE')}
-
-#### 1. Outlier-Lernmethoden (Maximaler Output in Rekordzeit):
-- **Dekonstruktion des Skills:** Zerlege "${item.title}" in die 4 wichtigsten Kernkompetenzen. Ignoriere die restlichen 80% des theoretischen Überbaus.
-- **Immediate Feedback Loop (Direkte Feedbackschleife):** Praktiziere den Skill vom 1. Tag an in realen Szenarien anstatt nur Tutorials zu schauen.
-
-#### 2. Die 20% Kernbereiche für 80% Ergebnisse:
-- **Schlüsselbereich A:** Praktische Anwendung und Problemlösung.
-- **Schlüsselbereich B:** Analyse erfolgreicher Best Practices von Experten.
-
-#### 3. Action-Plan (Täglicher Takt):
-1. **Minuten 1-20:** Aktive Praxis (Schreiben, Gestalten, Sprechen).
-2. **Minuten 21-30:** Fehleranalyse & gezielte Korrektur.`;
-    } else {
-      report = `### 📊 STRATEGISCHE COMPANION OUTLIER ANALYSE FÜR "${item.title}"
+        report = `### 🔍 OUTLIER THEMEN-ANALYSE FÜR "${item.title}"
 **Kategorie:** ${item.category}
 **Analyse-Datum:** ${new Date().toLocaleDateString('de-DE')}
 
-#### 1. Outlier-Muster & Erfolgsfaktoren:
-- Starke Nischen-Positionierung mit klarem Alleinstellungsmerkmal (USP).
-- Konsequenter Fokus auf User Experience und schnellen Mehrwert.
+#### Relevante Top-Videos in dieser Nische:
+${videoListText}
 
-#### 2. Empfohlene strategische Schritte:
-- Identifiziere die Top 3 Schwachstellen deiner Mitbewerber und optimiere diese in deinem Konzept.
-- Nutze Direct-Response-Marketing und authentisches Storytelling.`;
-    }
-
-    const updatedResearch = researchList.map((r) => {
-      if (r.id === item.id) {
-        return { ...r, analysisReport: report };
+#### Nischen-Outlier-Metriken:
+- Suchbegriffe wie "${item.title}" besitzen hohe organische Suchanfragen.
+- Videos mit exakter Keyword-Platzierung am Titelanfang erzielen signifikant höhere organische Einstiegs-CTR.`;
+      } else if (searchData.mode === 'multiple_channels') {
+        report = `### ⚠️ MEHRERE KANÄLE GEFUNDEN FÜR "${item.title}"
+Bitte wähle den gewünschten Kanal in der Auswahlliste aus, um die detaillierte Outlier-Analyse zu starten.`;
       }
-      return r;
-    });
 
-    const updated = {
-      ...config,
-      research: updatedResearch
-    };
+      const updatedResearch = researchList.map((r) => {
+        if (r.id === item.id) {
+          return { ...r, analysisReport: report, analysisData: searchData };
+        }
+        return r;
+      });
 
-    saveProfile({ managerConfig: updated });
-    setSelectedResearch({ ...item, analysisReport: report });
-    setAnalysisLoading(false);
-    setAgentMsg(`Outlier Analyse für "${item.title}" abgeschlossen.`);
+      const updated = {
+        ...config,
+        research: updatedResearch
+      };
+
+      saveProfile({ managerConfig: updated });
+      const updatedItem = { ...item, analysisReport: report, analysisData: searchData };
+      setSelectedResearch(updatedItem);
+      setAnalysisLoading(false);
+      setAgentMsg(`Outlier Analyse für "${item.title}" erfolgreich abgeschlossen.`);
+
+    } catch (err) {
+      console.error("[YouTube Search] Analysis failed:", err);
+      const errorReport = `### ❌ FEHLER BEI DER ANALYSE FÜR "${item.title}"
+Es ist ein Fehler bei der Kontaktaufnahme mit den YouTube/Web-Diensten aufgetreten.
+
+**Details:** ${err.message || 'Rate-Limit erreicht oder Netzwerkfehler.'}
+
+Bitte versuche es in wenigen Minuten erneut.`;
+
+      const updatedResearch = researchList.map((r) => {
+        if (r.id === item.id) {
+          return { ...r, analysisReport: errorReport, analysisData: { mode: 'error', error: err.message } };
+        }
+        return r;
+      });
+
+      const updated = {
+        ...config,
+        research: updatedResearch
+      };
+
+      saveProfile({ managerConfig: updated });
+      setSelectedResearch({ ...item, analysisReport: errorReport, analysisData: { mode: 'error', error: err.message } });
+      setAnalysisLoading(false);
+      setAgentMsg(`Fehler bei der Outlier Analyse: ${err.message}`);
+    }
   };
 
   // --- Focus Mode Timer ---
@@ -347,6 +756,66 @@ export default function TabManager({
     setAgentMsg('Notiz entfernt.');
   };
 
+  // --- Finance Log Handlers ---
+  const handleAddTransaction = (e) => {
+    e.preventDefault();
+    if (!finAmount || isNaN(parseFloat(finAmount)) || parseFloat(finAmount) <= 0) return;
+
+    const newTx = {
+      id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      amount: parseFloat(finAmount),
+      type: finType,
+      category: finCategory,
+      date: finDate || new Date().toISOString().substring(0, 10),
+      description: finDesc.trim()
+    };
+
+    const updated = {
+      ...config,
+      finance: {
+        ...financeConfig,
+        transactions: [newTx, ...transactions]
+      }
+    };
+
+    saveProfile({ managerConfig: updated });
+    setFinAmount('');
+    setFinDesc('');
+    setAgentMsg(`Transaktion über ${newTx.amount.toFixed(2)} € hinzugefügt.`);
+  };
+
+  const handleDeleteTransaction = (id) => {
+    const updated = {
+      ...config,
+      finance: {
+        ...financeConfig,
+        transactions: transactions.filter(tx => tx.id !== id)
+      }
+    };
+    saveProfile({ managerConfig: updated });
+    setAgentMsg('Transaktion gelöscht.');
+  };
+
+  // Grouped metrics for finance panel
+  const totalIncome = transactions.filter(t => t.type === 'income').reduce((acc, c) => acc + c.amount, 0);
+  const totalExpense = transactions.filter(t => t.type === 'expense').reduce((acc, c) => acc + c.amount, 0);
+  const netBalance = totalIncome - totalExpense;
+
+  // Aggregate category values for selected type (income/expense)
+  const categoryTotalsMap = {};
+  transactions
+    .filter(t => t.type === doughnutFocusType)
+    .forEach(t => {
+      categoryTotalsMap[t.category] = (categoryTotalsMap[t.category] || 0) + t.amount;
+    });
+
+  const chartCategoryData = Object.keys(categoryTotalsMap).map(cat => ({
+    category: cat,
+    value: categoryTotalsMap[cat]
+  })).sort((a, b) => b.value - a.value);
+
+  const doughnutTotal = chartCategoryData.reduce((acc, c) => acc + c.value, 0);
+
   // Filter research targets
   const filteredResearchList = researchList.filter((r) => {
     if (filterCategory === 'ALL') return true;
@@ -406,6 +875,13 @@ export default function TabManager({
           className={`${styles.subNavTab} ${activeSubTab === 'research' ? styles.subNavTabActive : ''}`}
         >
           <span className={styles.tabEmoji}>📊</span>Outlier Research
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('finance')}
+          className={`${styles.subNavTab} ${activeSubTab === 'finance' ? styles.subNavTabActive : ''}`}
+        >
+          <span className={styles.tabEmoji}>💰</span>Finanzen
         </button>
         <button
           type="button"
@@ -663,7 +1139,7 @@ export default function TabManager({
 
             {/* List and report section */}
             <div className={styles.card}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <h3 className={styles.cardTitle}>🎯 Gespeicherte Forschungsziele ({filteredResearchList.length})</h3>
                 <div className={styles.categoryTabs}>
                   {['ALL', 'YOUTUBE', 'SKILL', 'COMPETITOR', 'OTHER'].map((cat) => (
@@ -728,11 +1204,11 @@ export default function TabManager({
               </div>
             </div>
 
-            {/* Analysis report viewer */}
+            {/* UPGRADED Analysis report viewer with rich data dashboards & selector */}
             {selectedResearch && (
               <div className={styles.card} style={{ borderLeft: '4px solid var(--theme-accent, #1a6aff)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 className={styles.cardTitle}>📝 Analysebericht: {selectedResearch.title}</h3>
+                  <h3 className={styles.cardTitle}>📝 Analyse: {selectedResearch.title}</h3>
                   <button
                     type="button"
                     className={styles.deleteBtn}
@@ -742,28 +1218,152 @@ export default function TabManager({
                   </button>
                 </div>
 
-                {analysisLoading && selectedResearch.id === selectedResearch?.id ? (
+                {analysisLoading ? (
                   <div style={{ padding: '2rem 0', textSelf: 'center', textAlign: 'center' }}>
                     <div className={styles.spinner} />
                     <p style={{ marginTop: '1rem', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--theme-accent, #1a6aff)' }}>
                       {analysisSteps[analysisStep]}
                     </p>
                   </div>
-                ) : selectedResearch.analysisReport ? (
-                  <div
-                    style={{
-                      fontSize: '0.82rem',
-                      lineHeight: '1.6',
-                      color: 'var(--text)',
-                      whiteSpace: 'pre-line',
-                      fontFamily: 'var(--font-sans)',
-                      background: 'rgba(255, 255, 255, 0.01)',
-                      padding: '1.25rem',
-                      borderRadius: '10px',
-                      border: '1px solid var(--border)'
-                    }}
-                  >
-                    {selectedResearch.analysisReport}
+                ) : selectedResearch.analysisData ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    
+                    {/* Inline video player */}
+                    {playingVideoId && (
+                      <div className={styles.videoPlayerContainer}>
+                        <iframe
+                          src={`https://www.youtube.com/embed/${playingVideoId}?autoplay=1`}
+                          title="YouTube video player"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                          className={styles.videoPlayerIframe}
+                        />
+                        <button className={styles.videoPlayerClose} onClick={() => setPlayingVideoId(null)}>✕</button>
+                      </div>
+                    )}
+
+                    {/* Mode 2: Multi-channels found */}
+                    {selectedResearch.analysisData.mode === 'multiple_channels' && (
+                      <div className={styles.pickerContainer}>
+                        <h4 className={styles.pickerTitle}>Mehrere Kanäle gefunden. Welchen meintest du?</h4>
+                        <div className={styles.pickerGrid}>
+                          {selectedResearch.analysisData.channels.map(chan => (
+                            <div key={chan.channelId} className={styles.pickerCard}>
+                              <img src={chan.thumbnail || '/avatar-placeholder.png'} className={styles.pickerAvatar} alt={chan.title} />
+                              <div className={styles.pickerInfo}>
+                                <div className={styles.pickerName}>
+                                  {chan.title} {chan.verified && <span className={styles.verifiedCheck}>✓</span>}
+                                </div>
+                                <div className={styles.pickerMeta}>{chan.subscribersText || 'Keine Angabe'}</div>
+                              </div>
+                              <button
+                                className={styles.pickerSelectBtn}
+                                onClick={() => runOutlierAnalysis(selectedResearch, chan.channelId)}
+                              >
+                                Auswählen
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mode 2: Single Channel Dashboard */}
+                    {selectedResearch.analysisData.mode === 'channel' && (
+                      <div className={styles.channelDashboard}>
+                        <div className={styles.channelHeaderCard}>
+                          {selectedResearch.analysisData.channel && (
+                            <>
+                              <img src={selectedResearch.analysisData.channel.thumbnail || '/avatar-placeholder.png'} className={styles.channelAvatar} alt="" />
+                              <div className={styles.channelInfo}>
+                                <h4 className={styles.channelName}>
+                                  {selectedResearch.analysisData.channel.title}
+                                  {selectedResearch.analysisData.channel.verified && <span className={styles.verifiedBadge} title="Verifiziert">✓</span>}
+                                </h4>
+                                <div className={styles.channelSubscribers}>{selectedResearch.analysisData.channel.subscribersText}</div>
+                                <a href={`https://youtube.com/${selectedResearch.analysisData.channel.handle}`} target="_blank" rel="noopener noreferrer" className={styles.channelLink}>
+                                  Kanal ansehen ↗
+                                </a>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        <h4 className={styles.sectionHeader}>Die 5 neuesten Videos des Kanals:</h4>
+                        <div className={styles.videoGrid}>
+                          {selectedResearch.analysisData.videos && selectedResearch.analysisData.videos.map(vid => (
+                            <div key={vid.videoId} className={styles.videoCard} onClick={() => setPlayingVideoId(vid.videoId)}>
+                              <div className={styles.videoThumbContainer}>
+                                <img src={vid.thumbnail} alt="" className={styles.videoThumb} />
+                                <div className={styles.playIconOverlay}>
+                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M8 5v14l11-7z" />
+                                  </svg>
+                                </div>
+                              </div>
+                              <div className={styles.videoTitle} title={vid.title}>{vid.title}</div>
+                              <div className={styles.videoMeta}>
+                                <span>{vid.viewsText}</span>
+                                <span>•</span>
+                                <span>{vid.publishedText}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mode 1: Keyword dashboard & Uncertain Fallback */}
+                    {(selectedResearch.analysisData.mode === 'keyword' || selectedResearch.analysisData.mode === 'uncertain') && (
+                      <div className={styles.keywordDashboard}>
+                        <h4 className={styles.sectionHeader}>Suchergebnisse für Nische:</h4>
+                        <div className={styles.videoList}>
+                          {selectedResearch.analysisData.videos && selectedResearch.analysisData.videos.map(vid => (
+                            <div key={vid.videoId} className={styles.videoListRow} onClick={() => setPlayingVideoId(vid.videoId)}>
+                              <img src={vid.thumbnail} className={styles.videoRowThumb} alt="" />
+                              <div className={styles.videoRowInfo}>
+                                <div className={styles.videoRowTitle}>{vid.title}</div>
+                                <div className={styles.videoRowMeta}>{vid.viewsText} • {vid.publishedText}</div>
+                              </div>
+                              <button className={styles.videoRowPlayBtn}>Abspielen</button>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Suggestions for uncertain channel matching */}
+                        {selectedResearch.analysisData.mode === 'uncertain' && selectedResearch.analysisData.suggestedChannels && (
+                          <div className={styles.pickerContainer} style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
+                            <h4 className={styles.pickerTitle} style={{ fontSize: '0.8rem' }}>Meintest du einen dieser Kanäle?</h4>
+                            <div className={styles.pickerGrid}>
+                              {selectedResearch.analysisData.suggestedChannels.map(chan => (
+                                <div key={chan.channelId} className={styles.pickerCard} style={{ padding: '0.5rem 0.75rem' }}>
+                                  <img src={chan.thumbnail || '/avatar-placeholder.png'} className={styles.pickerAvatar} style={{ width: '30px', height: '30px' }} alt="" />
+                                  <div className={styles.pickerInfo}>
+                                    <div className={styles.pickerName} style={{ fontSize: '0.75rem' }}>{chan.title}</div>
+                                    <div className={styles.pickerMeta} style={{ fontSize: '0.65rem' }}>{chan.subscribersText}</div>
+                                  </div>
+                                  <button
+                                    className={styles.pickerSelectBtn}
+                                    style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem' }}
+                                    onClick={() => runOutlierAnalysis(selectedResearch, chan.channelId)}
+                                  >
+                                    Analysieren
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Markdown Report viewer */}
+                    <div className={styles.reportViewer}>
+                      <h4 className={styles.sectionHeader} style={{ marginBottom: '0.5rem' }}>Strategische Auswertung:</h4>
+                      <div className={styles.reportContent}>{selectedResearch.analysisReport}</div>
+                    </div>
+
                   </div>
                 ) : (
                   <div className={styles.emptyState}>
@@ -780,6 +1380,238 @@ export default function TabManager({
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* NEW TAB: FINANCE TRACKER */}
+        {activeSubTab === 'finance' && (
+          <div className={styles.financeLayout}>
+            {/* Metric counters */}
+            <div className={styles.financeSummary}>
+              <div className={styles.finStatCard}>
+                <span className={styles.finStatLabel}>Einnahmen gesamt</span>
+                <span className={styles.finStatValue} style={{ color: '#00c48c' }}>+{totalIncome.toFixed(2)} €</span>
+              </div>
+              <div className={styles.finStatCard}>
+                <span className={styles.finStatLabel}>Ausgaben gesamt</span>
+                <span className={styles.finStatValue} style={{ color: '#ff4d4d' }}>-{totalExpense.toFixed(2)} €</span>
+              </div>
+              <div className={styles.finStatCard}>
+                <span className={styles.finStatLabel}>Netto-Kontostand</span>
+                <span className={styles.finStatValue} style={{ color: netBalance >= 0 ? 'var(--theme-accent, #1a6aff)' : '#ff4d4d' }}>
+                  {netBalance >= 0 ? '+' : ''}{netBalance.toFixed(2)} €
+                </span>
+              </div>
+            </div>
+
+            <div className={styles.financeGrid}>
+              {/* Left Column: Form to log income/expense */}
+              <div className={styles.card}>
+                <h3 className={styles.cardTitle}>💰 Transaktion loggen</h3>
+                <form onSubmit={handleAddTransaction} className={styles.mappingForm}>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      className={`${styles.typeToggleBtn} ${finType === 'expense' ? styles.typeToggleActiveRed : ''}`}
+                      onClick={() => handleTypeChange('expense')}
+                      style={{ flex: 1 }}
+                    >
+                      Ausgabe
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.typeToggleBtn} ${finType === 'income' ? styles.typeToggleActiveGreen : ''}`}
+                      onClick={() => handleTypeChange('income')}
+                      style={{ flex: 1 }}
+                    >
+                      Einnahme
+                    </button>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Betrag (€)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      className={styles.input}
+                      value={finAmount}
+                      onChange={(e) => setFinAmount(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Kategorie</label>
+                    <select
+                      className={styles.input}
+                      value={finCategory}
+                      onChange={(e) => setFinCategory(e.target.value)}
+                    >
+                      {finType === 'expense'
+                        ? expenseCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)
+                        : incomeCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)
+                      }
+                    </select>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Datum</label>
+                    <input
+                      type="date"
+                      className={styles.input}
+                      value={finDate}
+                      onChange={(e) => setFinDate(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Beschreibung</label>
+                    <input
+                      type="text"
+                      placeholder="z.B. Nootropics Einkauf, Freelance Projekt"
+                      className={styles.input}
+                      value={finDesc}
+                      onChange={(e) => setFinDesc(e.target.value)}
+                    />
+                  </div>
+
+                  <button type="submit" className={styles.submitBtn}>
+                    Hinzufügen ✦
+                  </button>
+                </form>
+              </div>
+
+              {/* Right Column: Visualization & Graph Selector */}
+              <div className={styles.card}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <h3 className={styles.cardTitle}>📈 Visualisierung</h3>
+                  <div className={styles.categoryTabs}>
+                    {['line', 'bar', 'doughnut'].map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        className={`${styles.categoryTab} ${selectedChartType === t ? styles.categoryTabActive : ''}`}
+                        onClick={() => setSelectedChartType(t)}
+                        style={{ textTransform: 'capitalize' }}
+                      >
+                        {t === 'line' ? 'Verlauf' : t === 'bar' ? 'Kategorien' : 'Verteilung'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className={styles.chartArea}>
+                  {selectedChartType === 'line' && (
+                    <LineChart transactions={transactions} />
+                  )}
+
+                  {selectedChartType === 'bar' && (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                        <button
+                          type="button"
+                          className={`${styles.typeToggleBtn} ${doughnutFocusType === 'expense' ? styles.typeToggleActiveRed : ''}`}
+                          style={{ padding: '0.2rem 0.6rem', fontSize: '0.65rem' }}
+                          onClick={() => setDoughnutFocusType('expense')}
+                        >
+                          Ausgaben
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.typeToggleBtn} ${doughnutFocusType === 'income' ? styles.typeToggleActiveGreen : ''}`}
+                          style={{ padding: '0.2rem 0.6rem', fontSize: '0.65rem' }}
+                          onClick={() => setDoughnutFocusType('income')}
+                        >
+                          Einnahmen
+                        </button>
+                      </div>
+                      <BarChart data={chartCategoryData} total={doughnutTotal} />
+                    </>
+                  )}
+
+                  {selectedChartType === 'doughnut' && (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                        <button
+                          type="button"
+                          className={`${styles.typeToggleBtn} ${doughnutFocusType === 'expense' ? styles.typeToggleActiveRed : ''}`}
+                          style={{ padding: '0.2rem 0.6rem', fontSize: '0.65rem' }}
+                          onClick={() => setDoughnutFocusType('expense')}
+                        >
+                          Ausgaben
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.typeToggleBtn} ${doughnutFocusType === 'income' ? styles.typeToggleActiveGreen : ''}`}
+                          style={{ padding: '0.2rem 0.6rem', fontSize: '0.65rem' }}
+                          onClick={() => setDoughnutFocusType('income')}
+                        >
+                          Einnahmen
+                        </button>
+                      </div>
+                      <DoughnutChart data={chartCategoryData} total={doughnutTotal} />
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Panel: Transactions Log */}
+            <div className={styles.card} style={{ gridColumn: '1 / -1' }}>
+              <h3 className={styles.cardTitle}>📜 Transaktionsverlauf ({transactions.length})</h3>
+              <div className={styles.transactionsListContainer}>
+                {transactions.length === 0 ? (
+                  <div className={styles.emptyState}>
+                    <span className={styles.emptyIcon}>💰</span>
+                    <p className={styles.emptyText}>Noch keine Transaktionen geloggt.</p>
+                  </div>
+                ) : (
+                  <table className={styles.finTable}>
+                    <thead>
+                      <tr>
+                        <th>Datum</th>
+                        <th>Kategorie</th>
+                        <th>Beschreibung</th>
+                        <th>Typ</th>
+                        <th>Betrag</th>
+                        <th>Aktionen</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transactions.map((t) => (
+                        <tr key={t.id} className={styles.finTableRow}>
+                          <td style={{ fontFamily: 'var(--font-mono)' }}>{t.date}</td>
+                          <td>
+                            <span className={styles.finCategoryTag}>{t.category}</span>
+                          </td>
+                          <td className={styles.finDescCol} title={t.description}>{t.description || '—'}</td>
+                          <td>
+                            <span className={t.type === 'income' ? styles.finTypeIncome : styles.finTypeExpense}>
+                              {t.type === 'income' ? 'Einnahme' : 'Ausgabe'}
+                            </span>
+                          </td>
+                          <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold', color: t.type === 'income' ? '#00c48c' : 'var(--text)' }}>
+                            {t.type === 'income' ? '+' : '-'}{t.amount.toFixed(2)} €
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className={styles.deleteBtn}
+                              onClick={() => handleDeleteTransaction(t.id)}
+                              title="Löschen"
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
           </div>
         )}
 

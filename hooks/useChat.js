@@ -30,7 +30,9 @@ import {
   unwrapGroupKey,
   exportPrivateKey,
   importPrivateKey,
-  getPublicKeyJwkFromPrivateKey
+  getPublicKeyJwkFromPrivateKey,
+  wrapGroupKeyNew,
+  unwrapGroupKeyNew
 } from '@/lib/crypto';
 
 export function useChat() {
@@ -220,9 +222,35 @@ export function useChat() {
 
       // Create new chat doc
       const chatDocRef = doc(collection(db, 'chats'));
+      
+      // Generate a symmetric key for the direct chat
+      const chatKey = await generateGroupKey();
+      const groupKeyPayload = {};
+
+      // Wrap key for self
+      const myUserDoc = await getDoc(doc(db, 'users', user.uid));
+      if (myUserDoc.exists() && myUserDoc.data().publicKey?.jwk) {
+        const myPubJwk = myUserDoc.data().publicKey.jwk;
+        const myPub = await importPublicKey(myPubJwk);
+        const wrapped = await wrapGroupKeyNew(chatKey, myPub);
+        wrapped.pubKeyFingerprint = myPubJwk.x;
+        groupKeyPayload[user.uid] = wrapped;
+      }
+
+      // Wrap key for peer
+      const peerDoc = await getDoc(doc(db, 'users', targetUid));
+      if (peerDoc.exists() && peerDoc.data().publicKey?.jwk) {
+        const peerPubJwk = peerDoc.data().publicKey.jwk;
+        const peerPub = await importPublicKey(peerPubJwk);
+        const wrapped = await wrapGroupKeyNew(chatKey, peerPub);
+        wrapped.pubKeyFingerprint = peerPubJwk.x;
+        groupKeyPayload[targetUid] = wrapped;
+      }
+
       const payload = {
         type: 'direct',
         participants: [user.uid, targetUid],
+        groupKey: groupKeyPayload,
         createdAt: new Date().toISOString(),
         lastMessage: null
       };
@@ -316,34 +344,162 @@ export function useChat() {
 
       if (chatData.type === 'direct') {
         const peerUid = chatData.participants.find(id => id !== user.uid) || user.uid;
-        try {
-          const peerDoc = await getDoc(doc(db, 'users', peerUid));
-          if (peerDoc.exists() && peerDoc.data().publicKey?.jwk) {
-            const peerPub = await importPublicKey(peerDoc.data().publicKey.jwk);
-            activeKey = await deriveSharedSecret(myPrivateKey, peerPub);
+        
+        // 1. Try to unwrap from groupKey (new ECIES format)
+        const wrappedKeyInfo = chatData.groupKey?.[user.uid];
+        if (wrappedKeyInfo && wrappedKeyInfo.ephemPub) {
+          try {
+            activeKey = await unwrapGroupKeyNew(wrappedKeyInfo, myPrivateKey);
+          } catch (err) {
+            console.warn("[E2E Chat] Failed to unwrap direct chat key from groupKey:", err);
           }
-        } catch (err) {
-          console.error("Failed to derive E2E shared secret with peer:", peerUid, err);
         }
+        
+        // 2. Fallback to deriving shared secret (old format)
+        if (!activeKey) {
+          try {
+            const peerDoc = await getDoc(doc(db, 'users', peerUid));
+            if (peerDoc.exists() && peerDoc.data().publicKey?.jwk) {
+              const peerPub = await importPublicKey(peerDoc.data().publicKey.jwk);
+              activeKey = await deriveSharedSecret(myPrivateKey, peerPub);
+              
+              // Auto-migrate old direct chat to new ECIES wrapped format
+              try {
+                const myUserDoc = await getDoc(doc(db, 'users', user.uid));
+                const myPubJwk = myUserDoc.data().publicKey?.jwk;
+                const peerPubJwk = peerDoc.data().publicKey?.jwk;
+                
+                if (myPubJwk && peerPubJwk) {
+                  const myPub = await importPublicKey(myPubJwk);
+                  const peerPubObj = await importPublicKey(peerPubJwk);
+                  
+                  const myWrapped = await wrapGroupKeyNew(activeKey, myPub);
+                  const peerWrapped = await wrapGroupKeyNew(activeKey, peerPubObj);
+                  
+                  myWrapped.pubKeyFingerprint = myPubJwk.x;
+                  peerWrapped.pubKeyFingerprint = peerPubJwk.x;
+                  
+                  await setDoc(doc(db, 'chats', chatId), {
+                    groupKey: {
+                      [user.uid]: myWrapped,
+                      [peerUid]: peerWrapped
+                    }
+                  }, { merge: true });
+                  console.log(`[E2E Chat] Migrated direct chat ${chatId} to ECIES`);
+                }
+              } catch (migErr) {
+                console.warn("[E2E Chat] Direct chat migration failed:", migErr);
+              }
+            }
+          } catch (err) {
+            console.error("Failed to derive E2E shared secret with peer:", peerUid, err);
+          }
+        }
+        
+        // 3. Key Healing: If we have activeKey, check if peer needs healing
+        if (activeKey) {
+          try {
+            const peerDoc = await getDoc(doc(db, 'users', peerUid));
+            if (peerDoc.exists() && peerDoc.data().publicKey?.jwk) {
+              const peerPubJwk = peerDoc.data().publicKey.jwk;
+              const currentFingerprint = peerPubJwk.x;
+              const storedFingerprint = chatData.groupKey?.[peerUid]?.pubKeyFingerprint;
+              
+              if (currentFingerprint !== storedFingerprint) {
+                console.log(`[E2E Chat] Healing key for peer ${peerUid}...`);
+                const peerPub = await importPublicKey(peerPubJwk);
+                const peerWrapped = await wrapGroupKeyNew(activeKey, peerPub);
+                peerWrapped.pubKeyFingerprint = currentFingerprint;
+                
+                await setDoc(doc(db, 'chats', chatId), {
+                  [`groupKey.${peerUid}`]: peerWrapped
+                }, { merge: true });
+                console.log(`[E2E Chat] Key healed for peer ${peerUid}`);
+              }
+            }
+          } catch (healErr) {
+            console.warn("[E2E Chat] Key healing failed:", healErr);
+          }
+        }
+
       } else if (chatData.type === 'group' || chatData.type === 'community') {
         const wrappedKeyInfo = chatData.groupKey?.[user.uid];
         if (wrappedKeyInfo) {
-          try {
-            // Find sender of the group key (usually chat creator / admins)
-            // For simplicity, unwrap with the creator's key or the admin's key
-            const senderUid = chatData.admins?.[0] || chatData.participants[0];
-            const senderDoc = await getDoc(doc(db, 'users', senderUid));
-            if (senderDoc.exists() && senderDoc.data().publicKey?.jwk) {
-              const senderPub = await importPublicKey(senderDoc.data().publicKey.jwk);
-              activeKey = await unwrapGroupKey(
-                wrappedKeyInfo.wrappedKey,
-                wrappedKeyInfo.iv,
-                senderPub,
-                myPrivateKey
-              );
+          // 1. Try new ECIES format
+          if (wrappedKeyInfo.ephemPub) {
+            try {
+              activeKey = await unwrapGroupKeyNew(wrappedKeyInfo, myPrivateKey);
+            } catch (err) {
+              console.warn("[E2E Chat] Failed to unwrap group key using ECIES:", err);
             }
-          } catch (err) {
-            console.error("Failed to unwrap group key:", err);
+          }
+          
+          // 2. Fallback to old format
+          if (!activeKey) {
+            try {
+              const senderUid = chatData.admins?.[0] || chatData.participants[0];
+              const senderDoc = await getDoc(doc(db, 'users', senderUid));
+              if (senderDoc.exists() && senderDoc.data().publicKey?.jwk) {
+                const senderPub = await importPublicKey(senderDoc.data().publicKey.jwk);
+                activeKey = await unwrapGroupKey(
+                  wrappedKeyInfo.wrappedKey,
+                  wrappedKeyInfo.iv,
+                  senderPub,
+                  myPrivateKey
+                );
+                
+                // Auto-migrate group key to new ECIES format for user
+                try {
+                  const myUserDoc = await getDoc(doc(db, 'users', user.uid));
+                  const myPubJwk = myUserDoc.data().publicKey?.jwk;
+                  if (myPubJwk) {
+                    const myPub = await importPublicKey(myPubJwk);
+                    const myWrapped = await wrapGroupKeyNew(activeKey, myPub);
+                    myWrapped.pubKeyFingerprint = myPubJwk.x;
+                    
+                    await setDoc(doc(db, 'chats', chatId), {
+                      groupKey: {
+                        [user.uid]: myWrapped
+                      }
+                    }, { merge: true });
+                    console.log(`[E2E Chat] Migrated own group key to ECIES in chat ${chatId}`);
+                  }
+                } catch (migErr) {
+                  console.warn("[E2E Chat] Group key migration failed:", migErr);
+                }
+              }
+            } catch (err) {
+              console.error("Failed to unwrap group key:", err);
+            }
+          }
+        }
+        
+        // 3. Group Key Healing: If we have activeKey, check if any other participants need healing
+        if (activeKey) {
+          try {
+            for (const memberUid of chatData.participants) {
+              if (memberUid === user.uid) continue;
+              const memberDoc = await getDoc(doc(db, 'users', memberUid));
+              if (memberDoc.exists() && memberDoc.data().publicKey?.jwk) {
+                const memberPubJwk = memberDoc.data().publicKey.jwk;
+                const currentFingerprint = memberPubJwk.x;
+                const storedFingerprint = chatData.groupKey?.[memberUid]?.pubKeyFingerprint;
+                
+                if (currentFingerprint !== storedFingerprint) {
+                  console.log(`[E2E Chat] Healing group key for member ${memberUid}...`);
+                  const memberPub = await importPublicKey(memberPubJwk);
+                  const memberWrapped = await wrapGroupKeyNew(activeKey, memberPub);
+                  memberWrapped.pubKeyFingerprint = currentFingerprint;
+                  
+                  await setDoc(doc(db, 'chats', chatId), {
+                    [`groupKey.${memberUid}`]: memberWrapped
+                  }, { merge: true });
+                  console.log(`[E2E Chat] Group key healed for member ${memberUid}`);
+                }
+              }
+            }
+          } catch (healErr) {
+            console.warn("[E2E Chat] Group key healing failed:", healErr);
           }
         }
       }
@@ -387,24 +543,82 @@ export function useChat() {
 
       if (chatData.type === 'direct') {
         const peerUid = chatData.participants.find(id => id !== user.uid) || user.uid;
-        const peerDoc = await getDoc(doc(db, 'users', peerUid));
-        if (peerDoc.exists() && peerDoc.data().publicKey?.jwk) {
-          const peerPub = await importPublicKey(peerDoc.data().publicKey.jwk);
-          activeKey = await deriveSharedSecret(myPrivateKey, peerPub);
+        
+        // 1. Try to unwrap from groupKey
+        const wrappedKeyInfo = chatData.groupKey?.[user.uid];
+        if (wrappedKeyInfo && wrappedKeyInfo.ephemPub) {
+          try {
+            activeKey = await unwrapGroupKeyNew(wrappedKeyInfo, myPrivateKey);
+          } catch (err) {
+            console.warn("[E2E Chat] Failed to unwrap direct chat key on send:", err);
+          }
+        }
+        
+        // 2. Fallback to deriving shared secret
+        if (!activeKey) {
+          const peerDoc = await getDoc(doc(db, 'users', peerUid));
+          if (peerDoc.exists() && peerDoc.data().publicKey?.jwk) {
+            const peerPub = await importPublicKey(peerDoc.data().publicKey.jwk);
+            activeKey = await deriveSharedSecret(myPrivateKey, peerPub);
+          }
+        }
+        
+        // 3. If still no key, generate a brand new direct chat key!
+        if (!activeKey) {
+          try {
+            console.log("[E2E Chat] Key materials unavailable. Generating new direct chat key...");
+            const newKey = await generateGroupKey();
+            activeKey = newKey;
+            
+            // Wrap for both
+            const myUserDoc = await getDoc(doc(db, 'users', user.uid));
+            const myPubJwk = myUserDoc.data().publicKey?.jwk;
+            const peerDoc = await getDoc(doc(db, 'users', peerUid));
+            const peerPubJwk = peerDoc.data().publicKey?.jwk;
+            
+            if (myPubJwk && peerPubJwk) {
+              const myPub = await importPublicKey(myPubJwk);
+              const peerPubObj = await importPublicKey(peerPubJwk);
+              
+              const myWrapped = await wrapGroupKeyNew(newKey, myPub);
+              const peerWrapped = await wrapGroupKeyNew(newKey, peerPubObj);
+              
+              myWrapped.pubKeyFingerprint = myPubJwk.x;
+              peerWrapped.pubKeyFingerprint = peerPubJwk.x;
+              
+              await setDoc(doc(db, 'chats', chatId), {
+                groupKey: {
+                  [user.uid]: myWrapped,
+                  [peerUid]: peerWrapped
+                }
+              }, { merge: true });
+            }
+          } catch (genErr) {
+            console.error("[E2E Chat] Generating new direct chat key failed:", genErr);
+          }
         }
       } else if (chatData.type === 'group' || chatData.type === 'community') {
         const wrappedKeyInfo = chatData.groupKey?.[user.uid];
         if (wrappedKeyInfo) {
-          const senderUid = chatData.admins?.[0] || chatData.participants[0];
-          const senderDoc = await getDoc(doc(db, 'users', senderUid));
-          if (senderDoc.exists() && senderDoc.data().publicKey?.jwk) {
-            const senderPub = await importPublicKey(senderDoc.data().publicKey.jwk);
-            activeKey = await unwrapGroupKey(
-              wrappedKeyInfo.wrappedKey,
-              wrappedKeyInfo.iv,
-              senderPub,
-              myPrivateKey
-            );
+          if (wrappedKeyInfo.ephemPub) {
+            try {
+              activeKey = await unwrapGroupKeyNew(wrappedKeyInfo, myPrivateKey);
+            } catch (err) {
+              console.warn("[E2E Chat] Failed to unwrap group key on send:", err);
+            }
+          }
+          if (!activeKey) {
+            const senderUid = chatData.admins?.[0] || chatData.participants[0];
+            const senderDoc = await getDoc(doc(db, 'users', senderUid));
+            if (senderDoc.exists() && senderDoc.data().publicKey?.jwk) {
+              const senderPub = await importPublicKey(senderDoc.data().publicKey.jwk);
+              activeKey = await unwrapGroupKey(
+                wrappedKeyInfo.wrappedKey,
+                wrappedKeyInfo.iv,
+                senderPub,
+                myPrivateKey
+              );
+            }
           }
         }
       }
