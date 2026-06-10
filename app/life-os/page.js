@@ -2907,6 +2907,8 @@ function LifeOSDashboard() {
             saveProfile={saveProfile}
             blocks={blocks}
             blockIdx={blockIdx}
+            timeLeft={timeLeft}
+            totalTime={totalTime}
             managerHistory={managerHistory}
             setManagerHistory={setManagerHistory}
             setAgentMsg={setAgentMsg}
