@@ -696,30 +696,10 @@ async function runRestQuery(collectionId, fieldPath, value) {
     };
   }
 
-  if (collectionId === "users") {
-    filter = {
-      compositeFilter: {
-        op: "AND",
-        filters: [
-          baseFilter,
-          {
-            fieldFilter: {
-              field: { fieldPath: "profile.tempSecret" },
-              op: "EQUAL",
-              value: { stringValue: webhookSecret }
-            }
-          }
-        ]
-      }
-    };
-  } else {
-    filter = baseFilter;
-  }
-
   const payload = {
     structuredQuery: {
       from: [{ collectionId }],
-      where: filter
+      where: baseFilter
     }
   };
 
