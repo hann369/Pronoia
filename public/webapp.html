@@ -1281,14 +1281,18 @@ function switchTab(tab) {
   }
 }
 
-// ── Onboarding ──
 function submitOnboarding() {
   const goals = [...document.querySelectorAll("#goals .chip.sel")].map(c => c.textContent);
   const exp = document.querySelector("#exp .chip.sel")?.textContent || "intermediate";
-  const age = document.getElementById("age").value;
-  const challenge = document.getElementById("challenge").value;
+  
+  const ageEl = document.getElementById("age");
+  const challengeEl = document.getElementById("challenge");
+  if (!ageEl) return; // Already submitted
+  
+  const age = ageEl.value;
+  const challenge = challengeEl ? challengeEl.value : "";
 
-  if (!age) { document.getElementById("age").focus(); return; }
+  if (!age) { ageEl.focus(); return; }
 
   profile = { ...profile, goals, experience: exp, age, challenge };
 

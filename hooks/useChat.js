@@ -340,7 +340,7 @@ export function useChat() {
             decryptedText = await decryptMessage(activeKey, msgData.ciphertext, msgData.iv);
           } catch (err) {
             console.warn("Message decryption failed for message ID:", d.id, err);
-            decryptedText = "[Fehler beim Entschlüsseln]";
+            decryptedText = "[E2E-Schlüssel ungültig (Gerät gewechselt oder Cache gelöscht)]";
           }
         }
 
