@@ -16,6 +16,7 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { checkWebhookSecret, verifyIdToken, verifyTelegramInitData } from "@/lib/serverAuth";
+import { importPrivateKey, importPublicKey, eciesEncryptText, eciesDecryptText } from "@/lib/cryptoServer";
 
 export async function POST(req) {
   const payload = await req.json();
@@ -130,8 +131,166 @@ export async function POST(req) {
 
     // --- Hermes agent bridge ---
     if (event === "hermes_trigger") {
-      // Browser → server → Hermes daemon. Always forward using the server's
-      // own secret, never a client-supplied one.
+      // Enrich with the participants' public keys so the bridge can encrypt
+      // its reply per recipient (same model as the web client).
+      const uids = payload.participants || [];
+      const participantKeys = {};
+      try {
+        for (const uid of uids) {
+          const snap = await adminDb.collection("users").doc(uid).get();
+          const jwk = snap.exists ? snap.data().publicKey?.jwk : null;
+          if (jwk && jwk.x && jwk.y) participantKeys[uid] = jwk;
+        }
+        payload.participantKeys = participantKeys;
+      } catch (keyErr) {
+        console.warn("[Pronoia Webhook] participantKeys enrichment failed:", keyErr.message);
+      }
+
+      // Check if serverless execution is enabled via HERMES_PRIVATE_KEY
+      const hermesPrvKeyJwkStr = process.env.HERMES_PRIVATE_KEY;
+      if (hermesPrvKeyJwkStr) {
+        console.log("[Pronoia Webhook] Running Hermes Agent locally (serverless)...");
+        try {
+          const chatId = payload.chatId;
+          const message = payload.message || {};
+          const senderUid = message.senderUid;
+
+          // 1. Decrypt incoming message
+          let plaintext = null;
+          try {
+            const encMap = message.enc || {};
+            const myCipher = encMap["hermes_agent_node"];
+            if (myCipher) {
+              const prvKeyJwk = JSON.parse(hermesPrvKeyJwkStr);
+              const prvKey = await importPrivateKey(prvKeyJwk);
+              plaintext = await eciesDecryptText(myCipher, prvKey);
+            } else if (message.text) {
+              plaintext = message.text;
+            }
+          } catch (decErr) {
+            console.error("[Pronoia Webhook] Serverless E2E decryption failed:", decErr.message);
+          }
+
+          if (plaintext === null) {
+            console.warn("[Pronoia Webhook] No readable E2E message for serverless agent.");
+            return NextResponse.json({ ok: false, error: "no_readable_message" }, { status: 202 });
+          }
+
+          console.log(`[Pronoia Webhook] Decrypted message: "${plaintext}"`);
+
+          // 2. Fetch context (calendar & suggestions) directly from Firestore
+          const context = { calendar: {}, suggestions: [] };
+          if (senderUid) {
+            try {
+              const userSnap = await adminDb.collection("users").doc(senderUid).get();
+              if (userSnap.exists) {
+                context.calendar = userSnap.data().calendar || {};
+              }
+              const sugSnap = await adminDb.collection("users").doc(senderUid).collection("suggestions").get();
+              context.suggestions = sugSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            } catch (ctxErr) {
+              console.warn("[Pronoia Webhook] Failed to retrieve context for user:", ctxErr.message);
+            }
+          }
+
+          // 3. Invoke Mistral API
+          const SYSTEM_PROMPT = (
+            "Du bist Hermes, der KI-Begleiter im Pronoia Life OS. Antworte direkt, " +
+            "präzise, wissenschaftlich fundiert und auf Deutsch. Du hilfst bei Fokus, " +
+            "Schlaf, Supplementation und Tagesstruktur. Halte dich kurz."
+          );
+
+          let ctxNote = "";
+          if (context.calendar && Object.keys(context.calendar).length > 0) {
+            ctxNote += `\n[Kalender-Kontext vorhanden: ${Object.keys(context.calendar).length} Tage]`;
+          }
+          if (context.suggestions && context.suggestions.length > 0) {
+            ctxNote += `\n[${context.suggestions.length} offene Vorschläge]`;
+          }
+
+          let replyText = "";
+          const mistralApiKey = process.env.MISTRAL_API_KEY;
+          if (mistralApiKey && mistralApiKey !== 'REPLACE_ME') {
+            try {
+              const messages = [
+                { role: "system", content: SYSTEM_PROMPT + ctxNote },
+                { role: "user", content: plaintext }
+              ];
+              const mistralRes = await fetch("https://api.mistral.ai/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${mistralApiKey}`,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  model: "mistral-large-latest",
+                  messages,
+                  temperature: 0.7,
+                  max_tokens: 500
+                })
+              });
+              
+              if (mistralRes.ok) {
+                const mistralData = await mistralRes.json();
+                replyText = mistralData.choices?.[0]?.message?.content?.trim() || "";
+              } else {
+                console.error(`[Pronoia Webhook] Mistral API returned status ${mistralRes.status}`);
+                replyText = "Hermes: Kurze Störung im Reasoning-Kern. Bitte erneut versuchen.";
+              }
+            } catch (mistralErr) {
+              console.error("[Pronoia Webhook] Mistral API call failed:", mistralErr.message);
+              replyText = "Hermes: Verbindung zum Reasoning-Netzwerk gestört.";
+            }
+          } else {
+            replyText = `Hermes (offline): Verstanden — „${plaintext.substring(0, 140)}“. Konfiguriere MISTRAL_API_KEY für volle Antworten.`;
+          }
+
+          // 4. Encrypt reply for all participants
+          const encReplies = {};
+          for (const [uid, jwk] of Object.entries(participantKeys)) {
+            try {
+              const pubKey = await importPublicKey(jwk);
+              encReplies[uid] = await eciesEncryptText(replyText, pubKey);
+            } catch (encErr) {
+              console.error(`[Pronoia Webhook] Failed to encrypt reply for user ${uid}:`, encErr.message);
+            }
+          }
+
+          // 5. Write reply back to Firestore
+          const timestamp = new Date().toISOString();
+          const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+          const readBy = ["hermes_agent_node"];
+
+          const msgBody = Object.keys(encReplies).length > 0 ? { enc: encReplies } : { text: replyText };
+          const lastBody = Object.keys(encReplies).length > 0
+            ? { enc: true }
+            : { text: replyText.substring(0, 60) };
+
+          await adminDb.collection("chats").doc(chatId).collection("messages").add({
+            senderUid: "hermes_agent_node",
+            senderName: "Hermes AI Agent",
+            timestamp,
+            expiresAt,
+            type: "text",
+            ...msgBody,
+            readBy,
+          });
+
+          await adminDb.collection("chats").doc(chatId).set(
+            {
+              lastMessage: { ...lastBody, senderUid: "hermes_agent_node", timestamp, readBy },
+            },
+            { merge: true }
+          );
+
+          return NextResponse.json({ ok: true, serverless: true, encrypted: Object.keys(encReplies).length > 0 });
+        } catch (serverlessErr) {
+          console.error("[Pronoia Webhook] Critical serverless Hermes run failure:", serverlessErr);
+          return NextResponse.json({ ok: false, error: serverlessErr.message }, { status: 500 });
+        }
+      }
+
+      // FALLBACK: forward to local Hermes bridge daemon
       const hermesAgentUrl = process.env.HERMES_AGENT_URL || "http://localhost:8080/pronoia-webhook";
       const forwardSecret = process.env.WEBHOOK_SECRET;
       if (!forwardSecret) {
@@ -141,21 +300,6 @@ export async function POST(req) {
         );
       }
       try {
-        // Enrich with the participants' public keys so the bridge can encrypt
-        // its reply per recipient (same model as the web client).
-        try {
-          const uids = payload.participants || [];
-          const participantKeys = {};
-          for (const uid of uids) {
-            const snap = await adminDb.collection("users").doc(uid).get();
-            const jwk = snap.exists ? snap.data().publicKey?.jwk : null;
-            if (jwk && jwk.x && jwk.y) participantKeys[uid] = jwk;
-          }
-          payload.participantKeys = participantKeys;
-        } catch (keyErr) {
-          console.warn("[Pronoia Webhook] participantKeys enrichment failed:", keyErr.message);
-        }
-
         console.log(`[Pronoia Webhook] Forwarding hermes_trigger to ${hermesAgentUrl}`);
         const fResponse = await fetch(hermesAgentUrl, {
           method: "POST",
