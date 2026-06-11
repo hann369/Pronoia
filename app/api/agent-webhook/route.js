@@ -159,7 +159,11 @@ export async function POST(req) {
         console.log(`[Pronoia Webhook] Forwarding hermes_trigger to ${hermesAgentUrl}`);
         const fResponse = await fetch(hermesAgentUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-bot-secret": forwardSecret },
+          headers: { 
+            "Content-Type": "application/json", 
+            "x-bot-secret": forwardSecret,
+            "ngrok-skip-browser-warning": "true"
+          },
           body: JSON.stringify(payload),
         });
         return NextResponse.json({ ok: fResponse.ok, status: fResponse.status });
