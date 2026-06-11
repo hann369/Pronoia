@@ -216,29 +216,54 @@ export async function POST(req) {
                 { role: "system", content: SYSTEM_PROMPT + ctxNote },
                 { role: "user", content: plaintext }
               ];
-              const mistralRes = await fetch("https://api.mistral.ai/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                  "Authorization": `Bearer ${mistralApiKey}`,
-                  "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                  model: "mistral-large-latest",
-                  messages,
-                  temperature: 0.7,
-                  max_tokens: 500
-                })
-              });
+              let mistralRes = null;
+              let attempts = 3;
+              for (let i = 0; i < attempts; i++) {
+                try {
+                  mistralRes = await fetch("https://api.mistral.ai/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                      "Authorization": `Bearer ${mistralApiKey}`,
+                      "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                      model: "mistral-large-latest",
+                      messages,
+                      temperature: 0.7,
+                      max_tokens: 500
+                    })
+                  });
+                  if (mistralRes.ok) break;
+                  
+                  if (mistralRes.status === 429 || mistralRes.status >= 500) {
+                    const delay = (i + 1) * 1000;
+                    console.warn(`[Pronoia Webhook] Mistral API returned status ${mistralRes.status}. Retrying in ${delay}ms... (Attempt ${i + 1}/${attempts})`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                  } else {
+                    break;
+                  }
+                } catch (fetchErr) {
+                  if (i === attempts - 1) throw fetchErr;
+                  const delay = (i + 1) * 1000;
+                  console.warn(`[Pronoia Webhook] Mistral fetch failed: ${fetchErr.message}. Retrying in ${delay}ms... (Attempt ${i + 1}/${attempts})`);
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                }
+              }
               
-              if (mistralRes.ok) {
+              if (mistralRes && mistralRes.ok) {
                 const mistralData = await mistralRes.json();
                 replyText = mistralData.choices?.[0]?.message?.content?.trim() || "";
               } else {
-                console.error(`[Pronoia Webhook] Mistral API returned status ${mistralRes.status}`);
+                const status = mistralRes ? mistralRes.status : "unknown";
+                let errBody = "";
+                if (mistralRes) {
+                  try { errBody = await mistralRes.text(); } catch (_) {}
+                }
+                console.error(`[Pronoia Webhook] Mistral API failed after ${attempts} attempts. Final Status: ${status}, Body: ${errBody}`);
                 replyText = "Hermes: Kurze Störung im Reasoning-Kern. Bitte erneut versuchen.";
               }
             } catch (mistralErr) {
-              console.error("[Pronoia Webhook] Mistral API call failed:", mistralErr.message);
+              console.error("[Pronoia Webhook] Mistral API call failed with exception:", mistralErr.message);
               replyText = "Hermes: Verbindung zum Reasoning-Netzwerk gestört.";
             }
           } else {

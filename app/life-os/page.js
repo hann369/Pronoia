@@ -3223,7 +3223,7 @@ function LifeOSDashboard() {
 
       {/* ═══ MAIN DASHBOARD WORKSPACE ═══ */}
       <main 
-        className={`${styles.main} ${isLabFullscreen ? styles.mainFullscreen : ''}`}
+        className={`${styles.main} ${isLabFullscreen ? styles.mainFullscreen : ''} ${activeTab === 'social' ? styles.mainSocial : ''}`}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           const draggedSidebarId = e.dataTransfer.getData('text/sidebar-id');
