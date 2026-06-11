@@ -154,6 +154,62 @@ export async function POST(req) {
       }
     }
 
+    if (event === "hermes_accept_friendship") {
+      // Hermes is an AI companion without an auth session, so it cannot click
+      // "accept" itself — the server accepts on its behalf. Only friendships
+      // that actually involve hermes_agent_node are eligible, and a browser
+      // caller (ID token) must be the other participant.
+      const { friendshipId } = payload;
+      if (!friendshipId) {
+        return NextResponse.json({ ok: false, error: "friendshipId missing" }, { status: 400 });
+      }
+      const ref = adminDb.collection("friendships").doc(friendshipId);
+      const snap = await ref.get();
+      if (!snap.exists) {
+        return NextResponse.json({ ok: false, error: "Friendship not found" }, { status: 404 });
+      }
+      const users = snap.data().users || [];
+      if (!users.includes("hermes_agent_node")) {
+        return NextResponse.json({ ok: false, error: "Not a hermes friendship" }, { status: 403 });
+      }
+      if (authedUser && !users.includes(authedUser.uid)) {
+        return NextResponse.json({ ok: false, error: "Not a participant" }, { status: 403 });
+      }
+      await ref.set(
+        { status: "accepted", updatedAt: new Date().toISOString() },
+        { merge: true }
+      );
+      return NextResponse.json({ ok: true, status: "accepted" });
+    }
+
+    if (event === "hermes_accept_friendship") {
+      // Hermes is an AI companion without an auth session, so it cannot click
+      // "accept" itself — the server accepts on its behalf. Only friendships
+      // that actually involve hermes_agent_node are eligible, and a browser
+      // caller (ID token) must be the other participant.
+      const { friendshipId } = payload;
+      if (!friendshipId) {
+        return NextResponse.json({ ok: false, error: "friendshipId missing" }, { status: 400 });
+      }
+      const ref = adminDb.collection("friendships").doc(friendshipId);
+      const snap = await ref.get();
+      if (!snap.exists) {
+        return NextResponse.json({ ok: false, error: "Friendship not found" }, { status: 404 });
+      }
+      const users = snap.data().users || [];
+      if (!users.includes("hermes_agent_node")) {
+        return NextResponse.json({ ok: false, error: "Not a hermes friendship" }, { status: 403 });
+      }
+      if (authedUser && !users.includes(authedUser.uid)) {
+        return NextResponse.json({ ok: false, error: "Not a participant" }, { status: 403 });
+      }
+      await ref.set(
+        { status: "accepted", updatedAt: new Date().toISOString() },
+        { merge: true }
+      );
+      return NextResponse.json({ ok: true, status: "accepted" });
+    }
+
     if (event === "hermes_register") {
       const { publicKey } = payload;
       await adminDb.collection("users").doc("hermes_agent_node").set(

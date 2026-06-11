@@ -219,15 +219,38 @@ export function useSocial() {
     const docId = getFriendshipDocId(user.uid, targetUid);
     const docRef = doc(db, 'friendships', docId);
 
+    // Hermes is an AI companion without an auth session — it can never click
+    // "accept", so requests to it are accepted immediately (Variante A).
+    const isHermes = targetUid === 'hermes_agent_node';
+
     const payload = {
       users: [user.uid, targetUid],
-      status: 'pending',
+      status: isHermes ? 'accepted' : 'pending',
       initiator: user.uid,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
     await setDoc(docRef, payload, { merge: true });
+
+    if (isHermes) {
+      // Variante B as server-side backup: confirm the acceptance via the
+      // agent webhook (Admin SDK), in case rules ever tighten client writes.
+      try {
+        const idToken = await user.getIdToken();
+        await fetch('/api/agent-webhook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+          body: JSON.stringify({
+            event: 'hermes_accept_friendship',
+            source: 'webapp',
+            friendshipId: docId
+          })
+        });
+      } catch (e) {
+        console.warn('Hermes server-side accept failed (client accept already applied):', e.message);
+      }
+    }
   }, [user, getFriendshipDocId]);
 
   // Accept a friend request
