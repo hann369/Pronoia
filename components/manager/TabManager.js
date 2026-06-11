@@ -395,7 +395,12 @@ export default function TabManager({
   const [doughnutFocusType, setDoughnutFocusType] = useState('expense');
   const [financeSearch, setFinanceSearch] = useState('');
   const [selectedDrillDownCategory, setSelectedDrillDownCategory] = useState(null);
-
+  const [buyUrl, setBuyUrl] = useState('');
+  const [buyTitle, setBuyTitle] = useState('');
+  const [buyPrice, setBuyPrice] = useState('');
+  const [buyNotes, setBuyNotes] = useState('');
+  const [financeActiveSection, setFinanceActiveSection] = useState('transactions'); // 'transactions' | 'buy_interest'
+  const [linkLoading, setLinkLoading] = useState(false);
 
   // Focus Mode state
   const [focusTimeLeft, setFocusTimeLeft] = useState(1500); // 25 min in seconds
@@ -427,6 +432,8 @@ export default function TabManager({
   const completedSessions = config.completedSessions || 0;
   const financeConfig = config.finance || { transactions: [] };
   const transactions = financeConfig.transactions || [];
+  const buyInterestList = financeConfig.buyInterest || [];
+
 
   // Active Block details
   const activeBlock = blocks[blockIdx] || { title: 'Kein aktiver Block', start: '00:00', end: '00:00' };
@@ -819,6 +826,99 @@ Bitte versuche es in wenigen Minuten erneut.`;
     saveProfile({ managerConfig: updated });
     setAgentMsg('Transaktion gelöscht.');
   };
+
+  const handleScanLink = async () => {
+    if (!buyUrl || !/^https?:\/\//i.test(buyUrl)) {
+      setAgentMsg('Bitte gib eine gültige URL ein.');
+      return;
+    }
+    setLinkLoading(true);
+    setAgentMsg('Lese Link-Metadaten aus...');
+    try {
+      const res = await fetch('/api/read-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: buyUrl })
+      });
+      const data = await res.json();
+      if (data.success && data.metadata) {
+        setBuyTitle(data.metadata.title || '');
+        if (data.metadata.price) {
+          setBuyPrice(data.metadata.price.toString());
+        } else {
+          setBuyPrice('');
+        }
+        setBuyNotes(data.metadata.description || '');
+        setAgentMsg('Link erfolgreich ausgelesen.');
+      } else {
+        setAgentMsg(`Auslesen unvollständig: ${data.error || 'Keine Metadaten'}`);
+      }
+    } catch (err) {
+      setAgentMsg(`Fehler: ${err.message}`);
+    } finally {
+      setLinkLoading(false);
+    }
+  };
+
+  const handleSaveBuyInterest = (e) => {
+    e.preventDefault();
+    if (!buyTitle) return;
+    const newItem = {
+      id: `buy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      title: buyTitle.trim(),
+      price: parseFloat(buyPrice) || 0,
+      url: buyUrl.trim(),
+      notes: buyNotes.trim(),
+      date: new Date().toISOString().substring(0, 10)
+    };
+    const updated = {
+      ...config,
+      finance: {
+        ...financeConfig,
+        buyInterest: [newItem, ...buyInterestList]
+      }
+    };
+    saveProfile({ managerConfig: updated });
+    setBuyUrl('');
+    setBuyTitle('');
+    setBuyPrice('');
+    setBuyNotes('');
+    setAgentMsg(`Kaufinteresse für "${newItem.title}" hinzugefügt.`);
+  };
+
+  const handleDeleteBuyInterest = (id) => {
+    const updated = {
+      ...config,
+      finance: {
+        ...financeConfig,
+        buyInterest: buyInterestList.filter(item => item.id !== id)
+      }
+    };
+    saveProfile({ managerConfig: updated });
+    setAgentMsg('Kaufinteresse gelöscht.');
+  };
+
+  const handleConvertBuyInterestToExpense = (item) => {
+    const newTx = {
+      id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      amount: item.price,
+      type: 'expense',
+      category: 'Shopping',
+      date: new Date().toISOString().substring(0, 10),
+      description: item.title
+    };
+    const updated = {
+      ...config,
+      finance: {
+        ...financeConfig,
+        transactions: [newTx, ...transactions],
+        buyInterest: buyInterestList.filter(i => i.id !== item.id)
+      }
+    };
+    saveProfile({ managerConfig: updated });
+    setAgentMsg(`Kauf von "${item.title}" als Ausgabe erfasst.`);
+  };
+
 
   // Grouped metrics for finance panel
   const totalIncome = transactions.filter(t => t.type === 'income').reduce((acc, c) => acc + c.amount, 0);
@@ -1483,7 +1583,28 @@ Bitte versuche es in wenigen Minuten erneut.`;
         {activeSubTab === 'finance' && (
 
           <div className={styles.financeLayout}>
-            {/* Top Dashboard Metrics */}
+            {/* Tab categories switcher */}
+            <div className={styles.categoryTabs} style={{ alignSelf: 'flex-start', marginBottom: '0.5rem' }}>
+              <button
+                type="button"
+                className={`${styles.categoryTab} ${financeActiveSection === 'transactions' ? styles.categoryTabActive : ''}`}
+                onClick={() => setFinanceActiveSection('transactions')}
+              >
+                Umsatz & Analyse
+              </button>
+              <button
+                type="button"
+                className={`${styles.categoryTab} ${financeActiveSection === 'buy_interest' ? styles.categoryTabActive : ''}`}
+                onClick={() => setFinanceActiveSection('buy_interest')}
+              >
+                Kaufinteresse
+              </button>
+            </div>
+
+            {financeActiveSection === 'transactions' && (
+              <>
+                {/* Top Dashboard Metrics */}
+
             <div className={styles.financeSummary}>
               <div className={styles.finStatCard}>
                 <span className={styles.finStatLabel}>Einnahmen</span>
@@ -1931,10 +2052,138 @@ Bitte versuche es in wenigen Minuten erneut.`;
                 )}
               </div>
             </div>
+            </>
+            )}
+
+            {financeActiveSection === 'buy_interest' && (
+              <div className={styles.buyInterestPanel}>
+                {/* Form to add Buy Interest item */}
+                <div className={styles.card}>
+                  <h3 className={styles.cardTitle}>Kaufinteresse erfassen</h3>
+                  <form onSubmit={handleSaveBuyInterest} className={styles.mappingForm}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Produkt-Link (URL)</label>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <input
+                          type="text"
+                          placeholder="https://..."
+                          className={styles.input}
+                          value={buyUrl}
+                          onChange={(e) => setBuyUrl(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          className={styles.submitBtn}
+                          onClick={handleScanLink}
+                          disabled={linkLoading}
+                          style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                        >
+                          {linkLoading ? 'Lese aus...' : 'Link auslesen'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Titel / Produktname</label>
+                      <input
+                        type="text"
+                        placeholder="z.B. Ergonomischer Stuhl"
+                        className={styles.input}
+                        value={buyTitle}
+                        onChange={(e) => setBuyTitle(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Richtpreis (€)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        className={styles.input}
+                        value={buyPrice}
+                        onChange={(e) => setBuyPrice(e.target.value)}
+                      />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Notizen / Beschreibung</label>
+                      <textarea
+                        placeholder="Warum möchtest du das kaufen? Details..."
+                        className={styles.textarea}
+                        value={buyNotes}
+                        onChange={(e) => setBuyNotes(e.target.value)}
+                      />
+                    </div>
+
+                    <button type="submit" className={styles.submitBtn}>
+                      Kaufinteresse speichern
+                    </button>
+                  </form>
+                </div>
+
+                {/* Wishlist Grid */}
+                <div className={styles.card}>
+                  <h3 className={styles.cardTitle}>Wunschliste ({buyInterestList.length})</h3>
+                  <div className={styles.wishlistGrid}>
+                    {buyInterestList.length === 0 ? (
+                      <p className={styles.emptyText} style={{ opacity: 0.65, fontSize: '0.75rem' }}>
+                        Keine Einträge vorhanden. Trage oben Links oder Produkte ein, die du demnächst kaufen möchtest.
+                      </p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {buyInterestList.map((item) => (
+                          <div key={item.id} className={styles.wishlistCard}>
+                            <div className={styles.wishlistHeader}>
+                              <h4 className={styles.wishlistTitle}>{item.title}</h4>
+                              <span className={styles.wishlistPrice}>
+                                {item.price > 0 ? `${item.price.toFixed(2)} €` : 'Preis offen'}
+                              </span>
+                            </div>
+                            {item.notes && <p className={styles.wishlistNotes}>{item.notes}</p>}
+                            {item.url && (
+                              <a
+                                href={item.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={styles.wishlistLink}
+                              >
+                                Produktseite öffnen ↗
+                              </a>
+                            )}
+                            <div className={styles.wishlistActions}>
+                              <button
+                                type="button"
+                                className={styles.submitBtn}
+                                onClick={() => handleConvertBuyInterestToExpense(item)}
+                                style={{ flex: 1, fontSize: '0.7rem', padding: '0.4rem' }}
+                              >
+                                Gekauft (als Ausgabe verbuchen)
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.deleteBtn}
+                                onClick={() => handleDeleteBuyInterest(item.id)}
+                                style={{ padding: '0.4rem' }}
+                                title="Löschen"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {activeSubTab === 'focus' && (
+
 
           <div className={styles.focusLayout}>
             <div className={styles.focusTimerContainer}>
