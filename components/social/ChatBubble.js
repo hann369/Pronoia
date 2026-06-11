@@ -7,8 +7,8 @@ export default function ChatBubble({ message, isSelf, styles }) {
     : '';
 
   const isE2EError = message.text && message.text.includes('E2E-Schlüssel');
-  // Messages without ciphertext were delivered rules-protected but not E2E.
-  const isPlainDelivery = !message.ciphertext && !isE2EError;
+  // Messages without any cipher were delivered rules-protected but not E2E.
+  const isPlainDelivery = !message.ciphertext && !message.enc && !isE2EError;
 
   const renderMessageContent = () => {
     if (message.type === 'stack-share') {

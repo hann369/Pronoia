@@ -170,24 +170,33 @@ def pronoia_webhook():
     chat_id = payload.get("chatId")
     message = payload.get("message", {}) or {}
     group_key_map = payload.get("groupKey") or {}
+    participant_keys = payload.get("participantKeys") or {}
     sender_uid = message.get("senderUid")
 
     # 1. Resolve plaintext of the incoming message.
+    #    Preferred: per-recipient cipher (message.enc[hermes]). Legacy: shared
+    #    group key. Fallback: plaintext.
     plaintext = None
     group_key = None
-    wrapped = group_key_map.get(HERMES_AGENT_ID)
     try:
-        if wrapped and wrapped.get("ephemPub"):
-            group_key = e2e.unwrap_group_key(wrapped, IDENTITY)
-        if message.get("ciphertext") and message.get("iv") and group_key:
-            plaintext = e2e.decrypt_message(group_key, message["ciphertext"], message["iv"])
-        elif message.get("text"):
-            plaintext = message["text"]
+        enc_map = message.get("enc") or {}
+        my_cipher = enc_map.get(HERMES_AGENT_ID)
+        if my_cipher:
+            plaintext = e2e.ecies_decrypt_text(my_cipher, IDENTITY)
+        else:
+            wrapped = group_key_map.get(HERMES_AGENT_ID)
+            if wrapped and wrapped.get("ephemPub"):
+                group_key = e2e.unwrap_group_key(wrapped, IDENTITY)
+            if message.get("ciphertext") and message.get("iv") and group_key:
+                plaintext = e2e.decrypt_message(group_key, message["ciphertext"], message["iv"])
+            elif message.get("text"):
+                plaintext = message["text"]
     except Exception as exc:  # noqa: BLE001
         print(f"[Hermes Bridge] Decryption failed: {exc}")
 
     if plaintext is None:
-        # Likely our key isn't wrapped yet — (re)register and ask the client to heal.
+        # Likely our key isn't published yet — (re)register so the next message
+        # gets encrypted for us as well.
         register_identity()
         return jsonify({"ok": False, "error": "no_readable_message"}), 202
 
@@ -195,16 +204,29 @@ def pronoia_webhook():
     context = fetch_context(sender_uid)
     reply_text = run_agent(plaintext, context)
 
-    # 3. Post the reply back into the chat — encrypted when we hold the chat's
-    #    group key, otherwise in plaintext (rules-protected; the web client
-    #    heals the key wrap for us so later replies become E2E).
+    # 3. Post the reply back. Preferred: per-recipient encryption using the
+    #    participant public keys the webhook forwarded. Fallbacks: legacy group
+    #    key, then plaintext (rules-protected).
     reply_payload = {"event": "hermes_reply", "source": "hermes_bridge", "chatId": chat_id}
-    if group_key:
+
+    enc_replies = {}
+    for uid, jwk in participant_keys.items():
+        try:
+            pub = e2e.load_public_jwk(jwk)
+            enc_replies[uid] = e2e.ecies_encrypt_text(reply_text, pub)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[Hermes Bridge] Could not encrypt reply for {uid}: {exc}")
+            enc_replies = {}
+            break
+
+    if enc_replies:
+        reply_payload["enc"] = enc_replies
+    elif group_key:
         enc = e2e.encrypt_message(group_key, reply_text)
         reply_payload.update({"ciphertext": enc["ciphertext"], "iv": enc["iv"]})
     else:
-        register_identity()  # make sure our key is published so healing can kick in
-        reply_payload.update({"text": reply_text})
+        register_identity()  # publish our key so future messages can be E2E
+        reply_payload["text"] = reply_text
 
     try:
         call_pronoia(reply_payload)
@@ -212,7 +234,7 @@ def pronoia_webhook():
         print(f"[Hermes Bridge] Failed to post reply: {exc}")
         return jsonify({"ok": False, "error": str(exc)}), 502
 
-    return jsonify({"ok": True, "encrypted": bool(group_key)})
+    return jsonify({"ok": True, "encrypted": bool(enc_replies) or bool(group_key)})
 
 
 @app.get("/health")

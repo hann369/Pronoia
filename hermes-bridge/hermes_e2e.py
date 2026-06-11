@@ -128,6 +128,26 @@ def wrap_group_key(group_key: bytes, recipient_public_key) -> dict:
     }
 
 
+# ── Per-recipient message encryption (ECIES over text) ───────────────────────
+# Mirrors eciesEncryptText/eciesDecryptText in lib/crypto.js: ephemeral ECDH →
+# shared secret = AES-256-GCM key → encrypt the UTF-8 plaintext directly.
+# Cipher object: { ct, iv, ephemPub } (ct/iv standard base64, ephemPub JWK).
+def ecies_encrypt_text(plaintext: str, recipient_public_key) -> dict:
+    ephem = generate_private_key()
+    shared = derive_aes_key(ephem, recipient_public_key)
+    iv = os.urandom(12)
+    ct = AESGCM(shared).encrypt(iv, plaintext.encode("utf-8"), None)
+    return {"ct": b64_encode(ct), "iv": b64_encode(iv), "ephemPub": public_jwk(ephem)}
+
+
+def ecies_decrypt_text(enc_obj: dict, own_private_key) -> str:
+    ephem_pub = load_public_jwk(enc_obj["ephemPub"])
+    shared = derive_aes_key(own_private_key, ephem_pub)
+    iv = b64_decode(enc_obj["iv"])
+    ct = b64_decode(enc_obj["ct"])
+    return AESGCM(shared).decrypt(iv, ct, None).decode("utf-8")
+
+
 # ── Persistent identity for the bridge ───────────────────────────────────────
 def load_or_create_identity(path: str) -> ec.EllipticCurvePrivateKey:
     if os.path.exists(path):

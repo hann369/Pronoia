@@ -141,6 +141,21 @@ export async function POST(req) {
         );
       }
       try {
+        // Enrich with the participants' public keys so the bridge can encrypt
+        // its reply per recipient (same model as the web client).
+        try {
+          const uids = payload.participants || [];
+          const participantKeys = {};
+          for (const uid of uids) {
+            const snap = await adminDb.collection("users").doc(uid).get();
+            const jwk = snap.exists ? snap.data().publicKey?.jwk : null;
+            if (jwk && jwk.x && jwk.y) participantKeys[uid] = jwk;
+          }
+          payload.participantKeys = participantKeys;
+        } catch (keyErr) {
+          console.warn("[Pronoia Webhook] participantKeys enrichment failed:", keyErr.message);
+        }
+
         console.log(`[Pronoia Webhook] Forwarding hermes_trigger to ${hermesAgentUrl}`);
         const fResponse = await fetch(hermesAgentUrl, {
           method: "POST",
@@ -230,17 +245,24 @@ export async function POST(req) {
     }
 
     if (event === "hermes_reply") {
-      // Accepts either an E2E-encrypted reply (ciphertext + iv) or a plaintext
-      // reply (text) for chats where no group key is provisioned yet.
-      const { chatId, ciphertext, iv, text } = payload;
-      if (!chatId || (!text && !(ciphertext && iv))) {
-        return NextResponse.json({ ok: false, error: "chatId and text or ciphertext+iv required" }, { status: 400 });
+      // Accepts (in order of preference):
+      //   enc        — per-recipient cipher map { uid: {ct, iv, ephemPub} } (current model)
+      //   ciphertext+iv — legacy shared-group-key cipher
+      //   text       — plaintext (rules-protected) when no keys are available
+      const { chatId, enc, ciphertext, iv, text } = payload;
+      if (!chatId || (!enc && !text && !(ciphertext && iv))) {
+        return NextResponse.json({ ok: false, error: "chatId and enc, text or ciphertext+iv required" }, { status: 400 });
       }
       const timestamp = new Date().toISOString();
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
       const readBy = ["hermes_agent_node"];
 
-      const msgBody = ciphertext && iv ? { ciphertext, iv } : { text };
+      const msgBody = enc ? { enc } : ciphertext && iv ? { ciphertext, iv } : { text };
+      const lastBody = enc
+        ? { enc: true }
+        : ciphertext && iv
+          ? { ciphertext, iv }
+          : { text: String(text).substring(0, 60) };
 
       await adminDb.collection("chats").doc(chatId).collection("messages").add({
         senderUid: "hermes_agent_node",
@@ -254,12 +276,7 @@ export async function POST(req) {
 
       await adminDb.collection("chats").doc(chatId).set(
         {
-          lastMessage: {
-            ...(ciphertext && iv ? { ciphertext, iv } : { text: String(text).substring(0, 60) }),
-            senderUid: "hermes_agent_node",
-            timestamp,
-            readBy,
-          },
+          lastMessage: { ...lastBody, senderUid: "hermes_agent_node", timestamp, readBy },
         },
         { merge: true }
       );

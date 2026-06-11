@@ -32,7 +32,9 @@ import {
   importPrivateKey,
   getPublicKeyJwkFromPrivateKey,
   wrapGroupKeyNew,
-  unwrapGroupKeyNew
+  unwrapGroupKeyNew,
+  eciesEncryptText,
+  eciesDecryptText
 } from '@/lib/crypto';
 
 // A usable EC public key needs non-empty x/y coordinates. Older builds wrote a
@@ -542,7 +544,23 @@ export function useChat() {
             ? "[Verschlüsselte Nachricht]"
             : "[E2E-Schlüssel fehlt auf diesem Gerät — im E2E-Tab importieren oder zurücksetzen]");
 
-        if (activeKey && msgData.ciphertext && msgData.iv) {
+        if (msgData.enc) {
+          // Current model: per-recipient cipher — decrypt our own entry.
+          const myCipher = msgData.enc[user.uid];
+          if (myCipher && myPrivateKey) {
+            try {
+              decryptedText = await eciesDecryptText(myCipher, myPrivateKey);
+            } catch (err) {
+              console.warn("Per-recipient decryption failed for message ID:", d.id, err);
+              decryptedText = "[E2E-Schlüssel passt nicht — im E2E-Tab Schlüssel importieren oder zurücksetzen]";
+            }
+          } else if (!myPrivateKey) {
+            decryptedText = "[E2E-Schlüssel fehlt auf diesem Gerät — im E2E-Tab importieren oder zurücksetzen]";
+          } else {
+            decryptedText = "[Nachricht wurde nicht für dieses Konto verschlüsselt]";
+          }
+        } else if (activeKey && msgData.ciphertext && msgData.iv) {
+          // Legacy model: shared group key.
           try {
             decryptedText = await decryptMessage(activeKey, msgData.ciphertext, msgData.iv);
           } catch (err) {
@@ -584,162 +602,48 @@ export function useChat() {
       }
       const chatData = chatDoc.data();
 
-      let activeKey = null;
+      // ── Per-recipient encryption (current model) ──
+      // Each message is encrypted individually for every participant's public
+      // key (ECIES). There is NO shared mutable chat key that can diverge —
+      // that was the failure mode of the old group-key model ("E2E-Schlüssel
+      // ungültig"). If any participant lacks a usable key, or we have no
+      // private key to read our own messages later, the message is sent in
+      // plaintext instead — still access-protected by Firestore rules.
+      const participants = chatData.participants || [user.uid];
+      let ciphers = null;
 
-      if (myPrivateKey && chatData.type === 'direct') {
-        const peerUid = chatData.participants.find(id => id !== user.uid) || user.uid;
-        
-        // 1. Try to unwrap from groupKey
-        const wrappedKeyInfo = chatData.groupKey?.[user.uid];
-        if (wrappedKeyInfo && wrappedKeyInfo.ephemPub) {
-          try {
-            activeKey = await unwrapGroupKeyNew(wrappedKeyInfo, myPrivateKey);
-          } catch (err) {
-            console.warn("[E2E Chat] Failed to unwrap direct chat key on send:", err);
-          }
-        }
-        
-        // 2. Fallback to deriving shared secret - ONLY if groupKey is not present
-        if (!activeKey && !chatData.groupKey) {
-          try {
-            const peerDoc = await getDoc(doc(db, 'users', peerUid));
-            const peerJwk = peerDoc.exists() ? peerDoc.data().publicKey?.jwk : null;
-            if (isValidJwk(peerJwk)) {
-              const peerPub = await importPublicKey(peerJwk);
-              activeKey = await deriveSharedSecret(myPrivateKey, peerPub);
-            }
-          } catch (deriveErr) {
-            console.warn("[E2E Chat] Shared-secret derivation failed on send:", deriveErr.message);
-          }
-        }
-        
-        // 3. If still no key, generate a brand new direct chat key.
-        //    The key is only USED if it could be persisted (wrapped for self) —
-        //    otherwise the message would be encrypted with a key nobody stores
-        //    and become permanently unreadable. Peer wrap is optional; key
-        //    healing covers the peer once their real key exists.
-        if (!activeKey) {
-          try {
-            console.log("[E2E Chat] Key materials unavailable. Generating new direct chat key...");
-            const newKey = await generateGroupKey();
-
-            const myUserDoc = await getDoc(doc(db, 'users', user.uid));
-            const myPubJwk = myUserDoc.exists() ? myUserDoc.data().publicKey?.jwk : null;
-            if (!isValidJwk(myPubJwk)) {
-              throw new Error("Own public key missing/invalid — cannot persist chat key");
-            }
-
-            const myPub = await importPublicKey(myPubJwk);
-            const myWrapped = await wrapGroupKeyNew(newKey, myPub);
-            myWrapped.pubKeyFingerprint = myPubJwk.x;
-            const groupKeyUpdate = { [user.uid]: myWrapped };
-
-            try {
-              const peerDoc = await getDoc(doc(db, 'users', peerUid));
-              const peerPubJwk = peerDoc.exists() ? peerDoc.data().publicKey?.jwk : null;
-              if (isValidJwk(peerPubJwk)) {
-                const peerPubObj = await importPublicKey(peerPubJwk);
-                const peerWrapped = await wrapGroupKeyNew(newKey, peerPubObj);
-                peerWrapped.pubKeyFingerprint = peerPubJwk.x;
-                groupKeyUpdate[peerUid] = peerWrapped;
-              }
-            } catch (peerErr) {
-              console.warn("[E2E Chat] Peer wrap skipped (will heal later):", peerErr.message);
-            }
-
-            await setDoc(doc(db, 'chats', chatId), { groupKey: groupKeyUpdate }, { merge: true });
-            activeKey = newKey; // only after successful persistence
-          } catch (genErr) {
-            console.error("[E2E Chat] Generating new direct chat key failed:", genErr);
-          }
-        }
-      } else if (myPrivateKey && (chatData.type === 'group' || chatData.type === 'community')) {
-        const wrappedKeyInfo = chatData.groupKey?.[user.uid];
-        if (wrappedKeyInfo) {
-          if (wrappedKeyInfo.ephemPub) {
-            try {
-              activeKey = await unwrapGroupKeyNew(wrappedKeyInfo, myPrivateKey);
-            } catch (err) {
-              console.warn("[E2E Chat] Failed to unwrap group key on send:", err);
+      if (myPrivateKey) {
+        try {
+          const jwkByUid = {};
+          let everyoneHasKeys = participants.length > 0;
+          for (const uid of participants) {
+            const uDoc = await getDoc(doc(db, 'users', uid));
+            const jwk = uDoc.exists() ? uDoc.data().publicKey?.jwk : null;
+            if (isValidJwk(jwk)) {
+              jwkByUid[uid] = jwk;
+            } else {
+              everyoneHasKeys = false;
+              console.warn(`[E2E Chat] ${uid} has no usable public key — sending rules-protected plaintext.`);
+              break;
             }
           }
-          if (!activeKey) {
-            try {
-              const senderUid = chatData.admins?.[0] || chatData.participants[0];
-              const senderDoc = await getDoc(doc(db, 'users', senderUid));
-              const senderJwk = senderDoc.exists() ? senderDoc.data().publicKey?.jwk : null;
-              if (isValidJwk(senderJwk)) {
-                const senderPub = await importPublicKey(senderJwk);
-                activeKey = await unwrapGroupKey(
-                  wrappedKeyInfo.wrappedKey,
-                  wrappedKeyInfo.iv,
-                  senderPub,
-                  myPrivateKey
-                );
-              }
-            } catch (legacyErr) {
-              console.warn("[E2E Chat] Legacy group key unwrap failed on send:", legacyErr.message);
+
+          if (everyoneHasKeys) {
+            const built = {};
+            for (const [uid, jwk] of Object.entries(jwkByUid)) {
+              const pub = await importPublicKey(jwk);
+              built[uid] = await eciesEncryptText(plaintext, pub);
             }
+            ciphers = built;
           }
+        } catch (encErr) {
+          console.warn("[E2E Chat] Per-recipient encryption failed — sending rules-protected plaintext:", encErr.message);
+          ciphers = null;
         }
       }
 
       const timestamp = new Date().toISOString();
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-
-      if (!activeKey) {
-        // Fallback to sending in plaintext (e.g. for communities or when key exchange is not finished)
-        const msgPayload = {
-          senderUid: user.uid,
-          senderName: profileName(),
-          timestamp,
-          expiresAt,
-          type,
-          text: plaintext,
-          readBy: [user.uid]
-        };
-
-        await addDoc(collection(db, 'chats', chatId, 'messages'), msgPayload);
-
-        await setDoc(doc(db, 'chats', chatId), {
-          lastMessage: {
-            text: plaintext.substring(0, 60),
-            senderUid: user.uid,
-            timestamp,
-            readBy: [user.uid]
-          }
-        }, { merge: true });
-
-        // Trigger Hermes webhook if hermes is a participant
-        if (chatData.participants && chatData.participants.includes('hermes_agent_node')) {
-          user.getIdToken().then(idToken =>
-            fetch('/api/agent-webhook', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${idToken}`
-              },
-              body: JSON.stringify({
-                event: 'hermes_trigger',
-                source: 'webapp',
-                chatId,
-                message: {
-                  text: plaintext,
-                  senderUid: user.uid,
-                  timestamp
-                },
-                participants: chatData.participants,
-                groupKey: chatData.groupKey || null
-              })
-            })
-          ).catch(err => console.warn("Failed to trigger Hermes webhook:", err));
-        }
-
-        return true;
-      }
-
-      // Encrypt message
-      const encrypted = await encryptMessage(activeKey, plaintext);
 
       const msgPayload = {
         senderUid: user.uid,
@@ -747,27 +651,24 @@ export function useChat() {
         timestamp,
         expiresAt,
         type,
-        ciphertext: encrypted.ciphertext,
-        iv: encrypted.iv,
-        readBy: [user.uid]
+        readBy: [user.uid],
+        ...(ciphers ? { enc: ciphers } : { text: plaintext })
       };
 
-      // Add to messages subcollection
       await addDoc(collection(db, 'chats', chatId, 'messages'), msgPayload);
 
-      // Update last message in chat document
       await setDoc(doc(db, 'chats', chatId), {
         lastMessage: {
-          ciphertext: encrypted.ciphertext,
-          iv: encrypted.iv,
           senderUid: user.uid,
           timestamp,
-          readBy: [user.uid]
+          readBy: [user.uid],
+          ...(ciphers ? { enc: true } : { text: plaintext.substring(0, 60) })
         }
       }, { merge: true });
 
-      // Trigger Hermes webhook if hermes is a participant
-      if (chatData.participants && chatData.participants.includes('hermes_agent_node')) {
+      // Trigger Hermes webhook if hermes is a participant. The bridge decrypts
+      // its own cipher (enc['hermes_agent_node']) or reads the plaintext.
+      if (participants.includes('hermes_agent_node')) {
         user.getIdToken().then(idToken =>
           fetch('/api/agent-webhook', {
             method: 'POST',
@@ -780,13 +681,11 @@ export function useChat() {
               source: 'webapp',
               chatId,
               message: {
-                ciphertext: encrypted.ciphertext,
-                iv: encrypted.iv,
                 senderUid: user.uid,
-                timestamp
+                timestamp,
+                ...(ciphers ? { enc: ciphers } : { text: plaintext })
               },
-              participants: chatData.participants,
-              groupKey: chatData.groupKey || null
+              participants
             })
           })
         ).catch(err => console.warn("Failed to trigger Hermes webhook:", err));

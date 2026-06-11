@@ -34,7 +34,7 @@ export default function ChatList({ conversations, onSelectChat, activeChatId, cu
         const timeStr = chat.lastMessage ? formatLastMsgTime(chat.lastMessage.timestamp) : '';
         const isSelf = chat.lastMessage && chat.lastMessage.senderUid === currentUserUid;
         const previewText = chat.lastMessage
-          ? (isSelf ? 'Du: ' : '') + (chat.lastMessage.ciphertext ? '🔒 Verschlüsselt' : (chat.lastMessage.text || ''))
+          ? (isSelf ? 'Du: ' : '') + ((chat.lastMessage.ciphertext || chat.lastMessage.enc) ? '🔒 Verschlüsselt' : (chat.lastMessage.text || ''))
           : (isCompanion ? 'Dein KI-Begleiter. Frag mich etwas.' : 'Keine Nachrichten');
 
         return (
