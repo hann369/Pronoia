@@ -35,10 +35,10 @@ service cloud.firestore {
                     resource.data.profile != null && 
                     resource.data.profile.telegramId != null);
       
-      // Allow user to write to their own document, admins to modify any user document, or webhook with valid tempSecret
-      allow write: if (request.auth != null && (request.auth.uid == uid || isAdmin())) ||
-                    (request.resource.data.profile.tempSecret == 'DEIN_WEBHOOK_SECRET_HIER' || 
-                     (resource != null && resource.data.profile.tempSecret == 'DEIN_WEBHOOK_SECRET_HIER'));
+      // Allow user to write to their own document, or admins to modify any user document.
+      // Server-side/webhook writes go through the Firebase Admin SDK, which bypasses
+      // these rules entirely — so no shared-secret backdoor is needed here.
+      allow write: if request.auth != null && (request.auth.uid == uid || isAdmin());
 
       match /bookmarks/{bookmarkId} {
         allow read, write: if request.auth != null && (request.auth.uid == uid || isAdmin());
@@ -70,10 +70,8 @@ service cloud.firestore {
       }
 
       match /suggestions/{suggestionId} {
-        allow read: if request.auth != null && (request.auth.uid == uid || request.auth.uid == 'hermes_agent_node' || isAdmin());
-        allow write: if (request.auth != null && (request.auth.uid == uid || request.auth.uid == 'hermes_agent_node' || isAdmin())) ||
-                      (request.resource.data.profile.tempSecret == 'DEIN_WEBHOOK_SECRET_HIER' || 
-                       (resource != null && resource.data.profile.tempSecret == 'DEIN_WEBHOOK_SECRET_HIER'));
+        // Hermes suggestion writes happen server-side via the Admin SDK (bypasses rules).
+        allow read, write: if request.auth != null && (request.auth.uid == uid || isAdmin());
       }
     }
 

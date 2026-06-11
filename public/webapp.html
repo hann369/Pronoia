@@ -2136,7 +2136,9 @@ async function sendToWebsite(payload) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Bot-Secret": "DEIN_WEBHOOK_SECRET_HIER"
+        // Telegram Mini Apps authenticate with signed initData (verified
+        // server-side via the bot token), not a shared secret in client JS.
+        "X-Telegram-Init-Data": (tg && tg.initData) || ""
       },
       body: JSON.stringify({
         source: "telegram_webapp",

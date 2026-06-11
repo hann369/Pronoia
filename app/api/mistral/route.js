@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebaseAdmin';
 
 const PRONOIA_TIPS = [
   "Trinke morgens 500ml Wasser mit einer Prise Salz und Zitrone vor deinem ersten Kaffee. Das rehydriert deine Zellen und verhindert Nebennieren-Stress.",
@@ -368,14 +367,10 @@ export async function PUT(req) {
       const telegramId = telegramUser?.id || profile?.telegramId || null;
       if (telegramId) {
         try {
-          const matchingUsers = await runRestQuery("users", "profile.telegramId", telegramId);
-          if (matchingUsers.length > 0) {
-            userId = matchingUsers[0].id; // The document ID is the Firebase Auth uid
-          } else {
-            userId = profile?.uid || profile?.userId || profile?.id || 'local';
-          }
+          const matchedUid = await lookupUidByTelegramId(telegramId);
+          userId = matchedUid || profile?.uid || profile?.userId || profile?.id || 'local';
         } catch (err) {
-          console.warn("Failed to lookup user by telegramId in Firestore REST:", err);
+          console.warn("Failed to lookup user by telegramId via Admin SDK:", err);
           userId = profile?.uid || profile?.userId || profile?.id || 'local';
         }
       } else {
@@ -602,31 +597,17 @@ ANTWORT NUR ALS JSON:
       }
 
       if (event) {
-        try {
-          const webhookRes = await fetch(`${siteUrl}/app/api/agent-webhook` || `${siteUrl}/api/agent-webhook`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Bot-Secret": process.env.WEBHOOK_SECRET || "DEIN_WEBHOOK_SECRET_HIER"
-            },
-            body: JSON.stringify({
-              source: "telegram_webapp_chat",
-              telegramUser,
-              event,
-              ...actionParams
-            })
-          });
-          
-          // Fallback if local/relative path differs or deployment hasn't finished, try relative path local fetch if on the same host
-          let finalRes = webhookRes;
-          if (!webhookRes.ok) {
-            // Try fetching absolute path to route API
-            const fallbackUrl = `${req.nextUrl.origin}/api/agent-webhook`;
-            finalRes = await fetch(fallbackUrl, {
+        const webhookSecret = process.env.WEBHOOK_SECRET;
+        if (!webhookSecret) {
+          console.warn("WEBHOOK_SECRET not set; skipping agent-webhook action forward.");
+        } else {
+          try {
+            const webhookUrl = `${req.nextUrl.origin}/api/agent-webhook`;
+            const finalRes = await fetch(webhookUrl, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "X-Bot-Secret": process.env.WEBHOOK_SECRET || "DEIN_WEBHOOK_SECRET_HIER"
+                "X-Bot-Secret": webhookSecret
               },
               body: JSON.stringify({
                 source: "telegram_webapp_chat",
@@ -635,15 +616,15 @@ ANTWORT NUR ALS JSON:
                 ...actionParams
               })
             });
-          }
 
-          if (finalRes.ok) {
-            const webhookData = await finalRes.json();
-            status = webhookData.status;
-            debug = webhookData.debug;
+            if (finalRes.ok) {
+              const webhookData = await finalRes.json();
+              status = webhookData.status;
+              debug = webhookData.debug;
+            }
+          } catch (webhookErr) {
+            console.error("Failed to forward action to agent-webhook:", webhookErr);
           }
-        } catch (webhookErr) {
-          console.error("Failed to forward action to agent-webhook:", webhookErr);
         }
       }
     }
@@ -664,86 +645,23 @@ ANTWORT NUR ALS JSON:
   }
 }
 
-// ── Firestore REST API Helpers ─────────────────────────────────
+// ── Firestore Admin SDK Helper ─────────────────────────────────
 
-async function runRestQuery(collectionId, fieldPath, value) {
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-  if (!projectId || !apiKey) return [];
+// Resolve a Firebase Auth uid (the users/ doc id) from a Telegram ID.
+// telegramId may be stored as a number or a string, so we try both.
+async function lookupUidByTelegramId(telegramId) {
+  if (!adminDb || telegramId === undefined || telegramId === null) return null;
+  const usersRef = adminDb.collection("users");
+  const idNum = Number(telegramId);
 
-  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery?key=${apiKey}`;
-  const webhookSecret = process.env.WEBHOOK_SECRET || "DEIN_WEBHOOK_SECRET_HIER";
+  let snap = await usersRef
+    .where("profile.telegramId", "==", Number.isNaN(idNum) ? String(telegramId) : idNum)
+    .limit(1)
+    .get();
 
-  let filter;
-  const baseFilter = {
-    fieldFilter: {
-      field: { fieldPath },
-      op: "EQUAL",
-      value: { stringValue: String(value) }
-    }
-  };
-
-  // Handle special case for lookup by telegramId where type can be number or string
-  if (collectionId === "users" && fieldPath === "profile.telegramId" && !isNaN(Number(value))) {
-    baseFilter.fieldFilter.op = "IN";
-    baseFilter.fieldFilter.value = {
-      arrayValue: {
-        values: [
-          { integerValue: String(value) },
-          { stringValue: String(value) }
-        ]
-      }
-    };
+  if (snap.empty && !Number.isNaN(idNum)) {
+    snap = await usersRef.where("profile.telegramId", "==", String(telegramId)).limit(1).get();
   }
 
-  const payload = {
-    structuredQuery: {
-      from: [{ collectionId }],
-      where: baseFilter
-    }
-  };
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  if (!res.ok) {
-    console.error(`Firestore REST query failed for ${collectionId}: ${res.status}`);
-    return [];
-  }
-
-  const results = await res.json();
-  if (!Array.isArray(results)) return [];
-
-  return results
-    .filter(r => r.document)
-    .map(r => {
-      const doc = r.document;
-      const parts = doc.name.split("/");
-      const docId = parts[parts.length - 1];
-      const data = parseFirestoreFields(doc.fields || {});
-      return { id: docId, ...data };
-    });
-}
-
-function parseFirestoreFields(fields) {
-  const result = {};
-  for (const [key, value] of Object.entries(fields)) {
-    if ('stringValue' in value) result[key] = value.stringValue;
-    else if ('integerValue' in value) result[key] = parseInt(value.integerValue);
-    else if ('doubleValue' in value) result[key] = parseFloat(value.doubleValue);
-    else if ('booleanValue' in value) result[key] = value.booleanValue;
-    else if ('mapValue' in value) result[key] = parseFirestoreFields(value.mapValue.fields || {});
-    else if ('arrayValue' in value) {
-      result[key] = (value.arrayValue.values || []).map(v => {
-        if ('stringValue' in v) return v.stringValue;
-        if ('integerValue' in v) return parseInt(v.integerValue);
-        if ('mapValue' in v) return parseFirestoreFields(v.mapValue.fields || {});
-        return null;
-      });
-    }
-  }
-  return result;
+  return snap.empty ? null : snap.docs[0].id;
 }

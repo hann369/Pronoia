@@ -189,12 +189,72 @@ function scoreChannel(channelTitle, queryText) {
   return 0;
 }
 
+// ── Official YouTube Data API v3 (preferred when YOUTUBE_API_KEY is set) ──────
+async function youtubeDataApi(query, channelId) {
+  const key = process.env.YOUTUBE_API_KEY;
+  if (!key) return null;
+
+  const mapItem = (id, snippet) => ({
+    videoId: id,
+    title: snippet?.title || '',
+    thumbnail: snippet?.thumbnails?.medium?.url || snippet?.thumbnails?.default?.url || '',
+    viewsText: '',
+    publishedText: snippet?.publishedAt ? new Date(snippet.publishedAt).toLocaleDateString('de-DE') : '',
+    videoUrl: `https://www.youtube.com/embed/${id}`,
+    watchUrl: `https://www.youtube.com/watch?v=${id}`,
+  });
+
+  // Channel videos by id: resolve uploads playlist, then list items.
+  if (channelId) {
+    const chRes = await fetch(
+      `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${key}`
+    );
+    if (!chRes.ok) throw new Error(`YouTube API channels ${chRes.status}`);
+    const chData = await chRes.json();
+    const uploads = chData.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+    if (!uploads) return { mode: 'channel', channelId, videos: [] };
+    const plRes = await fetch(
+      `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=5&playlistId=${uploads}&key=${key}`
+    );
+    if (!plRes.ok) throw new Error(`YouTube API playlistItems ${plRes.status}`);
+    const plData = await plRes.json();
+    const videos = (plData.items || [])
+      .map((it) => mapItem(it.snippet?.resourceId?.videoId, it.snippet))
+      .filter((v) => v.videoId);
+    return { mode: 'channel', channelId, videos };
+  }
+
+  // Keyword search.
+  const sRes = await fetch(
+    `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(query)}&key=${key}`
+  );
+  if (!sRes.ok) throw new Error(`YouTube API search ${sRes.status}`);
+  const sData = await sRes.json();
+  const videos = (sData.items || [])
+    .map((it) => mapItem(it.id?.videoId, it.snippet))
+    .filter((v) => v.videoId);
+  return { mode: 'keyword', videos };
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
     const channelId = searchParams.get('channelId');
-    
+
+    // 0. Preferred path: official YouTube Data API v3 (stable, quota-based).
+    //    Falls through to the scraping heuristics below on missing key or error.
+    if (query || channelId) {
+      try {
+        const apiResult = await youtubeDataApi(query, channelId);
+        if (apiResult && apiResult.videos && apiResult.videos.length > 0) {
+          return NextResponse.json(apiResult);
+        }
+      } catch (apiErr) {
+        console.warn('[YouTube Search] Data API failed, falling back to scraping:', apiErr.message);
+      }
+    }
+
     // 1. Explicit Channel Fetch (by ID)
     if (channelId) {
       console.log(`[YouTube Search] Explicit channel videos request: channelId=${channelId}`);

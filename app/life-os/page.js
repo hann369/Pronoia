@@ -10,6 +10,7 @@ import styles from './page.module.css';
 
 import { collection, query, orderBy, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { Connectors } from '@/lib/connectorEngine';
 import SocialHub from '@/components/social/SocialHub';
 import PronoiaLab from '@/components/lab/PronoiaLab';
 import { useChat } from '@/hooks/useChat';
@@ -715,44 +716,114 @@ function LifeOSDashboard() {
 
   const handleWhoopSync = async () => {
     if (isSyncingWhoop) return;
+    if (!user) {
+      setTerminalLogs(prev => [...prev, `[WHOOP] Bitte zuerst einloggen, um WHOOP zu verbinden.`]);
+      return;
+    }
     setIsSyncingWhoop(true);
-    setTerminalLogs(prev => [...prev, `[WHOOP] Initiating connection handshake...`]);
-    setTimeout(() => {
-      setTerminalLogs(prev => [...prev, `[WHOOP] Handshake SUCCESS. Authorized via OAuth2.`]);
-    }, 600);
-    setTimeout(() => {
-      setTerminalLogs(prev => [...prev, `[WHOOP] Querying /v2/activity/sleep and /v2/recovery...`]);
-    }, 1200);
-    setTimeout(() => {
-      const timeVal = new Date().getTime();
-      const mockHrv = Math.round(70 + ((timeVal % 220) / 10));
-      const mockSleep = Math.round(76 + (((timeVal >> 2) % 200) / 10));
-      setTerminalLogs(prev => [...prev, `[WHOOP] Received metrics: HRV=${mockHrv}ms Sleep=${mockSleep}%`]);
-      setTerminalLogs(prev => [...prev, `[SYS] Syncing biometric telemetry index...`]);
-      saveProfile({ metrics: { hrv: mockHrv, sleep: mockSleep } });
+    setTerminalLogs(prev => [...prev, `[WHOOP] Frage Recovery & Sleep ab...`]);
+    try {
+      const idToken = await user.getIdToken();
+      const res = await fetch('/api/connectors/whoop/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` }
+      });
+      const data = await res.json();
+
+      if (data.connected === false) {
+        // Not linked yet → start OAuth consent flow.
+        setTerminalLogs(prev => [...prev, `[WHOOP] Noch nicht verbunden. Starte OAuth2-Autorisierung...`]);
+        const authRes = await fetch('/api/connectors/whoop/authorize', {
+          headers: { 'Authorization': `Bearer ${idToken}` }
+        });
+        const auth = await authRes.json();
+        if (auth.authorizeUrl) {
+          window.location.href = auth.authorizeUrl;
+          return;
+        }
+        setTerminalLogs(prev => [...prev, `[WHOOP] ${auth.message || 'Autorisierung nicht verfügbar.'}`]);
+      } else if (data.success && data.data) {
+        const { hrv, sleep } = data.data;
+        setTerminalLogs(prev => [...prev, `[WHOOP] Empfangen: HRV=${hrv ?? '—'}ms Sleep=${sleep ?? '—'}%`, `[SYS] Übernehme Biometrie...`]);
+        const metrics = { ...(profile?.metrics || {}) };
+        if (hrv != null) metrics.hrv = hrv;
+        if (sleep != null) metrics.sleep = sleep;
+        saveProfile({ metrics });
+      } else {
+        setTerminalLogs(prev => [...prev, `[WHOOP] ${data.message || 'Sync fehlgeschlagen.'}`]);
+      }
+    } catch (err) {
+      setTerminalLogs(prev => [...prev, `[WHOOP] Fehler: ${err.message}`]);
+    } finally {
       setIsSyncingWhoop(false);
-    }, 2000);
+    }
   };
 
   const handleNotionExport = async () => {
     if (isExportingNotion) return;
+    const conn = profile?.connectors || {};
+    if (!conn.notionToken) {
+      setTerminalLogs(prev => [...prev, `[NOTION] Kein Integration-Token hinterlegt. Bitte oben eintragen.`]);
+      return;
+    }
+    if (!conn.notionDatabaseId) {
+      setTerminalLogs(prev => [...prev, `[NOTION] Keine Database-ID hinterlegt. Bitte oben eintragen.`]);
+      return;
+    }
     setIsExportingNotion(true);
-    setTerminalLogs(prev => [...prev, `[NOTION] Opening integration page context...`]);
-    setTimeout(() => {
-      setTerminalLogs(prev => [...prev, `[NOTION] Finding database matching 'Pronoia Daily Protocols'...`]);
-    }, 600);
-    setTimeout(() => {
-      setTerminalLogs(prev => [...prev, `[NOTION] Appending page for date: ${formatDate(new Date())}`]);
-    }, 1200);
-    setTimeout(() => {
-      setTerminalLogs(prev => [
-        ...prev,
-        `[NOTION] Successfully synced ${blocks.length} blocks to daily table.`,
-        `[SYS] Export successfully completed!`
-      ]);
+    const dateStr = formatDate(new Date());
+    setTerminalLogs(prev => [...prev, `[NOTION] Übertrage Protokoll für ${dateStr}...`]);
+    try {
+      const res = await fetch('/api/connectors/notion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'export_protocol',
+          token: conn.notionToken,
+          databaseId: conn.notionDatabaseId,
+          date: dateStr,
+          blocks: blocks.map(b => ({ title: b.title, startTime: b.startTime, pillar: b.pillar || b.type }))
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTerminalLogs(prev => [...prev, `[NOTION] ${blocks.length} Blöcke übertragen.`, `[SYS] Export abgeschlossen!`]);
+      } else {
+        setTerminalLogs(prev => [...prev, `[NOTION] ${data.message || 'Export fehlgeschlagen.'}`]);
+      }
+    } catch (err) {
+      setTerminalLogs(prev => [...prev, `[NOTION] Fehler: ${err.message}`]);
+    } finally {
       setIsExportingNotion(false);
-    }, 2000);
+    }
   };
+
+  // Wire the connector engine with the signed-in user's token + connector creds
+  // so agent-driven dispatches (callWithIntent) can reach the real routes.
+  useEffect(() => {
+    Connectors.setContext({
+      getIdToken: user ? () => user.getIdToken() : null,
+      connectors: profile?.connectors || {},
+    });
+  }, [user, profile?.connectors]);
+
+  // Surface the WHOOP OAuth + Stripe checkout callback results
+  // (redirected back with ?whoop=... / ?checkout=...).
+  useEffect(() => {
+    const whoopStatus = searchParams.get('whoop');
+    if (whoopStatus === 'connected') {
+      setTerminalLogs(prev => [...prev, `[WHOOP] ✓ Verbunden. Klicke "Sync WHOOP", um Metriken zu laden.`]);
+    } else if (whoopStatus === 'error') {
+      setTerminalLogs(prev => [...prev, `[WHOOP] ✗ Autorisierung fehlgeschlagen oder abgebrochen.`]);
+    }
+
+    const checkout = searchParams.get('checkout');
+    if (checkout === 'success') {
+      setAgentMsg('Zahlung erfolgreich. Dein Abo wird nach Bestätigung durch Stripe aktiviert.');
+    } else if (checkout === 'cancel') {
+      setAgentMsg('Checkout abgebrochen. Kein Abo abgeschlossen.');
+    }
+  }, [searchParams]);
 
   /* ─── Ecosystem Shop Checkout & Stripe WebSocket client ─── */
   const handleOrderProduct = (product) => {
@@ -2353,12 +2424,36 @@ function LifeOSDashboard() {
                         className={`${styles.ctaBtn} ${tier.featured ? styles.ctaBtnFeatured : ''} ${isActive ? styles.ctaBtnActive : ''}`}
                         onClick={async () => {
                           if (authLoading) return;
-                          setAgentMsg(`Upgrade auf ${tier.name} angefordert.`);
+                          // Free tier needs no payment — set it directly.
+                          if (tier.price === 0) {
+                            try {
+                              await saveProfile({ subscriptionTier: tier.id });
+                              setAgentMsg(`Abonnement auf ${tier.name} aktualisiert.`);
+                            } catch (e) {
+                              setAgentMsg('Fehler beim Speichern des System-Abos.');
+                            }
+                            return;
+                          }
+                          if (!user) {
+                            setAgentMsg('Bitte zuerst einloggen, um ein Abo abzuschließen.');
+                            return;
+                          }
+                          setAgentMsg(`Leite zur sicheren Stripe-Kasse für ${tier.name}…`);
                           try {
-                            await saveProfile({ subscriptionTier: tier.id });
-                            setAgentMsg(`Abonnement auf ${tier.name} aktualisiert.`);
+                            const idToken = await user.getIdToken();
+                            const res = await fetch('/api/stripe/checkout', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+                              body: JSON.stringify({ tierId: tier.id })
+                            });
+                            const data = await res.json();
+                            if (data.url) {
+                              window.location.href = data.url;
+                            } else {
+                              setAgentMsg(`Checkout nicht verfügbar: ${data.error || 'unbekannter Fehler'}`);
+                            }
                           } catch (e) {
-                            setAgentMsg('Fehler beim Speichern des System-Abos.');
+                            setAgentMsg(`Checkout-Fehler: ${e.message}`);
                           }
                         }}
                         disabled={isActive}
@@ -2521,15 +2616,37 @@ function LifeOSDashboard() {
                     }} 
                   />
                   <label className={styles.formLabel} style={{ marginTop: '1.25rem', display: 'block' }}>Notion Integration Token</label>
-                  <input 
-                    type="password" 
-                    className={styles.formInput} 
-                    placeholder="secret_notion_xxxx" 
-                    value={profile?.connectors?.notionToken || ''} 
+                  <input
+                    type="password"
+                    className={styles.formInput}
+                    placeholder="secret_notion_xxxx"
+                    value={profile?.connectors?.notionToken || ''}
                     onChange={e => {
                       const conn = { ...(profile?.connectors || {}), notionToken: e.target.value };
                       saveProfile({ connectors: conn });
-                    }} 
+                    }}
+                  />
+                  <label className={styles.formLabel} style={{ marginTop: '1.25rem', display: 'block' }}>Notion Database ID (Ziel für Protokoll-Export)</label>
+                  <input
+                    type="text"
+                    className={styles.formInput}
+                    placeholder="z.B. 1a2b3c4d5e6f..."
+                    value={profile?.connectors?.notionDatabaseId || ''}
+                    onChange={e => {
+                      const conn = { ...(profile?.connectors || {}), notionDatabaseId: e.target.value };
+                      saveProfile({ connectors: conn });
+                    }}
+                  />
+                  <label className={styles.formLabel} style={{ marginTop: '1.25rem', display: 'block' }}>Zapier Webhook URL</label>
+                  <input
+                    type="text"
+                    className={styles.formInput}
+                    placeholder="https://hooks.zapier.com/hooks/catch/..."
+                    value={profile?.connectors?.zapierWebhookUrl || ''}
+                    onChange={e => {
+                      const conn = { ...(profile?.connectors || {}), zapierWebhookUrl: e.target.value };
+                      saveProfile({ connectors: conn });
+                    }}
                   />
                 </div>
 
