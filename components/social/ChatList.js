@@ -1,8 +1,20 @@
 // components/social/ChatList.js
 import React from 'react';
 
+const HERMES_UID = 'hermes_agent_node';
+const HERMES_AVATAR = 'https://api.dicebear.com/7.x/bottts/svg?seed=hermes';
+
+function isHermesChat(chat) {
+  return chat.type === 'direct' && (chat.participants || []).includes(HERMES_UID);
+}
+
 export default function ChatList({ conversations, onSelectChat, activeChatId, currentUserUid, onDeleteChat, styles }) {
   const avatarPreset = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=200';
+
+  // Pin the Hermes companion chat to the top; keep time-sorted order otherwise.
+  const sortedConversations = [...conversations].sort(
+    (a, b) => (isHermesChat(b) ? 1 : 0) - (isHermesChat(a) ? 1 : 0)
+  );
 
   const formatLastMsgTime = (timestamp) => {
     if (!timestamp) return '';
@@ -16,13 +28,14 @@ export default function ChatList({ conversations, onSelectChat, activeChatId, cu
 
   return (
     <div className={styles.chatList}>
-      {conversations.map(chat => {
+      {sortedConversations.map(chat => {
         const isActive = chat.id === activeChatId;
+        const isCompanion = isHermesChat(chat);
         const timeStr = chat.lastMessage ? formatLastMsgTime(chat.lastMessage.timestamp) : '';
         const isSelf = chat.lastMessage && chat.lastMessage.senderUid === currentUserUid;
-        const previewText = chat.lastMessage 
+        const previewText = chat.lastMessage
           ? (isSelf ? 'Du: ' : '') + (chat.lastMessage.ciphertext ? '🔒 Verschlüsselt' : (chat.lastMessage.text || ''))
-          : 'Keine Nachrichten';
+          : (isCompanion ? 'Dein KI-Begleiter. Frag mich etwas.' : 'Keine Nachrichten');
 
         return (
           <div
@@ -33,13 +46,30 @@ export default function ChatList({ conversations, onSelectChat, activeChatId, cu
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: 1, minWidth: 0 }}>
               <img
-                src={chat.avatar || avatarPreset}
+                src={chat.avatar || (isCompanion ? HERMES_AVATAR : avatarPreset)}
                 alt={chat.title}
                 className={styles.chatListAvatar}
               />
               <div className={styles.chatListInfo}>
                 <div className={styles.chatListHeaderRow}>
-                  <span className={styles.chatListTitle}>{chat.title}</span>
+                  <span className={styles.chatListTitle}>
+                    {isCompanion ? 'Hermes' : chat.title}
+                    {isCompanion && (
+                      <span style={{
+                        marginLeft: '0.5rem',
+                        fontSize: '0.55rem',
+                        fontFamily: 'var(--font-mono)',
+                        letterSpacing: '0.1em',
+                        color: 'var(--theme-accent, #1A6AFF)',
+                        border: '1px solid var(--theme-accent-dim, rgba(26,106,255,0.25))',
+                        borderRadius: '100px',
+                        padding: '0.1rem 0.45rem',
+                        verticalAlign: 'middle'
+                      }}>
+                        COMPANION
+                      </span>
+                    )}
+                  </span>
                   <span className={styles.chatListTime}>{timeStr}</span>
                 </div>
                 <div className={styles.chatListPreviewRow}>
@@ -79,7 +109,13 @@ export default function ChatList({ conversations, onSelectChat, activeChatId, cu
         );
       })}
       {conversations.length === 0 && (
-        <p className={styles.emptyState}>Keine Konversationen aktiv. Nutze die Suche, um Chats zu starten.</p>
+        <div className={styles.emptyState} style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
+          <p style={{ margin: 0 }}>Keine Konversationen aktiv.</p>
+          <p style={{ margin: '0.5rem 0 0', opacity: 0.7, fontSize: '0.8em' }}>
+            Suche im Tab „Suchen&quot; nach Freunden (Username oder Telegram-ID) — oder adde
+            <strong> hermes_agent_node</strong>, deinen KI-Begleiter.
+          </p>
+        </div>
       )}
     </div>
   );

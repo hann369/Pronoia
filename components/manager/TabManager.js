@@ -1199,6 +1199,9 @@ Bitte versuche es in wenigen Minuten erneut.`;
                   <div className={styles.emptyState} style={{ gridColumn: '1 / -1' }}>
                     <span className={styles.emptyIcon}>🎯</span>
                     <p className={styles.emptyText}>Keine Forschungsziele in dieser Kategorie gefunden.</p>
+                    <p className={styles.emptyText} style={{ opacity: 0.65, fontSize: '0.85em', marginTop: '0.35rem' }}>
+                      Lege oben ein Ziel an (YouTube-Kanal, Skill oder Competitor) und starte die Analyse.
+                    </p>
                   </div>
                 )}
               </div>
@@ -1566,6 +1569,9 @@ Bitte versuche es in wenigen Minuten erneut.`;
                   <div className={styles.emptyState}>
                     <span className={styles.emptyIcon}>💰</span>
                     <p className={styles.emptyText}>Noch keine Transaktionen geloggt.</p>
+                    <p className={styles.emptyText} style={{ opacity: 0.65, fontSize: '0.85em', marginTop: '0.35rem' }}>
+                      Trage links deine erste Einnahme oder Ausgabe ein — Charts und Bilanz aktualisieren sich sofort.
+                    </p>
                   </div>
                 ) : (
                   <table className={styles.finTable}>
@@ -1725,6 +1731,9 @@ Bitte versuche es in wenigen Minuten erneut.`;
                   <div className={styles.emptyState}>
                     <span className={styles.emptyIcon}>📝</span>
                     <p className={styles.emptyText}>Noch keine Notizen verfasst.</p>
+                    <p className={styles.emptyText} style={{ opacity: 0.65, fontSize: '0.85em', marginTop: '0.35rem' }}>
+                      Halte Gedanken aus deinen Fokus-Blöcken fest — Notizen bleiben über Sessions erhalten.
+                    </p>
                   </div>
                 )}
               </div>

@@ -74,6 +74,19 @@ export function useSocial() {
       for (const d of snapshot.docs) {
         const data = d.data();
         const friendUid = data.users.find(id => id !== user.uid);
+
+        // Auto-heal: Hermes can never click "accept" itself, so any friendship
+        // with it stuck on 'pending' (created before auto-accept existed) is
+        // accepted on sight. The snapshot re-fires with the healed status.
+        if (friendUid === 'hermes_agent_node' && data.status === 'pending') {
+          setDoc(doc(db, 'friendships', d.id), {
+            status: 'accepted',
+            updatedAt: new Date().toISOString()
+          }, { merge: true }).catch(err => {
+            console.warn('Hermes friendship auto-heal failed:', err.message);
+          });
+          data.status = 'accepted'; // reflect immediately in this render pass
+        }
         
         // Load the friend's profile details
         let friendProfile = { username: 'BioHacker_Beta', avatar: '' };

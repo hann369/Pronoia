@@ -191,6 +191,13 @@ export default function SocialHub({ setActiveTab, stack }) {
     searchUsers(searchVal);
   };
 
+  // Live search with 300ms debounce (avoids one Firestore query burst per keystroke)
+  useEffect(() => {
+    if (!searchVal.trim()) return;
+    const timer = setTimeout(() => searchUsers(searchVal), 300);
+    return () => clearTimeout(timer);
+  }, [searchVal, searchUsers]);
+
   // Direct Message action from search/friend list
   const handleStartChat = async (uid) => {
     const chatId = await createDirectChat(uid);
@@ -326,18 +333,46 @@ export default function SocialHub({ setActiveTab, stack }) {
 
           {socialTab === 'friends' && (
             <div className={styles.friendsList}>
-              {friends.map(f => (
-                <div key={f.id} className={styles.friendRow}>
-                  <div className={styles.friendInfo}>
-                    <span className={styles.onlineDot} />
-                    <span className={styles.friendName}>{f.profile?.username}</span>
-                  </div>
-                  <button className="btn btn-ghost" style={{ padding: '0.3rem 0.75rem', fontSize: '0.65rem' }} onClick={() => handleStartChat(f.friendUid)}>
-                    💬 Chat
-                  </button>
+              {[...friends]
+                .sort((a, b) =>
+                  (b.friendUid === 'hermes_agent_node' ? 1 : 0) - (a.friendUid === 'hermes_agent_node' ? 1 : 0)
+                )
+                .map(f => {
+                  const isCompanion = f.friendUid === 'hermes_agent_node';
+                  return (
+                    <div key={f.id} className={styles.friendRow}>
+                      <div className={styles.friendInfo}>
+                        <span className={styles.onlineDot} />
+                        <span className={styles.friendName}>{isCompanion ? 'Hermes' : f.profile?.username}</span>
+                        {isCompanion && (
+                          <span style={{
+                            fontSize: '0.55rem',
+                            fontFamily: 'var(--font-mono)',
+                            letterSpacing: '0.1em',
+                            color: 'var(--theme-accent, #1A6AFF)',
+                            border: '1px solid var(--theme-accent-dim, rgba(26,106,255,0.25))',
+                            borderRadius: '100px',
+                            padding: '0.1rem 0.45rem',
+                            marginLeft: '0.4rem'
+                          }}>
+                            COMPANION
+                          </span>
+                        )}
+                      </div>
+                      <button className="btn btn-ghost" style={{ padding: '0.3rem 0.75rem', fontSize: '0.65rem' }} onClick={() => handleStartChat(f.friendUid)}>
+                        💬 Chat
+                      </button>
+                    </div>
+                  );
+                })}
+              {friends.length === 0 && (
+                <div className={styles.emptyState} style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
+                  <p style={{ margin: 0 }}>Noch keine Freunde hinzugefügt.</p>
+                  <p style={{ margin: '0.5rem 0 0', opacity: 0.7, fontSize: '0.8em' }}>
+                    Wechsle zu „Suchen&quot; und finde Nutzer per Username oder Telegram-ID.
+                  </p>
                 </div>
-              ))}
-              {friends.length === 0 && <p className={styles.emptyState}>Noch keine Freunde hinzugefügt.</p>}
+              )}
             </div>
           )}
 
@@ -414,7 +449,21 @@ export default function SocialHub({ setActiveTab, stack }) {
                   })
                 )}
                 {!searching && searchResults.length === 0 && searchVal && (
-                  <p className={styles.emptyState}>Keine Nutzer gefunden.</p>
+                  <div className={styles.emptyState} style={{ textAlign: 'center' }}>
+                    <p style={{ margin: 0 }}>Keine Nutzer gefunden.</p>
+                    <p style={{ margin: '0.5rem 0 0', opacity: 0.7, fontSize: '0.8em' }}>
+                      Die Suche matcht den Anfang des Usernames (Groß-/Kleinschreibung zählt)
+                      oder eine exakte Telegram-ID.
+                    </p>
+                  </div>
+                )}
+                {!searching && !searchVal && searchResults.length === 0 && (
+                  <div className={styles.emptyState} style={{ textAlign: 'center' }}>
+                    <p style={{ margin: 0 }}>Suche nach Username oder Telegram-ID.</p>
+                    <p style={{ margin: '0.5rem 0 0', opacity: 0.7, fontSize: '0.8em' }}>
+                      Tipp: <strong>hermes_agent_node</strong> ist dein KI-Begleiter — adden und sofort chatten.
+                    </p>
+                  </div>
                 )}
               </div>
             </div>

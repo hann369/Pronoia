@@ -389,6 +389,21 @@ function LifeOSDashboard() {
     }
   }, [tabParam]);
 
+  // Mirror the active tab into the URL (shallow, no re-render) so deep links
+  // and refresh land on the same tab. 'apps' is the default → clean URL.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (activeTab && activeTab !== 'apps') {
+      if (url.searchParams.get('tab') === activeTab) return;
+      url.searchParams.set('tab', activeTab);
+    } else {
+      if (!url.searchParams.has('tab')) return;
+      url.searchParams.delete('tab');
+    }
+    window.history.replaceState(null, '', url.toString());
+  }, [activeTab]);
+
   const [portalTab, setPortalTab] = useState('subscriptions'); // 'subscriptions' | 'store'
 
   /* ─── Live Clock ─── */
