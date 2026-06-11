@@ -35,6 +35,13 @@ import {
   unwrapGroupKeyNew
 } from '@/lib/crypto';
 
+// A usable EC public key needs non-empty x/y coordinates. Older builds wrote a
+// placeholder with empty strings for hermes_agent_node, which poisoned every
+// import attempt — treat such keys as absent.
+function isValidJwk(jwk) {
+  return !!(jwk && typeof jwk.x === 'string' && jwk.x.length > 10 && typeof jwk.y === 'string' && jwk.y.length > 10);
+}
+
 export function useChat() {
   const { user } = useAuth();
   const [conversations, setConversations] = useState([]);
@@ -90,19 +97,19 @@ export function useChat() {
         
         setMyPrivateKey(prvKey);
         
-        // Register hermes_agent_node placeholder if missing
+        // Register hermes_agent_node placeholder if missing. No fake public key —
+        // the bridge daemon publishes its real key via hermes_register; until
+        // then the chat works with the user's key only and heals automatically.
         try {
           const hermesDoc = await getDoc(doc(db, 'users', 'hermes_agent_node'));
-          if (!hermesDoc.exists()) {
-            console.log("[E2E Chat] Registering virtual companion hermes_agent_node...");
+          const hermesKey = hermesDoc.exists() ? hermesDoc.data().publicKey?.jwk : null;
+          if (!hermesDoc.exists() || (hermesKey && !isValidJwk(hermesKey))) {
+            console.log("[E2E Chat] Registering virtual companion hermes_agent_node (no placeholder key)...");
             const idToken = await user.getIdToken();
             await fetch('/api/agent-webhook', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-              body: JSON.stringify({
-                event: 'hermes_register',
-                publicKey: { jwk: { kty: "EC", crv: "P-256", x: "", y: "" }, createdAt: new Date().toISOString() }
-              })
+              body: JSON.stringify({ event: 'hermes_register', publicKey: null })
             });
           }
         } catch (hermesErr) {
@@ -241,29 +248,37 @@ export function useChat() {
 
       // Create new chat doc
       const chatDocRef = doc(collection(db, 'chats'));
-      
+
       // Generate a symmetric key for the direct chat
       const chatKey = await generateGroupKey();
       const groupKeyPayload = {};
 
       // Wrap key for self
       const myUserDoc = await getDoc(doc(db, 'users', user.uid));
-      if (myUserDoc.exists() && myUserDoc.data().publicKey?.jwk) {
-        const myPubJwk = myUserDoc.data().publicKey.jwk;
+      const myPubJwk = myUserDoc.exists() ? myUserDoc.data().publicKey?.jwk : null;
+      if (isValidJwk(myPubJwk)) {
         const myPub = await importPublicKey(myPubJwk);
         const wrapped = await wrapGroupKeyNew(chatKey, myPub);
         wrapped.pubKeyFingerprint = myPubJwk.x;
         groupKeyPayload[user.uid] = wrapped;
       }
 
-      // Wrap key for peer
-      const peerDoc = await getDoc(doc(db, 'users', targetUid));
-      if (peerDoc.exists() && peerDoc.data().publicKey?.jwk) {
-        const peerPubJwk = peerDoc.data().publicKey.jwk;
-        const peerPub = await importPublicKey(peerPubJwk);
-        const wrapped = await wrapGroupKeyNew(chatKey, peerPub);
-        wrapped.pubKeyFingerprint = peerPubJwk.x;
-        groupKeyPayload[targetUid] = wrapped;
+      // Wrap key for peer — tolerate a missing/invalid peer key (e.g. the Hermes
+      // bridge hasn't registered yet). The chat is still created; key healing in
+      // listenToMessages wraps the key for the peer once their real key appears.
+      try {
+        const peerDoc = await getDoc(doc(db, 'users', targetUid));
+        const peerPubJwk = peerDoc.exists() ? peerDoc.data().publicKey?.jwk : null;
+        if (isValidJwk(peerPubJwk)) {
+          const peerPub = await importPublicKey(peerPubJwk);
+          const wrapped = await wrapGroupKeyNew(chatKey, peerPub);
+          wrapped.pubKeyFingerprint = peerPubJwk.x;
+          groupKeyPayload[targetUid] = wrapped;
+        } else {
+          console.warn(`[E2E Chat] Peer ${targetUid} has no valid public key yet — chat created, key will heal later.`);
+        }
+      } catch (peerErr) {
+        console.warn(`[E2E Chat] Wrapping key for peer ${targetUid} failed (continuing):`, peerErr.message);
       }
 
       const payload = {
@@ -419,7 +434,7 @@ export function useChat() {
         if (activeKey) {
           try {
             const peerDoc = await getDoc(doc(db, 'users', peerUid));
-            if (peerDoc.exists() && peerDoc.data().publicKey?.jwk) {
+            if (peerDoc.exists() && isValidJwk(peerDoc.data().publicKey?.jwk)) {
               const peerPubJwk = peerDoc.data().publicKey.jwk;
               const currentFingerprint = peerPubJwk.x;
               const storedFingerprint = chatData.groupKey?.[peerUid]?.pubKeyFingerprint;
@@ -499,7 +514,7 @@ export function useChat() {
             for (const memberUid of chatData.participants) {
               if (memberUid === user.uid) continue;
               const memberDoc = await getDoc(doc(db, 'users', memberUid));
-              if (memberDoc.exists() && memberDoc.data().publicKey?.jwk) {
+              if (memberDoc.exists() && isValidJwk(memberDoc.data().publicKey?.jwk)) {
                 const memberPubJwk = memberDoc.data().publicKey.jwk;
                 const currentFingerprint = memberPubJwk.x;
                 const storedFingerprint = chatData.groupKey?.[memberUid]?.pubKeyFingerprint;
@@ -582,36 +597,42 @@ export function useChat() {
           }
         }
         
-        // 3. If still no key, generate a brand new direct chat key!
+        // 3. If still no key, generate a brand new direct chat key.
+        //    The key is only USED if it could be persisted (wrapped for self) —
+        //    otherwise the message would be encrypted with a key nobody stores
+        //    and become permanently unreadable. Peer wrap is optional; key
+        //    healing covers the peer once their real key exists.
         if (!activeKey) {
           try {
             console.log("[E2E Chat] Key materials unavailable. Generating new direct chat key...");
             const newKey = await generateGroupKey();
-            activeKey = newKey;
-            
-            // Wrap for both
+
             const myUserDoc = await getDoc(doc(db, 'users', user.uid));
-            const myPubJwk = myUserDoc.data().publicKey?.jwk;
-            const peerDoc = await getDoc(doc(db, 'users', peerUid));
-            const peerPubJwk = peerDoc.data().publicKey?.jwk;
-            
-            if (myPubJwk && peerPubJwk) {
-              const myPub = await importPublicKey(myPubJwk);
-              const peerPubObj = await importPublicKey(peerPubJwk);
-              
-              const myWrapped = await wrapGroupKeyNew(newKey, myPub);
-              const peerWrapped = await wrapGroupKeyNew(newKey, peerPubObj);
-              
-              myWrapped.pubKeyFingerprint = myPubJwk.x;
-              peerWrapped.pubKeyFingerprint = peerPubJwk.x;
-              
-              await setDoc(doc(db, 'chats', chatId), {
-                groupKey: {
-                  [user.uid]: myWrapped,
-                  [peerUid]: peerWrapped
-                }
-              }, { merge: true });
+            const myPubJwk = myUserDoc.exists() ? myUserDoc.data().publicKey?.jwk : null;
+            if (!isValidJwk(myPubJwk)) {
+              throw new Error("Own public key missing/invalid — cannot persist chat key");
             }
+
+            const myPub = await importPublicKey(myPubJwk);
+            const myWrapped = await wrapGroupKeyNew(newKey, myPub);
+            myWrapped.pubKeyFingerprint = myPubJwk.x;
+            const groupKeyUpdate = { [user.uid]: myWrapped };
+
+            try {
+              const peerDoc = await getDoc(doc(db, 'users', peerUid));
+              const peerPubJwk = peerDoc.exists() ? peerDoc.data().publicKey?.jwk : null;
+              if (isValidJwk(peerPubJwk)) {
+                const peerPubObj = await importPublicKey(peerPubJwk);
+                const peerWrapped = await wrapGroupKeyNew(newKey, peerPubObj);
+                peerWrapped.pubKeyFingerprint = peerPubJwk.x;
+                groupKeyUpdate[peerUid] = peerWrapped;
+              }
+            } catch (peerErr) {
+              console.warn("[E2E Chat] Peer wrap skipped (will heal later):", peerErr.message);
+            }
+
+            await setDoc(doc(db, 'chats', chatId), { groupKey: groupKeyUpdate }, { merge: true });
+            activeKey = newKey; // only after successful persistence
           } catch (genErr) {
             console.error("[E2E Chat] Generating new direct chat key failed:", genErr);
           }

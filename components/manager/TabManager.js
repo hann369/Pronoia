@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styles from './TabManager.module.css';
+import { detectRecurring, budgetStatus, monthTrend, detectAnomalies } from '@/lib/financeIntelligence';
 
 // ═══════════════════════════════════════════════════════════════════
 // CUSTOM INTERACTIVE SVG CHARTS FOR FINANCE TRACKER (No libraries)
@@ -801,6 +802,35 @@ Bitte versuche es in wenigen Minuten erneut.`;
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((acc, c) => acc + c.amount, 0);
   const netBalance = totalIncome - totalExpense;
 
+  // --- Finance Intelligence (local heuristics, see lib/financeIntelligence) ---
+  const budgets = financeConfig.budgets || {};
+  const nowDate = new Date();
+  const currentMonthStr = nowDate.toISOString().substring(0, 7);
+  const prevMonthDate = new Date(nowDate.getFullYear(), nowDate.getMonth() - 1, 15);
+  const prevMonthStr = prevMonthDate.toISOString().substring(0, 7);
+
+  const recurringItems = detectRecurring(transactions).filter(r => r.type === 'expense');
+  const recurringMonthlySum = recurringItems.reduce((s, r) => s + r.monthlyCost, 0);
+  const budgetRows = budgetStatus(transactions, budgets, currentMonthStr);
+  const expenseTrend = monthTrend(transactions, currentMonthStr, prevMonthStr);
+  const anomalies = detectAnomalies(transactions).slice(0, 3);
+
+  const handleSetBudget = (category, value) => {
+    const num = parseFloat(value);
+    const updatedBudgets = { ...budgets };
+    if (!value || isNaN(num) || num <= 0) {
+      delete updatedBudgets[category];
+    } else {
+      updatedBudgets[category] = num;
+    }
+    saveProfile({
+      managerConfig: {
+        ...config,
+        finance: { ...financeConfig, budgets: updatedBudgets }
+      }
+    });
+  };
+
   // Aggregate category values for selected type (income/expense)
   const categoryTotalsMap = {};
   transactions
@@ -1404,6 +1434,100 @@ Bitte versuche es in wenigen Minuten erneut.`;
                 <span className={styles.finStatValue} style={{ color: netBalance >= 0 ? 'var(--theme-accent, #1a6aff)' : '#ff4d4d' }}>
                   {netBalance >= 0 ? '+' : ''}{netBalance.toFixed(2)} €
                 </span>
+              </div>
+            </div>
+
+            {/* ─── Finance Intelligence: Abos, Budgets, Trend, Anomalien ─── */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+              {/* Abos & Fixkosten */}
+              <div className={styles.card}>
+                <h3 className={styles.cardTitle}>🔁 Abos & Fixkosten</h3>
+                {recurringItems.length === 0 ? (
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text3, #6a7890)', margin: 0 }}>
+                    Noch keine wiederkehrenden Zahlungen erkannt. Das System erkennt Abos automatisch
+                    ab 2 ähnlichen Transaktionen im Wochen- oder Monatsrhythmus.
+                  </p>
+                ) : (
+                  <>
+                    {recurringItems.map((r, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.78rem' }}>
+                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {r.description}
+                          <span style={{ marginLeft: '0.4rem', fontSize: '0.6rem', fontFamily: 'var(--font-mono)', color: 'var(--theme-accent, #1a6aff)', border: '1px solid var(--theme-accent-dim, rgba(26,106,255,0.25))', borderRadius: '100px', padding: '0.05rem 0.4rem' }}>
+                            {r.cadence === 'weekly' ? 'WÖCHENTL.' : 'MONATL.'}
+                          </span>
+                        </span>
+                        <span style={{ fontFamily: 'var(--font-mono)', color: '#ff4d4d', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>
+                          −{r.monthlyCost.toFixed(2)} €/M
+                        </span>
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.6rem', fontSize: '0.8rem', fontWeight: 700 }}>
+                      <span>Fixkosten gesamt</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', color: '#ff4d4d' }}>−{recurringMonthlySum.toFixed(2)} €/Monat</span>
+                    </div>
+                  </>
+                )}
+
+                {expenseTrend.deltaPct !== null && (
+                  <p style={{ fontSize: '0.7rem', marginTop: '0.75rem', color: expenseTrend.deltaPct > 0 ? '#ff4d4d' : '#00c48c' }}>
+                    {expenseTrend.deltaPct > 0 ? '▲' : '▼'} Ausgaben diesen Monat {expenseTrend.deltaPct > 0 ? '+' : ''}{expenseTrend.deltaPct}% vs. Vormonat
+                    ({expenseTrend.current.toFixed(0)} € vs. {expenseTrend.previous.toFixed(0)} €)
+                  </p>
+                )}
+                {anomalies.length > 0 && (
+                  <p style={{ fontSize: '0.7rem', marginTop: '0.4rem', color: 'var(--amber, #f5a623)' }}>
+                    ⚡ Auffällig: {anomalies.map(a => `${a.description || a.category} (${a.amount.toFixed(0)} €, Ø ${a.categoryAvg.toFixed(0)} €)`).join(' · ')}
+                  </p>
+                )}
+              </div>
+
+              {/* Budgets */}
+              <div className={styles.card}>
+                <h3 className={styles.cardTitle}>🎯 Monats-Budgets</h3>
+                {expenseCategories.map(cat => {
+                  const row = budgetRows.find(b => b.category === cat);
+                  const budgetVal = budgets[cat] || '';
+                  return (
+                    <div key={cat} style={{ padding: '0.35rem 0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', gap: '0.5rem' }}>
+                        <span style={{ flex: 1 }}>{cat}</span>
+                        {row && (
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: row.over ? '#ff4d4d' : 'var(--text3, #6a7890)' }}>
+                            {row.spent.toFixed(0)} / {row.budget.toFixed(0)} €
+                          </span>
+                        )}
+                        <input
+                          type="number"
+                          min="0"
+                          step="10"
+                          placeholder="—"
+                          defaultValue={budgetVal}
+                          onBlur={(e) => handleSetBudget(cat, e.target.value)}
+                          style={{ width: '70px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'inherit', fontSize: '0.7rem', padding: '0.25rem 0.4rem', textAlign: 'right' }}
+                        />
+                      </div>
+                      {row && (
+                        <div style={{ height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', marginTop: '0.3rem', overflow: 'hidden' }}>
+                          <div style={{
+                            width: `${Math.min(100, row.ratio * 100)}%`,
+                            height: '100%',
+                            background: row.over ? '#ff4d4d' : row.ratio > 0.8 ? 'var(--amber, #f5a623)' : '#00c48c',
+                            transition: 'width 0.3s ease'
+                          }} />
+                        </div>
+                      )}
+                      {row?.over && (
+                        <p style={{ fontSize: '0.62rem', color: '#ff4d4d', margin: '0.2rem 0 0' }}>
+                          Budget um {(row.spent - row.budget).toFixed(2)} € überschritten
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+                <p style={{ fontSize: '0.62rem', color: 'var(--text3, #6a7890)', marginTop: '0.5rem' }}>
+                  Budget eintragen und Feld verlassen zum Speichern. Leeren = Budget entfernen.
+                </p>
               </div>
             </div>
 

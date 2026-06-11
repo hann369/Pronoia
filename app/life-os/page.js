@@ -872,6 +872,38 @@ function LifeOSDashboard() {
     if (restocked) {
       setAgentMsg(`Bio-Stack restocked! Vorrat für ${product.name} auf 100% angehoben.`);
     }
+
+    // Auto-log the purchase in the Finance Tracker (Manager → Finanzen),
+    // so store orders show up as expenses without manual entry.
+    try {
+      const managerConfig = profile?.managerConfig || {};
+      const financeConfig = managerConfig.finance || { transactions: [] };
+      const categoryByBadge = {
+        TEXTIL: 'Living', FOOTWEAR: 'Living', APPAREL: 'Living', 'BIO-HACK': 'Health/Bio',
+        NOOTROPIC: 'Health/Bio', 'FOCUS-FUEL': 'Health/Bio', 'CORE-STACK': 'Health/Bio', DOPAMIN: 'Health/Bio',
+        SUPERFOOD: 'Food', ADAPTOGEN: 'Food', ANTIOXIDANT: 'Food'
+      };
+      const newTx = {
+        id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        amount: product.price,
+        type: 'expense',
+        category: categoryByBadge[product.badge] || 'Health/Bio',
+        date: new Date().toISOString().substring(0, 10),
+        description: `${product.name} (Pronoia Store, ${orderId})`,
+        source: 'store'
+      };
+      saveProfile({
+        managerConfig: {
+          ...managerConfig,
+          finance: {
+            ...financeConfig,
+            transactions: [newTx, ...(financeConfig.transactions || [])]
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('Store purchase finance auto-log failed:', e);
+    }
   };
 
 

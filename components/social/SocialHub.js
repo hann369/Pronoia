@@ -199,21 +199,39 @@ export default function SocialHub({ setActiveTab, stack }) {
   }, [searchVal, searchUsers]);
 
   // Direct Message action from search/friend list
+  const [startChatError, setStartChatError] = useState('');
   const handleStartChat = async (uid) => {
+    setStartChatError('');
     const chatId = await createDirectChat(uid);
     if (chatId) {
-      const chat = conversations.find(c => c.id === chatId) || { id: chatId, title: 'Chat loading...' };
+      const isHermes = uid === 'hermes_agent_node';
+      const chat = conversations.find(c => c.id === chatId) || {
+        id: chatId,
+        title: isHermes ? 'Hermes' : 'Chat wird geladen…',
+        type: 'direct',
+        participants: [user?.uid, uid]
+      };
       setSelectedChat(chat);
       setSocialTab('chats');
+    } else {
+      setStartChatError('Chat konnte nicht erstellt werden. Prüfe deine Verbindung und versuche es erneut.');
     }
   };
 
+  const [sendingMsg, setSendingMsg] = useState(false);
+  const [sendError, setSendError] = useState('');
   const handleSendMsg = async (e) => {
     e.preventDefault();
-    if (!msgInput.trim() || !selectedChat) return;
+    if (!msgInput.trim() || !selectedChat || sendingMsg) return;
+    setSendingMsg(true);
+    setSendError('');
     const success = await sendMessage(selectedChat.id, msgInput.trim(), 'text');
+    setSendingMsg(false);
     if (success) {
       setMsgInput('');
+    } else {
+      // Keep the input so nothing the user typed is lost.
+      setSendError('Senden fehlgeschlagen — Nachricht nicht verloren. Erneut versuchen.');
     }
   };
 
@@ -329,6 +347,21 @@ export default function SocialHub({ setActiveTab, stack }) {
                 />
               )}
             </>
+          )}
+
+          {startChatError && (
+            <div style={{
+              margin: '0.5rem',
+              padding: '0.5rem 0.75rem',
+              fontSize: '0.68rem',
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--red, #ff4d4d)',
+              background: 'rgba(255,77,77,0.06)',
+              border: '1px solid rgba(255,77,77,0.2)',
+              borderRadius: '8px'
+            }}>
+              ⚠️ {startChatError}
+            </div>
           )}
 
           {socialTab === 'friends' && (
@@ -594,7 +627,24 @@ export default function SocialHub({ setActiveTab, stack }) {
             {/* Header */}
             <div className={styles.chatHeader}>
               <div className={styles.chatHeaderLeft}>
-                <div className={styles.chatHeaderTitle}>{selectedChat.title}</div>
+                <div className={styles.chatHeaderTitle}>
+                  {(selectedChat.participants || []).includes('hermes_agent_node') ? 'Hermes' : selectedChat.title}
+                  {(selectedChat.participants || []).includes('hermes_agent_node') && (
+                    <span style={{
+                      marginLeft: '0.5rem',
+                      fontSize: '0.55rem',
+                      fontFamily: 'var(--font-mono)',
+                      letterSpacing: '0.1em',
+                      color: 'var(--theme-accent, #1A6AFF)',
+                      border: '1px solid var(--theme-accent-dim, rgba(26,106,255,0.25))',
+                      borderRadius: '100px',
+                      padding: '0.1rem 0.45rem',
+                      verticalAlign: 'middle'
+                    }}>
+                      COMPANION
+                    </span>
+                  )}
+                </div>
                 <div className={styles.chatHeaderStatus}>
                   <span className={styles.secureBadge}>🔒 E2E verschlüsselt</span>
                   <span className={styles.expiryBadge}>⏱️ 7 Tage Speicher</span>
@@ -622,12 +672,32 @@ export default function SocialHub({ setActiveTab, stack }) {
               ))}
               {activeChatMessages.length === 0 && (
                 <div className={styles.chatEmptyState}>
-                  <p>Keine Nachrichten vorhanden. Die Nachrichten werden nach 7 Tagen automatisch gelöscht.</p>
+                  {(selectedChat.participants || []).includes('hermes_agent_node') ? (
+                    <p>
+                      Das ist dein Kanal zu Hermes, deinem KI-Begleiter. Frag z.&nbsp;B.:
+                      „Wie optimiere ich meinen heutigen Fokus-Block?&quot; — Antworten kommen,
+                      sobald der Hermes-Agent online ist.
+                    </p>
+                  ) : (
+                    <p>Keine Nachrichten vorhanden. Die Nachrichten werden nach 7 Tagen automatisch gelöscht.</p>
+                  )}
                 </div>
               )}
             </div>
 
             {/* Input Form */}
+            {sendError && (
+              <div style={{
+                padding: '0.4rem 1rem',
+                fontSize: '0.68rem',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--red, #ff4d4d)',
+                background: 'rgba(255,77,77,0.06)',
+                borderTop: '1px solid rgba(255,77,77,0.2)'
+              }}>
+                ⚠️ {sendError}
+              </div>
+            )}
             <form onSubmit={handleSendMsg} className={styles.chatInputForm}>
               <input
                 type="text"
@@ -635,8 +705,11 @@ export default function SocialHub({ setActiveTab, stack }) {
                 placeholder="Sichere Nachricht verfassen..."
                 value={msgInput}
                 onChange={e => setMsgInput(e.target.value)}
+                disabled={sendingMsg}
               />
-              <button type="submit" className={styles.chatSendBtn}>SENDEN</button>
+              <button type="submit" className={styles.chatSendBtn} disabled={sendingMsg || !msgInput.trim()} style={sendingMsg ? { opacity: 0.6 } : {}}>
+                {sendingMsg ? 'SENDET…' : 'SENDEN'}
+              </button>
             </form>
           </div>
         ) : (
