@@ -26,6 +26,9 @@ Hermes agent: https://github.com/NousResearch/hermes-agent
 import os
 import json
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import requests
 from flask import Flask, request, jsonify
 
@@ -221,7 +224,7 @@ def health():
 
 if __name__ == "__main__":
     if not WEBHOOK_SECRET:
-        print("⚠️  WEBHOOK_SECRET is not set — the bridge will reject all requests.")
+        print("[WARNING] WEBHOOK_SECRET is not set -- the bridge will reject all requests.")
     register_identity()
     print(f"[Hermes Bridge] Listening on http://{LISTEN_HOST}:{LISTEN_PORT}/pronoia-webhook")
     app.run(host=LISTEN_HOST, port=LISTEN_PORT)
