@@ -358,6 +358,8 @@ export async function PUT(req) {
     const telegramId = telegramUser?.id || null;
     const linkUrl = telegramId ? `https://pronoia-3g6y.vercel.app/life-os?tg_id=${telegramId}` : "https://pronoia-3g6y.vercel.app/life-os";
 
+    let mergedProfile = { ...(profile || {}) };
+
     // Retrieve Knowledge Vault Items (RAG Context)
     let vaultContext = "";
     try {
@@ -375,6 +377,36 @@ export async function PUT(req) {
         }
       } else {
         userId = profile?.uid || profile?.userId || profile?.id || 'local';
+      }
+
+      // 1b. Fetch true profile data from Firestore to feed the system prompt
+      if (userId && userId !== 'local' && adminDb) {
+        try {
+          const doc = await adminDb.collection("users").doc(userId).get();
+          if (doc.exists) {
+            const data = doc.data();
+            const dbProfile = data.profile || {};
+            let activeBlockInfo = "Kein aktiver Block";
+            if (data.blocks && data.blockIdx !== undefined) {
+              const activeBlock = data.blocks[data.blockIdx];
+              if (activeBlock) {
+                activeBlockInfo = `${activeBlock.title} (${Math.round(activeBlock.duration / 60)} Min., Säule: ${activeBlock.pillar}, Zustand: ${data.isRunning ? 'AKTIV' : 'PAUSIERT'})`;
+              }
+            }
+            mergedProfile = {
+              ...mergedProfile,
+              ...dbProfile,
+              activeBlockInfo,
+              email: data.profile?.email || data.email || mergedProfile.email || null,
+              metrics: {
+                hrv: data.profile?.metrics?.hrv || data.metrics?.hrv || mergedProfile.metrics?.hrv || 72,
+                sleep: data.profile?.metrics?.sleep || data.metrics?.sleep || mergedProfile.metrics?.sleep || 84
+              }
+            };
+          }
+        } catch (dbErr) {
+          console.warn("Failed to load user profile from Firestore for Mistral prompt:", dbErr);
+        }
       }
 
       // 2. Query vault items for this user via Supabase REST API
@@ -472,7 +504,7 @@ Du kannst Aktionen direkt im System ausführen lassen, indem du das "action"-Obj
 
 TONALITÄT: Direkt, klar, kein Bullshit, wissenschaftlich fundiert, Deutsch.
 
-USER-PROFIL: ${JSON.stringify(profile || {})}
+USER-PROFIL: ${JSON.stringify(mergedProfile || {})}
 
 ANTWORT NUR ALS JSON:
 {
