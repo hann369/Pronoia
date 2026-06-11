@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styles from './TabManager.module.css';
-import { detectRecurring, budgetStatus, monthTrend, detectAnomalies } from '@/lib/financeIntelligence';
+import {
+  detectRecurring,
+  budgetStatus,
+  monthTrend,
+  detectAnomalies,
+  autoCategorize,
+  detectPatterns,
+  calculatePrognosis,
+  calculateSavingsPotential
+} from '@/lib/financeIntelligence';
+
 
 // ═══════════════════════════════════════════════════════════════════
 // CUSTOM INTERACTIVE SVG CHARTS FOR FINANCE TRACKER (No libraries)
@@ -383,6 +393,9 @@ export default function TabManager({
   const [finDesc, setFinDesc] = useState('');
   const [selectedChartType, setSelectedChartType] = useState('line'); // 'line' | 'bar' | 'doughnut'
   const [doughnutFocusType, setDoughnutFocusType] = useState('expense');
+  const [financeSearch, setFinanceSearch] = useState('');
+  const [selectedDrillDownCategory, setSelectedDrillDownCategory] = useState(null);
+
 
   // Focus Mode state
   const [focusTimeLeft, setFocusTimeLeft] = useState(1500); // 25 min in seconds
@@ -427,8 +440,9 @@ export default function TabManager({
   };
 
   // Adjust categories automatically when type changes
-  const expenseCategories = ['Food', 'Living', 'Health/Bio', 'Tech', 'Travel', 'Other'];
+  const expenseCategories = ['Food', 'Living', 'Health/Bio', 'Tech', 'Travel', 'Shopping', 'Business Tools', 'Abonnements', 'Other'];
   const incomeCategories = ['Freelance', 'Salary', 'Investments', 'Other'];
+
 
   const handleTypeChange = (type) => {
     setFinType(type);
@@ -438,6 +452,15 @@ export default function TabManager({
       setFinCategory(expenseCategories[0]);
     }
   };
+  
+  const handleDescChange = (val) => {
+    setFinDesc(val);
+    const suggested = autoCategorize(val, finType);
+    if (suggested && suggested !== 'Other') {
+      setFinCategory(suggested);
+    }
+  };
+
 
   // Auto-Open toggler
   const handleToggleAutoOpen = () => {
@@ -815,6 +838,41 @@ Bitte versuche es in wenigen Minuten erneut.`;
   const expenseTrend = monthTrend(transactions, currentMonthStr, prevMonthStr);
   const anomalies = detectAnomalies(transactions).slice(0, 3);
 
+  // New Upgraded Features Calculations
+  const savingsPotential = calculateSavingsPotential(transactions);
+  const prognosis = calculatePrognosis(transactions, netBalance);
+  const patterns = detectPatterns(transactions);
+  const savingsRate = totalIncome > 0 ? Math.round(((totalIncome - totalExpense) / totalIncome) * 100) : 0;
+
+  // Intelligent Search filter and stats
+  const searchedTransactions = transactions.filter(t => {
+    const q = financeSearch.toLowerCase().trim();
+    if (!q) return true;
+    return (t.description || '').toLowerCase().includes(q) || (t.category || '').toLowerCase().includes(q);
+  });
+  const searchTotal = searchedTransactions.reduce((s, t) => s + t.amount, 0);
+  const searchAvg = searchedTransactions.length > 0 ? searchTotal / searchedTransactions.length : 0;
+
+  // Financial Goals
+  const defaultGoals = [
+    { id: 'goal_emergency', name: 'Notgroschen', target: 10000, current: Math.max(0, Math.round(netBalance * 0.4 * 100) / 100) },
+    { id: 'goal_vacation', name: 'Urlaubskasse', target: 3000, current: Math.max(0, Math.round(netBalance * 0.1 * 100) / 100) },
+    { id: 'goal_etf', name: 'ETF Sparziel', target: 50000, current: Math.max(0, Math.round(netBalance * 0.3 * 100) / 100) }
+  ];
+  const goals = financeConfig.goals || defaultGoals;
+
+  const handleUpdateGoal = (id, currentVal) => {
+    const num = parseFloat(currentVal);
+    if (isNaN(num)) return;
+    const updatedGoals = goals.map(g => g.id === id ? { ...g, current: num } : g);
+    saveProfile({
+      managerConfig: {
+        ...config,
+        finance: { ...financeConfig, goals: updatedGoals }
+      }
+    });
+  };
+
   const handleSetBudget = (category, value) => {
     const num = parseFloat(value);
     const updatedBudgets = { ...budgets };
@@ -830,6 +888,7 @@ Bitte versuche es in wenigen Minuten erneut.`;
       }
     });
   };
+
 
   // Aggregate category values for selected type (income/expense)
   const categoryTotalsMap = {};
@@ -890,44 +949,45 @@ Bitte versuche es in wenigen Minuten erneut.`;
           onClick={() => setActiveSubTab('command')}
           className={`${styles.subNavTab} ${activeSubTab === 'command' ? styles.subNavTabActive : ''}`}
         >
-          <span className={styles.tabEmoji}>🎛️</span>Cockpit
+          Cockpit
         </button>
         <button
           type="button"
           onClick={() => setActiveSubTab('links')}
           className={`${styles.subNavTab} ${activeSubTab === 'links' ? styles.subNavTabActive : ''}`}
         >
-          <span className={styles.tabEmoji}>🔗</span>Block Links
+          Block Links
         </button>
         <button
           type="button"
           onClick={() => setActiveSubTab('research')}
           className={`${styles.subNavTab} ${activeSubTab === 'research' ? styles.subNavTabActive : ''}`}
         >
-          <span className={styles.tabEmoji}>📊</span>Outlier Research
+          Outlier Research
         </button>
         <button
           type="button"
           onClick={() => setActiveSubTab('finance')}
           className={`${styles.subNavTab} ${activeSubTab === 'finance' ? styles.subNavTabActive : ''}`}
         >
-          <span className={styles.tabEmoji}>💰</span>Finanzen
+          Finanzen
         </button>
         <button
           type="button"
           onClick={() => setActiveSubTab('focus')}
           className={`${styles.subNavTab} ${activeSubTab === 'focus' ? styles.subNavTabActive : ''}`}
         >
-          <span className={styles.tabEmoji}>⏱️</span>Focus Mode
+          Focus Mode
         </button>
         <button
           type="button"
           onClick={() => setActiveSubTab('notes')}
           className={`${styles.subNavTab} ${activeSubTab === 'notes' ? styles.subNavTabActive : ''}`}
         >
-          <span className={styles.tabEmoji}>📝</span>Notizen
+          Notizen
         </button>
       </div>
+
 
       {/* Main Tab Panels */}
       <div className={styles.content}>
@@ -947,8 +1007,9 @@ Bitte versuche es in wenigen Minuten erneut.`;
                 <div className={styles.blockLabel}>Aktueller Zeitblock</div>
                 <h3 className={styles.blockName}>{activeBlock.title}</h3>
                 <div className={styles.blockTimeRange}>
-                  ⏰ {activeBlock.start} - {activeBlock.end}
+                  Zeit: {activeBlock.start} - {activeBlock.end}
                 </div>
+
                 <div className={styles.blockProgressBar}>
                   <div className={styles.blockProgressFill} style={{ width: `${blockProg}%` }} />
                 </div>
@@ -986,7 +1047,8 @@ Bitte versuche es in wenigen Minuten erneut.`;
           <div className={styles.linksLayout}>
             {/* Left side: config & add form */}
             <div className={styles.card}>
-              <h3 className={styles.cardTitle}>⚙️ Auto-Open Einstellungen</h3>
+              <h3 className={styles.cardTitle}>Auto-Open Einstellungen</h3>
+
 
               <div className={styles.controlRow}>
                 <div className={styles.controlInfo}>
@@ -1031,17 +1093,18 @@ Bitte versuche es in wenigen Minuten erneut.`;
               </form>
 
               <div className={styles.infoAlert}>
-                <span className={styles.alertIcon}>⚠️</span>
                 <div className={styles.alertContent}>
                   <strong>Popup-Blocker Hinweis:</strong> Stelle sicher, dass du in deiner Browser-Adressleiste Popups für diese App zugelassen hast.
                 </div>
               </div>
+
             </div>
 
             {/* Right side: Mappings & History */}
             <div className={styles.rightColumn}>
               <div className={styles.card}>
-                <h3 className={styles.cardTitle}>🔗 Aktive Zuordnungen ({mappings.length})</h3>
+                <h3 className={styles.cardTitle}>Aktive Zuordnungen ({mappings.length})</h3>
+
                 <div className={styles.mappingsList}>
                   {mappings.map((m) => (
                     <div key={m.id} className={styles.mappingRow}>
@@ -1071,7 +1134,6 @@ Bitte versuche es in wenigen Minuten erneut.`;
                   ))}
                   {mappings.length === 0 && (
                     <div className={styles.emptyState}>
-                      <span className={styles.emptyIcon}>🔗</span>
                       <p className={styles.emptyText}>Keine Zuordnungen hinterlegt. Erstelle links eine neue Verknüpfung.</p>
                     </div>
                   )}
@@ -1079,7 +1141,7 @@ Bitte versuche es in wenigen Minuten erneut.`;
               </div>
 
               <div className={styles.card}>
-                <h3 className={styles.cardTitle}>📜 Verlauf (Aktuelle Session)</h3>
+                <h3 className={styles.cardTitle}>Verlauf (Aktuelle Session)</h3>
                 <div className={styles.historyList}>
                   {managerHistory.map((h) => (
                     <div key={h.id} className={styles.historyRow}>
@@ -1107,7 +1169,8 @@ Bitte versuche es in wenigen Minuten erneut.`;
           <div className={styles.researchLayout}>
             {/* Outlier search form */}
             <div className={styles.card}>
-              <h3 className={styles.cardTitle}>📊 Outlier Research Hub & Explorer</h3>
+              <h3 className={styles.cardTitle}>Outlier Research Hub & Explorer</h3>
+
               <p className={styles.desc} style={{ marginTop: '-0.5rem', marginBottom: '0.5rem' }}>
                 Finde "Outlier" (extrem überdurchschnittlich erfolgreiche Ansätze, Videos oder Techniken) für bestimmte Nischen oder Skills.
               </p>
@@ -1170,7 +1233,8 @@ Bitte versuche es in wenigen Minuten erneut.`;
             {/* List and report section */}
             <div className={styles.card}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <h3 className={styles.cardTitle}>🎯 Gespeicherte Forschungsziele ({filteredResearchList.length})</h3>
+                <h3 className={styles.cardTitle}>Gespeicherte Forschungsziele ({filteredResearchList.length})</h3>
+
                 <div className={styles.categoryTabs}>
                   {['ALL', 'YOUTUBE', 'SKILL', 'COMPETITOR', 'OTHER'].map((cat) => (
                     <button
@@ -1227,7 +1291,6 @@ Bitte versuche es in wenigen Minuten erneut.`;
 
                 {filteredResearchList.length === 0 && (
                   <div className={styles.emptyState} style={{ gridColumn: '1 / -1' }}>
-                    <span className={styles.emptyIcon}>🎯</span>
                     <p className={styles.emptyText}>Keine Forschungsziele in dieser Kategorie gefunden.</p>
                     <p className={styles.emptyText} style={{ opacity: 0.65, fontSize: '0.85em', marginTop: '0.35rem' }}>
                       Lege oben ein Ziel an (YouTube-Kanal, Skill oder Competitor) und starte die Analyse.
@@ -1241,7 +1304,8 @@ Bitte versuche es in wenigen Minuten erneut.`;
             {selectedResearch && (
               <div className={styles.card} style={{ borderLeft: '4px solid var(--theme-accent, #1a6aff)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 className={styles.cardTitle}>📝 Analyse: {selectedResearch.title}</h3>
+                  <h3 className={styles.cardTitle}>Analyse: {selectedResearch.title}</h3>
+
                   <button
                     type="button"
                     className={styles.deleteBtn}
@@ -1407,7 +1471,7 @@ Bitte versuche es in wenigen Minuten erneut.`;
                       style={{ marginTop: '0.5rem' }}
                       onClick={() => runOutlierAnalysis(selectedResearch)}
                     >
-                      Outlier Analyse starten ✦
+                      Outlier Analyse starten
                     </button>
                   </div>
                 )}
@@ -1416,125 +1480,148 @@ Bitte versuche es in wenigen Minuten erneut.`;
           </div>
         )}
 
-        {/* NEW TAB: FINANCE TRACKER */}
         {activeSubTab === 'finance' && (
+
           <div className={styles.financeLayout}>
-            {/* Metric counters */}
+            {/* Top Dashboard Metrics */}
             <div className={styles.financeSummary}>
               <div className={styles.finStatCard}>
-                <span className={styles.finStatLabel}>Einnahmen gesamt</span>
-                <span className={styles.finStatValue} style={{ color: '#00c48c' }}>+{totalIncome.toFixed(2)} €</span>
+                <span className={styles.finStatLabel}>Einnahmen</span>
+                <span className={styles.finStatValue} style={{ color: '#00c48c' }}>{totalIncome.toFixed(2)} €</span>
               </div>
               <div className={styles.finStatCard}>
-                <span className={styles.finStatLabel}>Ausgaben gesamt</span>
-                <span className={styles.finStatValue} style={{ color: '#ff4d4d' }}>-{totalExpense.toFixed(2)} €</span>
+                <span className={styles.finStatLabel}>Ausgaben</span>
+                <span className={styles.finStatValue} style={{ color: '#ff4d4d' }}>{totalExpense.toFixed(2)} €</span>
               </div>
               <div className={styles.finStatCard}>
-                <span className={styles.finStatLabel}>Netto-Kontostand</span>
-                <span className={styles.finStatValue} style={{ color: netBalance >= 0 ? 'var(--theme-accent, #1a6aff)' : '#ff4d4d' }}>
+                <span className={styles.finStatLabel}>Saldo</span>
+                <span className={styles.finStatValue} style={{ color: netBalance >= 0 ? '#007aff' : '#ff4d4d' }}>
                   {netBalance >= 0 ? '+' : ''}{netBalance.toFixed(2)} €
+                </span>
+              </div>
+              <div className={styles.finStatCard}>
+                <span className={styles.finStatLabel}>Sparquote</span>
+                <span className={styles.finStatValue}>{savingsRate}%</span>
+              </div>
+              <div className={styles.finStatCard}>
+                <span className={styles.finStatLabel}>Prognose Monatsende</span>
+                <span className={styles.finStatValue} style={{ color: prognosis.status === 'critical' ? '#ff4d4d' : prognosis.status === 'warning' ? '#f5a623' : '#00c48c' }}>
+                  {prognosis.projectedRemaining.toFixed(2)} €
                 </span>
               </div>
             </div>
 
-            {/* ─── Finance Intelligence: Abos, Budgets, Trend, Anomalien ─── */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
-              {/* Abos & Fixkosten */}
+            {/* AI Insights & Alerts Area (No emojis) */}
+            <div className={styles.insightsSection}>
               <div className={styles.card}>
-                <h3 className={styles.cardTitle}>🔁 Abos & Fixkosten</h3>
-                {recurringItems.length === 0 ? (
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text3, #6a7890)', margin: 0 }}>
-                    Noch keine wiederkehrenden Zahlungen erkannt. Das System erkennt Abos automatisch
-                    ab 2 ähnlichen Transaktionen im Wochen- oder Monatsrhythmus.
-                  </p>
-                ) : (
-                  <>
-                    {recurringItems.map((r, i) => (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.78rem' }}>
-                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {r.description}
-                          <span style={{ marginLeft: '0.4rem', fontSize: '0.6rem', fontFamily: 'var(--font-mono)', color: 'var(--theme-accent, #1a6aff)', border: '1px solid var(--theme-accent-dim, rgba(26,106,255,0.25))', borderRadius: '100px', padding: '0.05rem 0.4rem' }}>
-                            {r.cadence === 'weekly' ? 'WÖCHENTL.' : 'MONATL.'}
-                          </span>
-                        </span>
-                        <span style={{ fontFamily: 'var(--font-mono)', color: '#ff4d4d', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>
-                          −{r.monthlyCost.toFixed(2)} €/M
-                        </span>
+                <h3 className={styles.cardTitle}>Finanzielle Erkenntnisse</h3>
+                <div className={styles.insightsGrid}>
+                  {patterns.map((pat, i) => (
+                    <div key={i} className={`${styles.insightCard} ${pat.type === 'warning' ? styles.insightWarning : styles.insightInfo}`}>
+                      <div className={styles.insightHeader}>
+                        <span className={styles.insightBadge}>{pat.type === 'warning' ? 'Hinweis' : 'Info'}</span>
+                        <h4 className={styles.insightTitle}>{pat.title}</h4>
                       </div>
-                    ))}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.6rem', fontSize: '0.8rem', fontWeight: 700 }}>
-                      <span>Fixkosten gesamt</span>
-                      <span style={{ fontFamily: 'var(--font-mono)', color: '#ff4d4d' }}>−{recurringMonthlySum.toFixed(2)} €/Monat</span>
+                      <p className={styles.insightText}>{pat.message}</p>
                     </div>
-                  </>
-                )}
-
-                {expenseTrend.deltaPct !== null && (
-                  <p style={{ fontSize: '0.7rem', marginTop: '0.75rem', color: expenseTrend.deltaPct > 0 ? '#ff4d4d' : '#00c48c' }}>
-                    {expenseTrend.deltaPct > 0 ? '▲' : '▼'} Ausgaben diesen Monat {expenseTrend.deltaPct > 0 ? '+' : ''}{expenseTrend.deltaPct}% vs. Vormonat
-                    ({expenseTrend.current.toFixed(0)} € vs. {expenseTrend.previous.toFixed(0)} €)
-                  </p>
-                )}
-                {anomalies.length > 0 && (
-                  <p style={{ fontSize: '0.7rem', marginTop: '0.4rem', color: 'var(--amber, #f5a623)' }}>
-                    ⚡ Auffällig: {anomalies.map(a => `${a.description || a.category} (${a.amount.toFixed(0)} €, Ø ${a.categoryAvg.toFixed(0)} €)`).join(' · ')}
-                  </p>
-                )}
-              </div>
-
-              {/* Budgets */}
-              <div className={styles.card}>
-                <h3 className={styles.cardTitle}>🎯 Monats-Budgets</h3>
-                {expenseCategories.map(cat => {
-                  const row = budgetRows.find(b => b.category === cat);
-                  const budgetVal = budgets[cat] || '';
-                  return (
-                    <div key={cat} style={{ padding: '0.35rem 0' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', gap: '0.5rem' }}>
-                        <span style={{ flex: 1 }}>{cat}</span>
-                        {row && (
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: row.over ? '#ff4d4d' : 'var(--text3, #6a7890)' }}>
-                            {row.spent.toFixed(0)} / {row.budget.toFixed(0)} €
-                          </span>
-                        )}
-                        <input
-                          type="number"
-                          min="0"
-                          step="10"
-                          placeholder="—"
-                          defaultValue={budgetVal}
-                          onBlur={(e) => handleSetBudget(cat, e.target.value)}
-                          style={{ width: '70px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'inherit', fontSize: '0.7rem', padding: '0.25rem 0.4rem', textAlign: 'right' }}
-                        />
+                  ))}
+                  
+                  {savingsPotential.deliverySpend > 0 && (
+                    <div className={`${styles.insightCard} ${styles.insightSavings}`}>
+                      <div className={styles.insightHeader}>
+                        <span className={styles.insightBadge}>Sparpotenzial</span>
+                        <h4 className={styles.insightTitle}>Optimierung Lieferdienste</h4>
                       </div>
-                      {row && (
-                        <div style={{ height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', marginTop: '0.3rem', overflow: 'hidden' }}>
-                          <div style={{
-                            width: `${Math.min(100, row.ratio * 100)}%`,
-                            height: '100%',
-                            background: row.over ? '#ff4d4d' : row.ratio > 0.8 ? 'var(--amber, #f5a623)' : '#00c48c',
-                            transition: 'width 0.3s ease'
-                          }} />
-                        </div>
-                      )}
-                      {row?.over && (
-                        <p style={{ fontSize: '0.62rem', color: '#ff4d4d', margin: '0.2rem 0 0' }}>
-                          Budget um {(row.spent - row.budget).toFixed(2)} € überschritten
-                        </p>
-                      )}
+                      <p className={styles.insightText}>
+                        Du hast in den letzten 90 Tagen {savingsPotential.deliverySpend.toFixed(2)} € für Restaurants und Lieferdienste ausgegeben. 
+                        Eine Reduktion um 25% spart jährlich ca. {savingsPotential.annualSavings.toFixed(2)} € ein.
+                      </p>
                     </div>
-                  );
-                })}
-                <p style={{ fontSize: '0.62rem', color: 'var(--text3, #6a7890)', marginTop: '0.5rem' }}>
-                  Budget eintragen und Feld verlassen zum Speichern. Leeren = Budget entfernen.
-                </p>
+                  )}
+
+                  {patterns.length === 0 && savingsPotential.deliverySpend === 0 && (
+                    <p className={styles.emptyText} style={{ fontSize: '0.75rem', opacity: 0.65 }}>
+                      Derzeit liegen keine auffälligen Ausgabenmuster oder Anomalien vor.
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className={styles.financeGrid}>
-              {/* Left Column: Form to log income/expense */}
+            {/* Financial Goals & Subscriptions Panel */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+              {/* Recurring Subscriptions (No emojis) */}
               <div className={styles.card}>
-                <h3 className={styles.cardTitle}>💰 Transaktion loggen</h3>
+                <h3 className={styles.cardTitle}>Wiederkehrende Abonnements</h3>
+                {recurringItems.length === 0 ? (
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text3, #6a7890)', margin: 0 }}>
+                    Keine wiederkehrenden Abonnements automatisch erkannt.
+                  </p>
+                ) : (
+                  <>
+                    <div className={styles.subscriptionList}>
+                      {recurringItems.map((r, i) => (
+                        <div key={i} className={styles.subscriptionRow}>
+                          <span className={styles.subscriptionName}>
+                            {r.description}
+                            <span className={styles.subscriptionCadence}>
+                              {r.cadence === 'weekly' ? 'wöchentlich' : 'monatlich'}
+                            </span>
+                          </span>
+                          <span className={styles.subscriptionCost}>
+                            −{r.monthlyCost.toFixed(2)} €/M
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className={styles.subscriptionTotal}>
+                      <span>Fixkosten gesamt</span>
+                      <span>−{recurringMonthlySum.toFixed(2)} €/Monat</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Financial Goals (No emojis) */}
+              <div className={styles.card}>
+                <h3 className={styles.cardTitle}>Finanzielle Ziele</h3>
+                <div className={styles.goalsList}>
+                  {goals.map((g) => {
+                    const ratio = g.target > 0 ? g.current / g.target : 0;
+                    const pct = Math.round(ratio * 100);
+                    return (
+                      <div key={g.id} className={styles.goalRow}>
+                        <div className={styles.goalMeta}>
+                          <span className={styles.goalName}>{g.name}</span>
+                          <span className={styles.goalValues}>
+                            {g.current.toFixed(0)} € / {g.target.toFixed(0)} €
+                          </span>
+                        </div>
+                        <div className={styles.progressBar}>
+                          <div className={styles.progressFill} style={{ width: `${Math.min(100, pct)}%` }} />
+                        </div>
+                        <div className={styles.goalPercent}>
+                          <span>Fortschritt: {pct}%</span>
+                          <input
+                            type="number"
+                            placeholder="Anpassen"
+                            className={styles.goalInput}
+                            defaultValue={g.current}
+                            onBlur={(e) => handleUpdateGoal(g.id, e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Input Form & Visualization Column Split */}
+            <div className={styles.financeGrid}>
+              {/* Form to log transaction */}
+              <div className={styles.card}>
+                <h3 className={styles.cardTitle}>Transaktion protokollieren</h3>
                 <form onSubmit={handleAddTransaction} className={styles.mappingForm}>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button
@@ -1597,23 +1684,23 @@ Bitte versuche es in wenigen Minuten erneut.`;
                     <label className={styles.formLabel}>Beschreibung</label>
                     <input
                       type="text"
-                      placeholder="z.B. Nootropics Einkauf, Freelance Projekt"
+                      placeholder="z.B. Amazon Einkauf, OpenAI Abo, Gehalt..."
                       className={styles.input}
                       value={finDesc}
-                      onChange={(e) => setFinDesc(e.target.value)}
+                      onChange={(e) => handleDescChange(e.target.value)}
                     />
                   </div>
 
                   <button type="submit" className={styles.submitBtn}>
-                    Hinzufügen ✦
+                    Hinzufügen
                   </button>
                 </form>
               </div>
 
-              {/* Right Column: Visualization & Graph Selector */}
+              {/* Chart Visualizer */}
               <div className={styles.card}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <h3 className={styles.cardTitle}>📈 Visualisierung</h3>
+                  <h3 className={styles.cardTitle}>Visualisierung</h3>
                   <div className={styles.categoryTabs}>
                     {['line', 'bar', 'doughnut'].map((t) => (
                       <button
@@ -1685,60 +1772,162 @@ Bitte versuche es in wenigen Minuten erneut.`;
               </div>
             </div>
 
-            {/* Bottom Panel: Transactions Log */}
-            <div className={styles.card} style={{ gridColumn: '1 / -1' }}>
-              <h3 className={styles.cardTitle}>📜 Transaktionsverlauf ({transactions.length})</h3>
-              <div className={styles.transactionsListContainer}>
-                {transactions.length === 0 ? (
+            {/* Intelligent Search bar & Stats */}
+            <div className={styles.card}>
+              <h3 className={styles.cardTitle}>Intelligente Transaktionssuche</h3>
+              <div className={styles.searchBarContainer} style={{ marginBottom: '1rem' }}>
+                <input
+                  type="text"
+                  placeholder="Empfänger, Händler oder Kategorie eingeben..."
+                  className={styles.input}
+                  value={financeSearch}
+                  onChange={(e) => setFinanceSearch(e.target.value)}
+                  style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem' }}
+                />
+                {financeSearch && (
+                  <div className={styles.searchStats} style={{ marginTop: '0.5rem', display: 'flex', gap: '1.5rem', fontSize: '0.75rem', color: 'var(--text2)' }}>
+                    <span>Einträge: <strong>{searchedTransactions.length}</strong></span>
+                    <span>Umsatz: <strong>{searchTotal.toFixed(2)} €</strong></span>
+                    <span>Schnitt: <strong>{searchAvg.toFixed(2)} €</strong></span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Drill-down Detail Panel */}
+            {selectedDrillDownCategory && (
+              <div className={styles.card}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <h3 className={styles.cardTitle}>Details: {selectedDrillDownCategory}</h3>
+                  <button
+                    type="button"
+                    className={styles.subNavTab}
+                    onClick={() => setSelectedDrillDownCategory(null)}
+                    style={{ padding: '0.25rem 0.75rem', fontSize: '0.7rem' }}
+                  >
+                    Details ausblenden
+                  </button>
+                </div>
+                {(() => {
+                  const catTxs = transactions.filter(t => t.category === selectedDrillDownCategory);
+                  const catTotal = catTxs.reduce((sum, t) => sum + t.amount, 0);
+                  const catBudget = budgets[selectedDrillDownCategory] || 0;
+                  return (
+                    <div className={styles.drillDownContent}>
+                      <div className={styles.drillDownMetrics} style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.75rem', fontSize: '0.8rem' }}>
+                        <span>Ausgegeben: <strong>{catTotal.toFixed(2)} €</strong></span>
+                        {catBudget > 0 && <span>Budget: <strong>{catBudget.toFixed(2)} €</strong></span>}
+                        {catBudget > 0 && (
+                          <span>Verbleibend: <strong style={{ color: catBudget - catTotal < 0 ? '#ff4d4d' : '#00c48c' }}>{(catBudget - catTotal).toFixed(2)} €</strong></span>
+                        )}
+                      </div>
+                      <div className={styles.timelineList}>
+                        {catTxs.map(t => (
+                          <div key={t.id} className={styles.timelineRow} style={{ cursor: 'default' }}>
+                            <div className={styles.timelineLeft}>
+                              <span className={styles.timelineDate}>{t.date}</span>
+                              <span className={styles.timelineDesc}>{t.description || 'Pronoia Transaktion'}</span>
+                            </div>
+                            <div className={styles.timelineRight}>
+                              <span className={t.type === 'income' ? styles.timelineIncome : styles.timelineExpense}>
+                                {t.type === 'income' ? '+' : '-'}{t.amount.toFixed(2)} €
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Timeline Activity View (Heute, Gestern, Letzte Woche, Älter) */}
+            <div className={styles.card}>
+              <h3 className={styles.cardTitle}>Aktivität</h3>
+              <div className={styles.timelineContainer}>
+                {searchedTransactions.length === 0 ? (
                   <div className={styles.emptyState}>
-                    <span className={styles.emptyIcon}>💰</span>
-                    <p className={styles.emptyText}>Noch keine Transaktionen geloggt.</p>
-                    <p className={styles.emptyText} style={{ opacity: 0.65, fontSize: '0.85em', marginTop: '0.35rem' }}>
-                      Trage links deine erste Einnahme oder Ausgabe ein — Charts und Bilanz aktualisieren sich sofort.
-                    </p>
+                    <p className={styles.emptyText}>Keine passenden Transaktionen gelistet.</p>
                   </div>
                 ) : (
-                  <table className={styles.finTable}>
-                    <thead>
-                      <tr>
-                        <th>Datum</th>
-                        <th>Kategorie</th>
-                        <th>Beschreibung</th>
-                        <th>Typ</th>
-                        <th>Betrag</th>
-                        <th>Aktionen</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {transactions.map((t) => (
-                        <tr key={t.id} className={styles.finTableRow}>
-                          <td style={{ fontFamily: 'var(--font-mono)' }}>{t.date}</td>
-                          <td>
-                            <span className={styles.finCategoryTag}>{t.category}</span>
-                          </td>
-                          <td className={styles.finDescCol} title={t.description}>{t.description || '—'}</td>
-                          <td>
-                            <span className={t.type === 'income' ? styles.finTypeIncome : styles.finTypeExpense}>
-                              {t.type === 'income' ? 'Einnahme' : 'Ausgabe'}
-                            </span>
-                          </td>
-                          <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold', color: t.type === 'income' ? '#00c48c' : 'var(--text)' }}>
-                            {t.type === 'income' ? '+' : '-'}{t.amount.toFixed(2)} €
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              className={styles.deleteBtn}
-                              onClick={() => handleDeleteTransaction(t.id)}
-                              title="Löschen"
-                            >
-                              ✕
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  (() => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const yesterday = new Date(today);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const lastWeek = new Date(today);
+                    lastWeek.setDate(lastWeek.getDate() - 7);
+
+                    const sections = {
+                      heute: [],
+                      gestern: [],
+                      letzteWoche: [],
+                      aelter: []
+                    };
+
+                    searchedTransactions.forEach(t => {
+                      if (!t.date) {
+                        sections.aelter.push(t);
+                        return;
+                      }
+                      const tDate = new Date(t.date);
+                      tDate.setHours(0, 0, 0, 0);
+                      if (tDate.getTime() === today.getTime()) {
+                        sections.heute.push(t);
+                      } else if (tDate.getTime() === yesterday.getTime()) {
+                        sections.gestern.push(t);
+                      } else if (tDate.getTime() >= lastWeek.getTime()) {
+                        sections.letzteWoche.push(t);
+                      } else {
+                        sections.aelter.push(t);
+                      }
+                    });
+
+                    return Object.entries(sections).map(([key, list]) => {
+                      if (list.length === 0) return null;
+                      const title = key === 'heute' ? 'Heute' : key === 'gestern' ? 'Gestern' : key === 'letzteWoche' ? 'Letzte Woche' : 'Älter';
+                      return (
+                        <div key={key} className={styles.timelineSection} style={{ marginBottom: '1rem' }}>
+                          <h4 className={styles.timelineSectionHeader} style={{ fontSize: '0.75rem', color: 'var(--text3)', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.25rem', marginBottom: '0.5rem' }}>
+                            {title}
+                          </h4>
+                          <div className={styles.timelineList} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            {list.map(t => (
+                              <div
+                                key={t.id}
+                                className={styles.timelineRow}
+                                onClick={() => setSelectedDrillDownCategory(t.category)}
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', cursor: 'pointer', transition: 'background 0.2s' }}
+                              >
+                                <div className={styles.timelineLeft} style={{ display: 'flex', flexDirection: 'column' }}>
+                                  <span className={styles.timelineDesc} style={{ fontSize: '0.8rem', fontWeight: 500 }}>{t.description || 'Pronoia Transaktion'}</span>
+                                  <span className={styles.timelineCategory} style={{ fontSize: '0.65rem', color: 'var(--text3)', marginTop: '0.1rem' }}>{t.category}</span>
+                                </div>
+                                <div className={styles.timelineRight} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                  <span className={t.type === 'income' ? styles.timelineIncome : styles.timelineExpense} style={{ fontSize: '0.8rem', fontWeight: 'bold', color: t.type === 'income' ? '#00c48c' : 'var(--text)' }}>
+                                    {t.type === 'income' ? '+' : '-'}{t.amount.toFixed(2)} €
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className={styles.deleteBtn}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteTransaction(t.id);
+                                    }}
+                                    title="Löschen"
+                                    style={{ fontSize: '0.7rem', opacity: 0.5 }}
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()
                 )}
               </div>
             </div>
@@ -1746,6 +1935,7 @@ Bitte versuche es in wenigen Minuten erneut.`;
         )}
 
         {activeSubTab === 'focus' && (
+
           <div className={styles.focusLayout}>
             <div className={styles.focusTimerContainer}>
               <div className={styles.focusRing}>
@@ -1767,7 +1957,7 @@ Bitte versuche es in wenigen Minuten erneut.`;
               </div>
 
               <div className={styles.focusModeLabel}>
-                {focusRunning ? '⚡ FOCUS AKTIV ⚡' : '⏸️ PAUSIERT'}
+                {focusRunning ? 'FOCUS AKTIV' : 'PAUSIERT'}
               </div>
 
               <div className={styles.focusPresets}>
@@ -1807,7 +1997,7 @@ Bitte versuche es in wenigen Minuten erneut.`;
           <div className={styles.notesLayout}>
             {/* Create note card */}
             <div className={styles.card}>
-              <h3 className={styles.cardTitle}>📝 Session Notizen</h3>
+              <h3 className={styles.cardTitle}>Session Notizen</h3>
               <p className={styles.desc} style={{ marginTop: '-0.5rem' }}>
                 Halte wichtige Erkenntnisse oder Aufgaben während deines aktuellen Blocks <strong>"{activeBlock.title}"</strong> fest.
               </p>
@@ -1823,14 +2013,14 @@ Bitte versuche es in wenigen Minuten erneut.`;
                   />
                 </div>
                 <button type="submit" className={styles.submitBtn}>
-                  Notiz Speichern ✦
+                  Notiz Speichern
                 </button>
               </form>
             </div>
 
             {/* List notes */}
             <div className={styles.card}>
-              <h3 className={styles.cardTitle}>📜 Verlauf Notizen ({notesList.length})</h3>
+              <h3 className={styles.cardTitle}>Verlauf Notizen ({notesList.length})</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {notesList.map((n) => (
                   <div key={n.id} className={styles.noteEntry}>
@@ -1853,7 +2043,6 @@ Bitte versuche es in wenigen Minuten erneut.`;
 
                 {notesList.length === 0 && (
                   <div className={styles.emptyState}>
-                    <span className={styles.emptyIcon}>📝</span>
                     <p className={styles.emptyText}>Noch keine Notizen verfasst.</p>
                     <p className={styles.emptyText} style={{ opacity: 0.65, fontSize: '0.85em', marginTop: '0.35rem' }}>
                       Halte Gedanken aus deinen Fokus-Blöcken fest — Notizen bleiben über Sessions erhalten.
@@ -1864,6 +2053,7 @@ Bitte versuche es in wenigen Minuten erneut.`;
             </div>
           </div>
         )}
+
       </div>
     </div>
   );
