@@ -195,26 +195,24 @@ def pronoia_webhook():
     context = fetch_context(sender_uid)
     reply_text = run_agent(plaintext, context)
 
-    # 3. Encrypt + post the reply back into the chat.
-    if not group_key:
-        return jsonify({"ok": False, "error": "no_group_key"}), 202
+    # 3. Post the reply back into the chat — encrypted when we hold the chat's
+    #    group key, otherwise in plaintext (rules-protected; the web client
+    #    heals the key wrap for us so later replies become E2E).
+    reply_payload = {"event": "hermes_reply", "source": "hermes_bridge", "chatId": chat_id}
+    if group_key:
+        enc = e2e.encrypt_message(group_key, reply_text)
+        reply_payload.update({"ciphertext": enc["ciphertext"], "iv": enc["iv"]})
+    else:
+        register_identity()  # make sure our key is published so healing can kick in
+        reply_payload.update({"text": reply_text})
 
-    enc = e2e.encrypt_message(group_key, reply_text)
     try:
-        call_pronoia(
-            {
-                "event": "hermes_reply",
-                "source": "hermes_bridge",
-                "chatId": chat_id,
-                "ciphertext": enc["ciphertext"],
-                "iv": enc["iv"],
-            }
-        )
+        call_pronoia(reply_payload)
     except Exception as exc:  # noqa: BLE001
         print(f"[Hermes Bridge] Failed to post reply: {exc}")
         return jsonify({"ok": False, "error": str(exc)}), 502
 
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "encrypted": bool(group_key)})
 
 
 @app.get("/health")

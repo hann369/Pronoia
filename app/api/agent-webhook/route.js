@@ -230,10 +230,17 @@ export async function POST(req) {
     }
 
     if (event === "hermes_reply") {
-      const { chatId, ciphertext, iv } = payload;
+      // Accepts either an E2E-encrypted reply (ciphertext + iv) or a plaintext
+      // reply (text) for chats where no group key is provisioned yet.
+      const { chatId, ciphertext, iv, text } = payload;
+      if (!chatId || (!text && !(ciphertext && iv))) {
+        return NextResponse.json({ ok: false, error: "chatId and text or ciphertext+iv required" }, { status: 400 });
+      }
       const timestamp = new Date().toISOString();
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
       const readBy = ["hermes_agent_node"];
+
+      const msgBody = ciphertext && iv ? { ciphertext, iv } : { text };
 
       await adminDb.collection("chats").doc(chatId).collection("messages").add({
         senderUid: "hermes_agent_node",
@@ -241,14 +248,18 @@ export async function POST(req) {
         timestamp,
         expiresAt,
         type: "text",
-        ciphertext,
-        iv,
+        ...msgBody,
         readBy,
       });
 
       await adminDb.collection("chats").doc(chatId).set(
         {
-          lastMessage: { ciphertext, iv, senderUid: "hermes_agent_node", timestamp, readBy },
+          lastMessage: {
+            ...(ciphertext && iv ? { ciphertext, iv } : { text: String(text).substring(0, 60) }),
+            senderUid: "hermes_agent_node",
+            timestamp,
+            readBy,
+          },
         },
         { merge: true }
       );

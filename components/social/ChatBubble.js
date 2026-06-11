@@ -7,6 +7,8 @@ export default function ChatBubble({ message, isSelf, styles }) {
     : '';
 
   const isE2EError = message.text && message.text.includes('E2E-Schlüssel');
+  // Messages without ciphertext were delivered rules-protected but not E2E.
+  const isPlainDelivery = !message.ciphertext && !isE2EError;
 
   const renderMessageContent = () => {
     if (message.type === 'stack-share') {
@@ -67,8 +69,16 @@ export default function ChatBubble({ message, isSelf, styles }) {
         
         <div className={styles.bubbleMeta}>
           <span className={styles.bubbleTime}>{timestamp}</span>
-          <span className={styles.bubbleLock} title="Ende-zu-Ende verschlüsselt" style={isE2EError ? { color: 'var(--red, #ff4d4d)' } : {}}>
-            {isE2EError ? '⚠️' : '🔒'}
+          <span
+            className={styles.bubbleLock}
+            title={isE2EError
+              ? 'Entschlüsselung fehlgeschlagen'
+              : isPlainDelivery
+                ? 'Zugriffsgeschützt übertragen (nur Chat-Teilnehmer) — nicht Ende-zu-Ende verschlüsselt'
+                : 'Ende-zu-Ende verschlüsselt'}
+            style={isE2EError ? { color: 'var(--red, #ff4d4d)' } : {}}
+          >
+            {isE2EError ? '⚠️' : isPlainDelivery ? '🔓' : '🔒'}
           </span>
         </div>
       </div>

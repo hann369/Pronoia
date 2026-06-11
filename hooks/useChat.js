@@ -227,8 +227,9 @@ export function useChat() {
   }, [user]);
 
   // --- Create Direct 1:1 Chat ---
+  // No private key required: key wrapping uses only public keys (ECIES).
   const createDirectChat = useCallback(async (targetUid) => {
-    if (!user || !db || !myPrivateKey) return null;
+    if (!user || !db) return null;
     try {
       // Check if chat already exists
       const existingQuery = query(
@@ -298,33 +299,27 @@ export function useChat() {
   }, [user, myPrivateKey]);
 
   // --- Create Group Chat ---
+  // Uses ECIES wrapping (public keys only) — no private key needed, and the
+  // unwrap path already supports the ephemPub format for every member.
   const createGroupChat = useCallback(async (name, memberUids) => {
-    if (!user || !db || !myPrivateKey) return null;
+    if (!user || !db) return null;
     try {
       const chatDocRef = doc(collection(db, 'chats'));
       const participants = [user.uid, ...memberUids];
-      
+
       // 1. Generate new AES group key
       const groupKey = await generateGroupKey();
-      
-      // 2. Fetch public keys of all members to wrap group key
-      const groupKeyPayload = {};
-      
-      // Wrap for self
-      const myUserDoc = await getDoc(doc(db, 'users', user.uid));
-      if (myUserDoc.exists() && myUserDoc.data().publicKey?.jwk) {
-        const myPub = await importPublicKey(myUserDoc.data().publicKey.jwk);
-        const wrapped = await wrapGroupKey(groupKey, myPub, myPrivateKey);
-        groupKeyPayload[user.uid] = wrapped;
-      }
 
-      // Wrap for other members
-      for (const mUid of memberUids) {
+      // 2. Wrap the group key for every participant's public key (best-effort)
+      const groupKeyPayload = {};
+      for (const mUid of participants) {
         try {
           const uDoc = await getDoc(doc(db, 'users', mUid));
-          if (uDoc.exists() && uDoc.data().publicKey?.jwk) {
-            const memberPub = await importPublicKey(uDoc.data().publicKey.jwk);
-            const wrapped = await wrapGroupKey(groupKey, memberPub, myPrivateKey);
+          const jwk = uDoc.exists() ? uDoc.data().publicKey?.jwk : null;
+          if (isValidJwk(jwk)) {
+            const memberPub = await importPublicKey(jwk);
+            const wrapped = await wrapGroupKeyNew(groupKey, memberPub);
+            wrapped.pubKeyFingerprint = jwk.x;
             groupKeyPayload[mUid] = wrapped;
           }
         } catch (e) {
@@ -351,8 +346,10 @@ export function useChat() {
   }, [user, myPrivateKey]);
 
   // --- Listen to Messages of Active Chat ---
+  // Works without an E2E key: plaintext messages render normally, encrypted
+  // ones show a key-missing hint instead of the chat staying empty.
   const listenToMessages = useCallback((chatId) => {
-    if (!user || !db || !myPrivateKey) return;
+    if (!user || !db) return;
 
     if (activeUnsubscribeRef.current) {
       activeUnsubscribeRef.current();
@@ -373,12 +370,12 @@ export function useChat() {
       if (!chatDoc.exists()) return;
       const chatData = chatDoc.data();
 
-      // Resolve key depending on chat type
+      // Resolve key depending on chat type (only possible with a local private key)
       let activeKey = null;
 
-      if (chatData.type === 'direct') {
+      if (myPrivateKey && chatData.type === 'direct') {
         const peerUid = chatData.participants.find(id => id !== user.uid) || user.uid;
-        
+
         // 1. Try to unwrap from groupKey (new ECIES format)
         const wrappedKeyInfo = chatData.groupKey?.[user.uid];
         if (wrappedKeyInfo && wrappedKeyInfo.ephemPub) {
@@ -456,7 +453,7 @@ export function useChat() {
           }
         }
 
-      } else if (chatData.type === 'group' || chatData.type === 'community') {
+      } else if (myPrivateKey && (chatData.type === 'group' || chatData.type === 'community')) {
         const wrappedKeyInfo = chatData.groupKey?.[user.uid];
         if (wrappedKeyInfo) {
           // 1. Try new ECIES format
@@ -540,7 +537,10 @@ export function useChat() {
 
       for (const d of snapshot.docs) {
         const msgData = d.data();
-        let decryptedText = msgData.text || "[Verschlüsselte Nachricht]";
+        let decryptedText = msgData.text ||
+          (activeKey
+            ? "[Verschlüsselte Nachricht]"
+            : "[E2E-Schlüssel fehlt auf diesem Gerät — im E2E-Tab importieren oder zurücksetzen]");
 
         if (activeKey && msgData.ciphertext && msgData.iv) {
           try {
@@ -566,16 +566,27 @@ export function useChat() {
   }, [user, myPrivateKey, markChatAsRead]);
 
   // --- Send Message ---
+  // Guaranteed delivery: sending only requires being signed in. E2E encryption
+  // is a best-effort layer on top — if no usable key exists (key init failed,
+  // fresh device, peer not provisioned), the message is sent in plaintext,
+  // still access-protected by Firestore rules (only chat participants can
+  // read). The bubble shows 🔓 for such messages.
   const sendMessage = useCallback(async (chatId, plaintext, type = 'text') => {
-    if (!user || !db || !myPrivateKey) return false;
+    if (!user || !db) {
+      console.error("[Chat] sendMessage blocked: user or Firestore unavailable", { user: !!user, db: !!db });
+      return false;
+    }
     try {
       const chatDoc = await getDoc(doc(db, 'chats', chatId));
-      if (!chatDoc.exists()) return false;
+      if (!chatDoc.exists()) {
+        console.error("[Chat] sendMessage: chat document not found:", chatId);
+        return false;
+      }
       const chatData = chatDoc.data();
 
       let activeKey = null;
 
-      if (chatData.type === 'direct') {
+      if (myPrivateKey && chatData.type === 'direct') {
         const peerUid = chatData.participants.find(id => id !== user.uid) || user.uid;
         
         // 1. Try to unwrap from groupKey
@@ -590,10 +601,15 @@ export function useChat() {
         
         // 2. Fallback to deriving shared secret - ONLY if groupKey is not present
         if (!activeKey && !chatData.groupKey) {
-          const peerDoc = await getDoc(doc(db, 'users', peerUid));
-          if (peerDoc.exists() && peerDoc.data().publicKey?.jwk) {
-            const peerPub = await importPublicKey(peerDoc.data().publicKey.jwk);
-            activeKey = await deriveSharedSecret(myPrivateKey, peerPub);
+          try {
+            const peerDoc = await getDoc(doc(db, 'users', peerUid));
+            const peerJwk = peerDoc.exists() ? peerDoc.data().publicKey?.jwk : null;
+            if (isValidJwk(peerJwk)) {
+              const peerPub = await importPublicKey(peerJwk);
+              activeKey = await deriveSharedSecret(myPrivateKey, peerPub);
+            }
+          } catch (deriveErr) {
+            console.warn("[E2E Chat] Shared-secret derivation failed on send:", deriveErr.message);
           }
         }
         
@@ -637,7 +653,7 @@ export function useChat() {
             console.error("[E2E Chat] Generating new direct chat key failed:", genErr);
           }
         }
-      } else if (chatData.type === 'group' || chatData.type === 'community') {
+      } else if (myPrivateKey && (chatData.type === 'group' || chatData.type === 'community')) {
         const wrappedKeyInfo = chatData.groupKey?.[user.uid];
         if (wrappedKeyInfo) {
           if (wrappedKeyInfo.ephemPub) {
@@ -648,16 +664,21 @@ export function useChat() {
             }
           }
           if (!activeKey) {
-            const senderUid = chatData.admins?.[0] || chatData.participants[0];
-            const senderDoc = await getDoc(doc(db, 'users', senderUid));
-            if (senderDoc.exists() && senderDoc.data().publicKey?.jwk) {
-              const senderPub = await importPublicKey(senderDoc.data().publicKey.jwk);
-              activeKey = await unwrapGroupKey(
-                wrappedKeyInfo.wrappedKey,
-                wrappedKeyInfo.iv,
-                senderPub,
-                myPrivateKey
-              );
+            try {
+              const senderUid = chatData.admins?.[0] || chatData.participants[0];
+              const senderDoc = await getDoc(doc(db, 'users', senderUid));
+              const senderJwk = senderDoc.exists() ? senderDoc.data().publicKey?.jwk : null;
+              if (isValidJwk(senderJwk)) {
+                const senderPub = await importPublicKey(senderJwk);
+                activeKey = await unwrapGroupKey(
+                  wrappedKeyInfo.wrappedKey,
+                  wrappedKeyInfo.iv,
+                  senderPub,
+                  myPrivateKey
+                );
+              }
+            } catch (legacyErr) {
+              console.warn("[E2E Chat] Legacy group key unwrap failed on send:", legacyErr.message);
             }
           }
         }
