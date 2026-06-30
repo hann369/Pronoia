@@ -1,7 +1,9 @@
 // app/api/cron/automate/route.js
 //
 // Vercel Cron-compatible GET endpoint.
-// Runs every hour (configure in vercel.json).
+// Runs once per day at 08:00 (configure in vercel.json). Vercel's Hobby plan
+// only permits daily crons; the task-due logic fires in the 08:00–10:00 window,
+// so a single daily run covers the daily/weekly automations.
 // For each user that has registered automations, checks whether
 // any task is due, executes it, and notifies the user via Telegram.
 //
