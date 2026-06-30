@@ -34,6 +34,7 @@ import ProfileTab from '@/components/lifeos/ProfileTab';
 import GymTab from '@/components/lifeos/GymTab';
 import BehaviorTab from '@/components/lifeos/BehaviorTab';
 import SkillLabModal from '@/components/SkillLabModal';
+import SkillLabErrorBoundary from '@/components/SkillLabErrorBoundary';
 import UpgradePrompt from '@/components/UpgradePrompt';
 import { connectorLimit } from '@/lib/tiers';
 import LearnYourWay from '@/components/LearnYourWay';
@@ -3752,7 +3753,22 @@ function LifeOSDashboard() {
       )}
 
       {isSkillLabOpen && (
-        <SkillLabModal isOpen={isSkillLabOpen} onClose={() => setIsSkillLabOpen(false)} profile={profile} saveProfile={saveProfile} />
+        <SkillLabErrorBoundary
+          onClose={() => setIsSkillLabOpen(false)}
+          onReset={() => {
+            // Clear the corrupted Skill Lab state so the modal reopens clean.
+            saveProfile({
+              skillLabState: {
+                phase: 'onboarding', skill: '', intent: '', domain: '', goal: '', hoursPerWeek: 2,
+                curriculum: null, currentModuleIndex: 0, currentPhase: 'theory',
+                spacedRepetitionQueue: [], completedSteps: {}, watchedVideos: {}, skillNotes: {},
+                videoUrl: null, cachedTextbooks: {},
+              },
+            });
+          }}
+        >
+          <SkillLabModal isOpen={isSkillLabOpen} onClose={() => setIsSkillLabOpen(false)} profile={profile} saveProfile={saveProfile} />
+        </SkillLabErrorBoundary>
       )}
 
       <UpgradePrompt

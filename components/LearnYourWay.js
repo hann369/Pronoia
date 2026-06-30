@@ -29,9 +29,14 @@ function adaptModuleToLearnYourWay(mod, skill) {
     if (preAuth) return preAuth;
   }
 
-  // Fallback: Dynamically generate textbook structure from the module's theory content
-  const paragraphs = mod.theory?.content
-    ? mod.theory.content.split('\n\n').filter(p => p.trim().length > 0)
+  // Fallback: Dynamically generate textbook structure from the module's theory content.
+  // theory.content can arrive as a non-string (e.g. an object) from odd LLM output;
+  // coerce defensively so `.split` never throws and crashes the whole modal.
+  const theoryContent = typeof mod.theory?.content === 'string'
+    ? mod.theory.content
+    : (typeof mod.theory === 'string' ? mod.theory : '');
+  const paragraphs = theoryContent
+    ? theoryContent.split('\n\n').filter(p => p.trim().length > 0)
     : ["Willkommen bei der Lerneinheit.", "Hier lernst du die wichtigsten Kernprinzipien.", "Nutze die verschiedenen Tabs, um das Thema optimal zu durchdringen."];
   
   const sections = paragraphs.map((p, idx) => ({

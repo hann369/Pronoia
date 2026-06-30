@@ -128,7 +128,7 @@ export default function SkillLabModal({ isOpen, onClose, profile, saveProfile })
     if (raw.curriculum && Array.isArray(raw.curriculum.modules)) {
       raw.curriculum.modules = raw.curriculum.modules.map((m, i) => {
         const theory = {
-          content: m.theory?.content || m.theory?.text || m.theoryContent || m.theory || "Standard-Theorieinhalt für dieses Modul.",
+          content: [m.theory?.content, m.theory?.text, m.theoryContent, typeof m.theory === 'string' ? m.theory : null].find(v => typeof v === 'string' && v.trim()) || "Standard-Theorieinhalt für dieses Modul.",
           sourceHint: m.theory?.sourceHint || m.sourceHint || "Relevante Online-Quellen."
         };
         const practice = {
@@ -345,7 +345,7 @@ Antworte NUR mit validem JSON, kein Markdown, keine Erklärungen davor oder dana
       // Map status and normalize modules to prevent runtime TypeErrors
       curriculum.modules = curriculum.modules.map((m, i) => {
         const theory = {
-          content: m.theory?.content || m.theory?.text || m.theoryContent || m.theory || "Standard-Theorieinhalt für dieses Modul.",
+          content: [m.theory?.content, m.theory?.text, m.theoryContent, typeof m.theory === 'string' ? m.theory : null].find(v => typeof v === 'string' && v.trim()) || "Standard-Theorieinhalt für dieses Modul.",
           sourceHint: m.theory?.sourceHint || m.sourceHint || "Relevante Online-Quellen."
         };
         
