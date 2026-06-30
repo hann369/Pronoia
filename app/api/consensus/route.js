@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server';
 
-const LOCAL_CONSENSUS_FALLBACK = (hrv, sleep, frictionLogs = []) => {
+const LOCAL_CONSENSUS_FALLBACK = (hrv, sleep, frictionLogs = [], activeBlock = 'Freier Block') => {
   const lastFriction = frictionLogs[0]?.status || 'ok';
-  
+  const blockLabel = activeBlock || 'Freier Block';
+
   let leader = "A.01";
-  let A01 = { status: "ACTIVE", text: "Zirkadiane Phase stabil. Fokus-Fenster eingehalten." };
+  let A01 = { status: "ACTIVE", text: `Zirkadiane Phase stabil. Block „${blockLabel}" im Fokus-Fenster.` };
   let A02 = { status: "ACTIVE", text: `Schlafwert bei ${sleep}%: Erholungs-Phase nominal.` };
   let A03 = { status: "ACTIVE", text: `HRV bei ${hrv}ms: ZNS-Spannung im grünen Bereich.` };
   let A04 = { status: "ACTIVE", text: "Stack-Compliance nominal. Nootropika-Zufuhr synchron." };
   let A05 = { status: "ACTIVE", text: "Geringe Reibung im aktuellen Ablauf blockiert." };
-  let A06 = { status: "LEADING", text: "Alle kognitiven Subsysteme synchronisiert. System nominal." };
+  let A06 = { status: "LEADING", text: `Alle kognitiven Subsysteme synchronisiert. Steuert: „${blockLabel}".` };
 
-  let directive = "Alle kognitiven Subsysteme nominal. Zirkadianer Fokus wird fortgesetzt.";
+  let directive = `Alle kognitiven Subsysteme nominal. „${blockLabel}" wird fortgesetzt.`;
 
   if (hrv < 55) {
     leader = "A.03";
@@ -54,7 +55,7 @@ export async function POST(req) {
     const apiKey = process.env.MISTRAL_API_KEY;
 
     if (!apiKey || apiKey === 'REPLACE_ME') {
-      const fallback = LOCAL_CONSENSUS_FALLBACK(hrv, sleep, frictionLogs);
+      const fallback = LOCAL_CONSENSUS_FALLBACK(hrv, sleep, frictionLogs, activeBlock);
       return NextResponse.json(fallback);
     }
 
@@ -113,7 +114,7 @@ Antworte STRENG im folgenden JSON-Format:
 
     if (!response.ok) {
       console.warn("Mistral API failed for consensus, using fallback");
-      const fallback = LOCAL_CONSENSUS_FALLBACK(hrv, sleep, frictionLogs);
+      const fallback = LOCAL_CONSENSUS_FALLBACK(hrv, sleep, frictionLogs, activeBlock);
       return NextResponse.json(fallback);
     }
 

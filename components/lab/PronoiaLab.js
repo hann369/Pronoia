@@ -83,7 +83,7 @@ export default function PronoiaLab({ setActiveTab }) {
         ctx.stroke();
       }
 
-      ctx.strokeStyle = 'var(--theme-accent, #1A6AFF)';
+      ctx.strokeStyle = '#8B5CF6';
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(0, canvas.height - 20);
@@ -108,8 +108,8 @@ export default function PronoiaLab({ setActiveTab }) {
       ctx.stroke();
 
       const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      gradient.addColorStop(0, 'rgba(26, 106, 255, 0.18)');
-      gradient.addColorStop(1, 'rgba(26, 106, 255, 0)');
+      gradient.addColorStop(0, 'rgba(139, 92, 246, 0.18)');
+      gradient.addColorStop(1, 'rgba(139, 92, 246, 0)');
       ctx.fillStyle = gradient;
       ctx.lineTo(canvas.width, canvas.height);
       ctx.lineTo(0, canvas.height);
@@ -221,191 +221,181 @@ export default function PronoiaLab({ setActiveTab }) {
         </div>
       )}
 
-      {/* Sidebar - Tab bar */}
-      <div className={styles.labSidebar}>
-        <div className={styles.tabBar}>
-          <button className={`${styles.tabBtn} ${labTab === 'library' ? styles.tabBtnActive : ''}`} onClick={() => setLabTab('library')}>Library</button>
-          <button className={`${styles.tabBtn} ${labTab === 'stack' ? styles.tabBtnActive : ''}`} onClick={() => setLabTab('stack')}>Stack Builder</button>
-          <button className={`${styles.tabBtn} ${labTab === 'quiz' ? styles.tabBtnActive : ''}`} onClick={() => setLabTab('quiz')}>Quiz</button>
-        </div>
+      {/* Floating exit */}
+      <button className={styles.labExit} onClick={() => setActiveTab('apps')}>
+        <span>←</span> EXIT LAB
+      </button>
 
-        <div className={styles.sidebarContent}>
-          {labTab === 'library' && (
-            <div className={styles.filterPane}>
-              <input
-                type="text"
-                className={styles.searchInput}
-                placeholder="Compounds suchen..."
-                value={searchVal}
-                onChange={e => setSearchVal(e.target.value)}
-              />
-              <div className={styles.categoryList}>
-                <button className={`${styles.catBtn} ${selectedCategory === 'all' ? styles.catBtnActive : ''}`} onClick={() => setSelectedCategory('all')}>Alle</button>
-                {Object.keys(CATEGORIES).map(cat => (
-                  <button
-                    key={cat}
-                    className={`${styles.catBtn} ${selectedCategory === cat ? styles.catBtnActive : ''}`}
-                    onClick={() => setSelectedCategory(cat)}
+      {/* Single editorial canvas */}
+      <main className={styles.labCanvas}>
+        <div className={styles.glowBg} aria-hidden="true" />
+
+        {/* Hero */}
+        <section className={styles.labHero}>
+          <div className={styles.monoEyebrow}>Pronoia Lab · Compound Research</div>
+          <h1 className={styles.labHeroTitle}>Das Labor deiner<br />Selbstoptimierung.</h1>
+          <p className={styles.labHeroSub}>Ein kuratierter Raum für molekulare Präzision und bio-chemische Harmonie.</p>
+        </section>
+
+        {/* Segmented toggle */}
+        <nav className={styles.segToggle}>
+          <button className={`${styles.segBtn} ${labTab === 'library' ? styles.segBtnActive : ''}`} onClick={() => setLabTab('library')}>Bibliothek</button>
+          <button className={`${styles.segBtn} ${labTab === 'stack' ? styles.segBtnActive : ''}`} onClick={() => setLabTab('stack')}>Stack</button>
+          <button className={`${styles.segBtn} ${labTab === 'quiz' ? styles.segBtnActive : ''}`} onClick={() => setLabTab('quiz')}>Quiz</button>
+        </nav>
+
+        {labTab === 'library' && (
+          <div className={styles.libLayout}>
+            <div className={styles.libMain}>
+              <div className={styles.libControls}>
+                <div className={styles.searchWrap}>
+                  <span className={styles.searchIcon} aria-hidden="true">⌕</span>
+                  <input
+                    type="text"
+                    className={styles.searchField}
+                    placeholder="Wirkstoff suchen…"
+                    value={searchVal}
+                    onChange={e => setSearchVal(e.target.value)}
+                  />
+                </div>
+                <div className={styles.catChips}>
+                  <button className={`${styles.catChip} ${selectedCategory === 'all' ? styles.catChipActive : ''}`} onClick={() => setSelectedCategory('all')}>Alle</button>
+                  {Object.keys(CATEGORIES).map(cat => (
+                    <button
+                      key={cat}
+                      className={`${styles.catChip} ${selectedCategory === cat ? styles.catChipActive : ''}`}
+                      onClick={() => setSelectedCategory(cat)}
+                    >
+                      {CATEGORIES[cat]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.compoundGrid}>
+                {filteredCompounds.map(c => (
+                  <div
+                    key={c.cid}
+                    className={`${styles.cCard} ${selectedCompound?.cid === c.cid ? styles.cCardActive : ''}`}
+                    onClick={() => setSelectedCompound(c)}
                   >
-                    {CATEGORIES[cat]}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {labTab === 'stack' && (
-            <div className={styles.stackPanel}>
-              <div className={styles.stackHeader}>
-                <h4>Pending Stack</h4>
-                <button className="btn btn-ghost" style={{ fontSize: '0.62rem', padding: '0.2rem 0.5rem' }} onClick={() => setCurrentStack([])}>Clear</button>
-              </div>
-              <div className={styles.stackBuilderList}>
-                {currentStack.map(c => (
-                  <div key={c.cid} className={styles.stackBuilderItem}>
-                    <span>{c.name}</span>
-                    <button className={styles.removeItemBtn} onClick={() => handleRemoveFromStack(c.cid)}>✕</button>
+                    <div className={styles.cCardTop}>
+                      <span className={styles.cidBadge}>CID-{c.cid}</span>
+                      <span className={styles.cCardAdd}>+</span>
+                    </div>
+                    <h3 className={styles.cCardName}>{c.name}</h3>
+                    <p className={styles.cCardDesc}>{c.description}</p>
                   </div>
                 ))}
-                {currentStack.length === 0 && <p className={styles.emptyState}>Bilde einen Stack aus der Library.</p>}
+                {filteredCompounds.length === 0 && (
+                  <p className={styles.emptyState}>Keine Compounds gefunden.</p>
+                )}
               </div>
+            </div>
 
+            {selectedCompound && (
+              <aside className={styles.detailPanel}>
+                <div className={styles.detailPanelGlow} aria-hidden="true" />
+                <div className={styles.detailScroll}>
+                  <div className={styles.detailTop}>
+                    <span className={styles.detailCat}>{selectedCompound.category}</span>
+                    <button className={styles.detailClose} onClick={() => { setSelectedCompound(null); setShowShareDropdown(false); }} aria-label="Schließen">✕</button>
+                  </div>
+                  <h2 className={styles.detailName}>{selectedCompound.name}</h2>
+                  <div className={styles.detailMeta}>
+                    <span><i className={styles.metaDot} /> CID: {selectedCompound.cid}</span>
+                  </div>
+
+                  <div className={styles.detailSection}>
+                    <div className={styles.detailSectionLabel}>
+                      <span>Pharmakokinetik</span>
+                      <span>[C] / t</span>
+                    </div>
+                    <div className={styles.chartFrame}>
+                      <canvas ref={canvasRef} width="350" height="150" className={styles.chartCanvas} />
+                    </div>
+                  </div>
+
+                  <div className={styles.detailBlock}>
+                    <h4 className={styles.detailBlockLabel}>Wirkungsweise</h4>
+                    <p className={styles.detailBlockText}>{selectedCompound.mechanisms}</p>
+                  </div>
+                  <div className={styles.detailBlock}>
+                    <h4 className={styles.detailBlockLabel}>Dosierung</h4>
+                    <p className={styles.detailBlockText} style={{ whiteSpace: 'pre-line' }}>{selectedCompound.dosage}</p>
+                  </div>
+                  <div className={styles.detailBlock}>
+                    <h4 className={styles.detailBlockLabel}>Vorteile</h4>
+                    <ul className={styles.detailList}>
+                      {selectedCompound.benefits.map((b, i) => <li key={i}>{b}</li>)}
+                    </ul>
+                  </div>
+                  {selectedCompound.warnings?.length > 0 && (
+                    <div className={styles.detailBlock}>
+                      <h4 className={styles.detailBlockLabel}>Sicherheit &amp; Warnungen</h4>
+                      <div className={styles.warnList}>
+                        {selectedCompound.warnings.map((w, i) => (
+                          <div key={i} className={styles.warnItem}>{w}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className={styles.detailFooter}>
+                  <div className={styles.shareWrap}>
+                    <button className={styles.shareBtn} onClick={() => setShowShareDropdown(!showShareDropdown)}>📤 Teilen</button>
+                    {showShareDropdown && (
+                      <div className={styles.shareDropdownMenu}>
+                        <div className={styles.shareDropdownHeader}>Chat wählen:</div>
+                        {conversations.map(chat => (
+                          <button key={chat.id} className={styles.shareDropdownItem} onClick={() => handleShareCompoundToChat(chat.id)}>
+                            {chat.title}
+                          </button>
+                        ))}
+                        {conversations.length === 0 && (
+                          <div className={styles.shareDropdownEmpty}>Keine aktiven Chats</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <button className={styles.ctaBtn} onClick={() => handleAddToStack(selectedCompound)}>Zum Stack hinzufügen →</button>
+                </div>
+              </aside>
+            )}
+          </div>
+        )}
+
+        {labTab === 'stack' && (
+          <div className={styles.stackLayout}>
+            <div className={styles.stackCol}>
+              <div className={styles.stackColHead}>
+                <h3 className={styles.stackColTitle}>Aktueller Stack</h3>
+                {currentStack.length > 0 && (
+                  <button className={styles.stackClear} onClick={() => setCurrentStack([])}>Leeren</button>
+                )}
+              </div>
+              <div className={styles.stackList}>
+                {currentStack.map(c => (
+                  <div key={c.cid} className={styles.stackItem}>
+                    <span>{c.name}</span>
+                    <button className={styles.stackRemove} onClick={() => handleRemoveFromStack(c.cid)}>✕</button>
+                  </div>
+                ))}
+                {currentStack.length === 0 && (
+                  <p className={styles.emptyState}>Bilde einen Stack aus der Bibliothek.</p>
+                )}
+              </div>
               {currentStack.length > 0 && (
-                <button className="btn btn-primary" style={{ width: '100%', marginTop: '1rem', fontSize: '0.72rem' }} onClick={handleSyncToBioStack}>
+                <button className={styles.ctaBtn} style={{ width: '100%', marginTop: '1.25rem' }} onClick={handleSyncToBioStack}>
                   → In Bio-Stack einspeisen
                 </button>
               )}
             </div>
-          )}
 
-          {labTab === 'quiz' && (
-            <div className={styles.quizPanel}>
-              <h4>Personalized Formulation</h4>
-              <p style={{ fontSize: '0.72rem', color: 'var(--text3)', lineHeight: 1.4 }}>Beantworte 4 kurze Fragen, um deinen optimalen Nootropika-Einstieg zu finden.</p>
-              {quizStep > 0 && (
-                <button className="btn btn-ghost" style={{ fontSize: '0.65rem', marginTop: '0.5rem' }} onClick={() => { setQuizStep(0); setGeneratedQuizStack(null); }}>
-                  Neustarten
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Dynamic Exit Button to escape fullscreen Pronoia Lab */}
-        <div className={styles.sidebarExitSection}>
-          <button className={styles.exitBtn} onClick={() => setActiveTab('apps')}>
-            <span>←</span> EXIT LAB
-          </button>
-        </div>
-      </div>
-
-      {/* Main content view */}
-      <div className={styles.labMainContent}>
-        {labTab === 'library' && (
-          selectedCompound ? (
-            <div className={styles.detailView}>
-              <button className={styles.backBtn} onClick={() => { setSelectedCompound(null); setShowShareDropdown(false); }}>← Zurück zur Übersicht</button>
-              
-              <div className={styles.detailHeader}>
-                <div className={styles.detailHeaderLeft}>
-                  <h2>{selectedCompound.name}</h2>
-                  <span className={styles.categoryBadge}>{selectedCompound.category}</span>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem', position: 'relative' }}>
-                  <button className="btn btn-ghost" style={{ fontSize: '0.75rem' }} onClick={() => setShowShareDropdown(!showShareDropdown)}>
-                    📤 Im Chat teilen
-                  </button>
-                  {showShareDropdown && (
-                    <div className={styles.shareDropdownMenu}>
-                      <div className={styles.shareDropdownHeader}>Chat wählen:</div>
-                      {conversations.map(chat => (
-                        <button
-                          key={chat.id}
-                          className={styles.shareDropdownItem}
-                          onClick={() => handleShareCompoundToChat(chat.id)}
-                        >
-                          {chat.title}
-                        </button>
-                      ))}
-                      {conversations.length === 0 && (
-                        <div className={styles.shareDropdownEmpty}>Keine aktiven Chats</div>
-                      )}
-                    </div>
-                  )}
-                  <button className="btn btn-primary" style={{ fontSize: '0.75rem' }} onClick={() => handleAddToStack(selectedCompound)}>
-                    ⊕ Stack hinzufügen
-                  </button>
-                </div>
-              </div>
-
-              <div className={styles.detailGrid}>
-                <div className={styles.detailColLeft}>
-                  <div className={styles.pharmacokineticsCard}>
-                    <span className={styles.sectionLabel}>ELIMINATIONS-KINETIK (PHARMACOKINETICS)</span>
-                    <canvas ref={canvasRef} width="350" height="150" className={styles.chronoChartCanvas} />
-                  </div>
-
-                  <div className={styles.infoGroup}>
-                    <strong>Wirkungsweise (Mechanism of Action)</strong>
-                    <p>{selectedCompound.mechanisms}</p>
-                  </div>
-
-                  <div className={styles.infoGroup}>
-                    <strong>Typische Dosierung (Dosage)</strong>
-                    <p style={{ whiteSpace: 'pre-line' }}>{selectedCompound.dosage}</p>
-                  </div>
-                </div>
-
-                <div className={styles.detailColRight}>
-                  <div className={styles.benefitsCard}>
-                    <strong>Vorteile (Benefits)</strong>
-                    <ul>
-                      {selectedCompound.benefits.map((b, i) => <li key={i}>{b}</li>)}
-                    </ul>
-                  </div>
-
-                  <div className={styles.warningsCard}>
-                    <strong>Sicherheit & Warnungen</strong>
-                    <div className={styles.warningsList}>
-                      {selectedCompound.warnings?.map((w, i) => (
-                        <div key={i} className={styles.warningItem}>{w}</div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className={styles.libraryGrid}>
-              {filteredCompounds.map(c => (
-                <div key={c.cid} className={styles.compoundCard} onClick={() => setSelectedCompound(c)}>
-                  <div className={styles.compoundHeader}>
-                    <div className={styles.compoundName}>{c.name}</div>
-                    <span className={styles.compoundCat}>{c.category}</span>
-                  </div>
-                  <p className={styles.compoundDesc}>{c.description}</p>
-                  <div className={styles.compoundBenefits}>
-                    {c.benefits.slice(0, 3).map((b, i) => (
-                      <span key={i} className={styles.benefitTag}>{b}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-              {filteredCompounds.length === 0 && (
-                <p className={styles.emptyState}>Keine Compounds gefunden.</p>
-              )}
-            </div>
-          )
-        )}
-
-        {labTab === 'stack' && (
-          <div className={styles.stackBuilderView}>
-            <h2>Stack Safety Analyzer</h2>
-            <p>Füge Verbindungen in der linken Seitenleiste hinzu, um mögliche Wechselwirkungen in Echtzeit zu analysieren.</p>
-
-            <div className={styles.safetyResultsRow} style={{ marginTop: '2rem' }}>
-              <h3>Sicherheits- & Synergie-Bericht</h3>
-              <div className={styles.safetyResultsList}>
+            <div className={styles.stackCol}>
+              <h3 className={styles.stackColTitle}>Sicherheit &amp; Synergie</h3>
+              <div className={styles.safetyResultsList} style={{ marginTop: '1rem' }}>
                 {safetyResults.map((res, idx) => (
                   <div key={idx} className={`${styles.safetyCard} ${styles[`safety_${res.safety}`]}`}>
                     <div className={styles.safetyCardHeader}>
@@ -418,7 +408,7 @@ export default function PronoiaLab({ setActiveTab }) {
                 {safetyResults.length === 0 && currentStack.length >= 2 && (
                   <div className={`${styles.safetyCard} ${styles.safety_safe}`}>
                     <strong>Sicherheits-Index Nominal</strong>
-                    <p>Keine bedenklichen Interaktionen für diese Kombination gefunden. Stacks sind im Allgemeinen gut verträglich.</p>
+                    <p>Keine bedenklichen Interaktionen für diese Kombination gefunden.</p>
                   </div>
                 )}
                 {currentStack.length < 2 && (
@@ -431,26 +421,29 @@ export default function PronoiaLab({ setActiveTab }) {
 
         {labTab === 'quiz' && (
           <div className={styles.quizView}>
-            <h2>Personalized Assessment Form</h2>
-            
             {generatedQuizStack ? (
               <div className={styles.quizResult}>
-                <h3>Dein empfohlener Nootropika-Stack</h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text2)', marginBottom: '1.5rem' }}>Basierend auf deinen Antworten empfehlen wir folgenden Einstieg:</p>
-                <div className={styles.quizResultGrid}>
+                <h3 className={styles.quizResultTitle}>Dein empfohlener Nootropika-Stack</h3>
+                <p className={styles.quizResultSub}>Basierend auf deinen Antworten empfehlen wir folgenden Einstieg:</p>
+                <div className={styles.compoundGrid}>
                   {generatedQuizStack.map(c => (
-                    <div key={c.cid} className={styles.compoundCard} onClick={() => { setLabTab('library'); setSelectedCompound(c); }}>
-                      <div className={styles.compoundHeader}>
-                        <strong>{c.name}</strong>
-                        <span>{c.category}</span>
+                    <div key={c.cid} className={styles.cCard} onClick={() => { setLabTab('library'); setSelectedCompound(c); }}>
+                      <div className={styles.cCardTop}>
+                        <span className={styles.cidBadge}>CID-{c.cid}</span>
                       </div>
-                      <p>{c.description}</p>
+                      <h3 className={styles.cCardName}>{c.name}</h3>
+                      <p className={styles.cCardDesc}>{c.description}</p>
                     </div>
                   ))}
                 </div>
-                <button className="btn btn-primary" style={{ marginTop: '2rem' }} onClick={() => { setCurrentStack(generatedQuizStack); setLabTab('stack'); }}>
-                  In den Stack-Builder übernehmen
-                </button>
+                <div className={styles.quizResultActions}>
+                  <button className={styles.ctaBtn} onClick={() => { setCurrentStack(generatedQuizStack); setLabTab('stack'); }}>
+                    In den Stack-Builder übernehmen
+                  </button>
+                  <button className={styles.segBtn} onClick={() => { setQuizStep(0); setGeneratedQuizStack(null); }}>
+                    Neustarten
+                  </button>
+                </div>
               </div>
             ) : (
               <div className={styles.quizFlowCard}>
@@ -477,7 +470,7 @@ export default function PronoiaLab({ setActiveTab }) {
             )}
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

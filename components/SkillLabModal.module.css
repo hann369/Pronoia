@@ -1,0 +1,805 @@
+/* Skill Lab CSS Modules */
+
+.slModalInner,
+.slCurriculumView,
+.slSessionView,
+.slLoadingState,
+.slErrorState,
+.slCompleteState {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  font-family: var(--font-body, sans-serif);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* Variables mapping to CSS Modules */
+.slModalInner {
+  --sl-accent: #FB7185;
+  --sl-accent-dim: rgba(251, 113, 133, 0.1);
+  --sl-accent-glow: rgba(251, 113, 133, 0.15);
+  --sl-surface: rgba(255, 255, 255, 0.03);
+  --sl-border: rgba(255, 255, 255, 0.07);
+  --sl-text: rgba(255, 255, 255, 0.92);
+  --sl-text-sub: rgba(255, 255, 255, 0.45);
+  --sl-text-dim: rgba(255, 255, 255, 0.25);
+}
+
+.slEyebrow {
+  font-family: var(--font-mono, monospace);
+  font-size: .55rem;
+  text-transform: uppercase;
+  letter-spacing: .2em;
+  color: #FB7185;
+  opacity: .85;
+  display: block;
+}
+
+.slTitle {
+  font-family: var(--font-display, serif);
+  font-size: 1.8rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.2;
+  margin-top: .35rem;
+}
+
+.slSubtitle {
+  font-size: .9rem;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.6;
+  margin-top: .4rem;
+}
+
+.slLabel {
+  font-family: var(--font-mono, monospace);
+  font-size: .6rem;
+  text-transform: uppercase;
+  letter-spacing: .15em;
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.slSessionTitle {
+  font-family: var(--font-display, serif);
+  font-size: 1.4rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.92);
+  margin-top: .3rem;
+}
+
+.slSessionObjective {
+  font-size: .85rem;
+  color: rgba(255, 255, 255, 0.45);
+  margin-top: .3rem;
+  line-height: 1.5;
+}
+
+.slHeader {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+}
+
+/* Input */
+.slInputZone {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.slInputWrap {
+  position: relative;
+  width: 100%;
+}
+
+.slInput {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  font-size: 1.05rem;
+  color: rgba(255, 255, 255, 0.92);
+  font-family: var(--font-body, sans-serif);
+  transition: border-color 0.2s, background 0.2s;
+  outline: none;
+}
+
+.slInput::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.slInput:focus {
+  border-color: rgba(251, 113, 133, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.slInputHint {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono, monospace);
+  font-size: .55rem;
+  color: rgba(255, 255, 255, 0.25);
+  pointer-events: none;
+}
+
+/* Pills */
+.slPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.slPill {
+  padding: .4rem 1rem;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.45);
+  font-size: .75rem;
+  font-family: var(--font-body, sans-serif);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.slPill:hover {
+  background: rgba(251, 113, 133, 0.08);
+  border-color: rgba(251, 113, 133, 0.3);
+  color: #FB7185;
+}
+
+/* Disambiguation */
+.slDisambigZone {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.slDivider {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+}
+
+.slDivider::before,
+.slDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.08), transparent);
+}
+
+.slDivider span {
+  font-family: var(--font-mono, monospace);
+  font-size: .6rem;
+  color: rgba(255, 255, 255, 0.25);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+
+.slDisambigGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .75rem;
+}
+
+.slDisambigCard {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  padding: 1.2rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+  color: rgba(255, 255, 255, 0.45);
+  font-family: var(--font-body, sans-serif);
+  font-size: .85rem;
+  line-height: 1.4;
+  outline: none;
+}
+
+.slDisambigCard:hover {
+  border-color: rgba(251, 113, 133, 0.25);
+  background: rgba(251, 113, 133, 0.04);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.slDisambigCard.selected {
+  border-color: rgba(251, 113, 133, 0.5);
+  background: rgba(251, 113, 133, 0.08);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.slDisambigIcon {
+  font-size: 1.3rem;
+  color: #FB7185;
+  opacity: .7;
+}
+
+.slDisambigLabel {
+  font-size: .85rem;
+  font-weight: 500;
+}
+
+/* Goal zone */
+.slGoalZone {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.slTextarea {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: .85rem 1rem;
+  color: rgba(255, 255, 255, 0.92);
+  font-family: var(--font-body, sans-serif);
+  font-size: .9rem;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.slTextarea:focus {
+  border-color: rgba(251, 113, 133, 0.35);
+}
+
+.slTextarea::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.slTimeRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.slTimePills {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+
+.slTimePill {
+  padding: .35rem .8rem;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.45);
+  font-family: var(--font-mono, monospace);
+  font-size: .65rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  outline: none;
+}
+
+.slTimePill.active,
+.slTimePill:hover {
+  background: rgba(251, 113, 133, 0.1);
+  border-color: rgba(251, 113, 133, 0.4);
+  color: #FB7185;
+}
+
+/* CTA */
+.slCtaZone {
+  display: flex;
+  flex-direction: column;
+}
+
+.slCtaBtn {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  background: #FB7185;
+  color: #060509;
+  border: none;
+  border-radius: 12px;
+  font-family: var(--font-body, sans-serif);
+  font-size: .9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  box-shadow: 0 0 24px rgba(251, 113, 133, 0.15);
+  outline: none;
+}
+
+.slCtaBtn:hover {
+  background: #fda4af;
+  box-shadow: 0 0 36px rgba(251, 113, 133, 0.25);
+}
+
+.slCtaBtn:active {
+  transform: scale(0.98);
+}
+
+.slArrow {
+  font-size: 1rem;
+}
+
+/* Loading */
+.slLoadingState {
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  text-align: center;
+}
+
+.slLoadingMini {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: 0.5rem;
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.slLoadingTitle {
+  font-family: var(--font-display, serif);
+  font-size: 1.3rem;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.slLoadingSub {
+  font-size: .85rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.slLoadingHint {
+  margin-top: .5rem;
+  animation: slPulse 2s infinite;
+}
+
+.slSpinner {
+  width: 40px;
+  height: 40px;
+  border: 2px solid rgba(251, 113, 133, 0.15);
+  border-top-color: #FB7185;
+  border-radius: 50%;
+  animation: slSpin 0.8s linear infinite;
+}
+
+.slSpinnerSm {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid rgba(251, 113, 133, 0.15);
+  border-top-color: #FB7185;
+  border-radius: 50%;
+  animation: slSpin 0.8s linear infinite;
+}
+
+@keyframes slSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slPulse {
+  0%, 100% { opacity: .3; }
+  50% { opacity: .7; }
+}
+
+/* Curriculum view */
+.slCurriculumHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.slResetBtn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.25);
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+}
+
+.slResetBtn:hover {
+  border-color: rgba(251, 113, 133, 0.3);
+  color: #FB7185;
+}
+
+.slProgressBarWrap {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.slProgressBarTrack {
+  flex: 1;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.slProgressBarFill {
+  height: 100%;
+  background: #FB7185;
+  border-radius: 100px;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 8px rgba(251, 113, 133, 0.4);
+}
+
+.slProgressLabel {
+  white-space: nowrap;
+}
+
+/* Module list */
+.slModuleList {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+
+.slModuleRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: .9rem 1rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.slModuleActive {
+  background: rgba(251, 113, 133, 0.04);
+  border-color: rgba(251, 113, 133, 0.15);
+}
+
+.slModuleCompleted {
+  background: rgba(0, 196, 140, 0.02);
+  border-color: rgba(0, 196, 140, 0.1);
+  opacity: .7;
+}
+
+.slModuleLocked {
+  opacity: .35;
+}
+
+.slModuleStatusIcon {
+  width: 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slModuleInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+}
+
+.slModuleTitle {
+  font-size: .9rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.3;
+}
+
+.slModuleObjective {
+  font-size: .75rem;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.4;
+}
+
+.slModuleMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: .4rem;
+  flex-shrink: 0;
+}
+
+.slStartBtn {
+  background: rgba(251, 113, 133, 0.1);
+  border: 1px solid rgba(251, 113, 133, 0.3);
+  color: #FB7185;
+  border-radius: 8px;
+  padding: .35rem .75rem;
+  font-size: .7rem;
+  font-family: var(--font-mono, monospace);
+  cursor: pointer;
+  transition: all 0.15s;
+  outline: none;
+}
+
+.slStartBtn:hover {
+  background: rgba(251, 113, 133, 0.2);
+}
+
+/* SR Section */
+.slSrSection {
+  padding: 1.2rem;
+  background: rgba(245, 166, 35, 0.04);
+  border: 1px solid rgba(245, 166, 35, 0.15);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+
+.slSrBtn {
+  background: none;
+  border: 1px solid rgba(245, 166, 35, 0.3);
+  color: #f5a623;
+  border-radius: 8px;
+  padding: .5rem 1rem;
+  font-size: .75rem;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: all 0.15s;
+  outline: none;
+}
+
+.slSrBtn:hover {
+  background: rgba(245, 166, 35, 0.08);
+}
+
+/* Session view */
+.slSessionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.slBackBtn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: .8rem;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font-body, sans-serif);
+  transition: color 0.15s;
+  outline: none;
+}
+
+.slBackBtn:hover {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.slPhasePip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  transition: all 0.3s;
+}
+
+.slPhasePipActive {
+  background: #FB7185;
+  box-shadow: 0 0 6px rgba(251, 113, 133, 0.5);
+}
+
+.slPhasePipDone {
+  background: rgba(0, 196, 140, 0.6);
+}
+
+.slSessionProgress {
+  display: flex;
+  gap: .4rem;
+  align-items: center;
+}
+
+/* Theory */
+.slTheoryContent {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 1.5rem;
+  font-size: .9rem;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.slTheoryContent p {
+  margin-bottom: .8rem;
+}
+
+.slTheoryContent p:last-child {
+  margin-bottom: 0;
+}
+
+.slSourceHint {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .75rem;
+  color: rgba(255, 255, 255, 0.25);
+  font-style: italic;
+}
+
+.slSourceHintIcon {
+  color: #FB7185;
+  opacity: .6;
+  font-size: 0.9rem;
+}
+
+/* Practice */
+.slPracticeTask {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  background: rgba(251, 113, 133, 0.04);
+  border: 1px solid rgba(251, 113, 133, 0.12);
+  border-radius: 12px;
+  padding: 1.3rem;
+  font-size: .9rem;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.65;
+}
+
+.slYtSearch {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.slYtLink {
+  color: rgba(255, 100, 100, 0.7);
+  font-size: .8rem;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.slYtLink:hover {
+  color: rgba(255, 100, 100, 1);
+}
+
+.slProofZone {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+
+/* Recall */
+.slQuestionBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.slQuestion {
+  font-family: var(--font-display, serif);
+  font-size: 1.2rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.4;
+}
+
+.slShowAnswerBtn {
+  align-self: flex-start;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.45);
+  padding: .5rem 1.2rem;
+  border-radius: 8px;
+  font-size: .8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  outline: none;
+}
+
+.slShowAnswerBtn:hover {
+  border-color: rgba(251, 113, 133, 0.3);
+  color: #FB7185;
+}
+
+.slAnswerWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.slAnswerReveal {
+  padding: 1rem 1.2rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 2px solid #FB7185;
+  border-radius: 0 8px 8px 0;
+  font-size: .9rem;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.6;
+}
+
+.slRecallActions {
+  display: flex;
+  gap: .75rem;
+}
+
+.slRecallBtn {
+  flex: 1;
+  padding: .6rem;
+  border-radius: 8px;
+  border: 1px solid;
+  cursor: pointer;
+  font-size: .8rem;
+  transition: all 0.15s;
+  font-family: var(--font-body, sans-serif);
+  font-weight: 500;
+  outline: none;
+}
+
+.slRecallCorrect {
+  background: rgba(0, 196, 140, 0.06);
+  border-color: rgba(0, 196, 140, 0.3);
+  color: #00c48c;
+}
+
+.slRecallCorrect:hover {
+  background: rgba(0, 196, 140, 0.12);
+}
+
+.slRecallWrong {
+  background: rgba(255, 77, 77, 0.06);
+  border-color: rgba(255, 77, 77, 0.2);
+  color: #ff4d4d;
+}
+
+.slRecallWrong:hover {
+  background: rgba(255, 77, 77, 0.1);
+}
+
+.slRecallProgress {
+  font-family: var(--font-mono, monospace);
+  font-size: .6rem;
+  color: rgba(255, 255, 255, 0.25);
+  text-align: right;
+}
+
+/* Complete state */
+.slCompleteState {
+  align-items: center;
+  text-align: center;
+  min-height: 260px;
+  justify-content: center;
+}
+
+.slCompleteActions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .5rem;
+  width: 100%;
+}
+
+.slCompleteActions .slCtaBtn {
+  max-width: 300px;
+}
+
+/* Error */
+.slErrorState {
+  align-items: center;
+  text-align: center;
+  min-height: 200px;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.45);
+  gap: 1rem;
+}
+
+.slError {
+  color: rgba(255, 77, 77, 0.7);
+  font-size: .8rem;
+  padding: 1rem;
+}

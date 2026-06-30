@@ -2095,4 +2095,20 @@
   margin-top: 0.25rem;
 }
 
+/* ═══ Calm "OS" overrides — quiet the animated glow blobs & live pulse ═══
+   Only applies in the os baseline; other modes keep their original look. */
+:global([data-ui-mode="os"]) .bgMesh::before,
+:global([data-ui-mode="os"]) .bgMesh::after {
+  opacity: 0.35;
+  animation: none;
+}
+:global([data-ui-mode="os"]) .liveIndicator {
+  box-shadow: none;
+  animation: livePulseCalm 2.4s ease-in-out infinite;
+}
+@keyframes livePulseCalm {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
 

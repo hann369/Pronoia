@@ -6,8 +6,9 @@ import { useAuth } from '@/context/AuthContext';
 import ChatList from './ChatList';
 import ChatBubble from './ChatBubble';
 import UserCard from './UserCard';
+import ChatInput from '@/components/ui/chat-input';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, setDoc, deleteDoc, onSnapshot, addDoc, orderBy } from 'firebase/firestore';
 import styles from './SocialHub.module.css';
 
 export default function SocialHub({ setActiveTab, stack }) {
@@ -221,7 +222,7 @@ export default function SocialHub({ setActiveTab, stack }) {
   const [sendingMsg, setSendingMsg] = useState(false);
   const [sendError, setSendError] = useState('');
   const handleSendMsg = async (e) => {
-    e.preventDefault();
+    e?.preventDefault?.();
     if (!msgInput.trim() || !selectedChat || sendingMsg) return;
     setSendingMsg(true);
     setSendError('');
@@ -291,6 +292,10 @@ export default function SocialHub({ setActiveTab, stack }) {
     <div className={styles.socialShell}>
       {/* Sidebar - Tab bar and lists */}
       <div className={styles.socialSidebar}>
+        <div className={styles.sidebarHeader}>
+          <h1 className={styles.sidebarTitle}>Social Hub</h1>
+          <p className={styles.sidebarEyebrow}>Private Network</p>
+        </div>
         <div className={styles.tabBar}>
           <button className={`${styles.tabBtn} ${socialTab === 'chats' ? styles.tabBtnActive : ''}`} onClick={() => setSocialTab('chats')}>Chats</button>
           <button className={`${styles.tabBtn} ${socialTab === 'friends' ? styles.tabBtnActive : ''}`} onClick={() => setSocialTab('friends')}>Freunde</button>
@@ -698,19 +703,31 @@ export default function SocialHub({ setActiveTab, stack }) {
                 ⚠️ {sendError}
               </div>
             )}
-            <form onSubmit={handleSendMsg} className={styles.chatInputForm}>
-              <input
-                type="text"
-                className={styles.chatMsgInput}
-                placeholder="Sichere Nachricht verfassen..."
-                value={msgInput}
-                onChange={e => setMsgInput(e.target.value)}
-                disabled={sendingMsg}
-              />
-              <button type="submit" className={styles.chatSendBtn} disabled={sendingMsg || !msgInput.trim()} style={sendingMsg ? { opacity: 0.6 } : {}}>
-                {sendingMsg ? 'SENDET…' : 'SENDEN'}
-              </button>
-            </form>
+            {(selectedChat.participants || []).includes('hermes_agent_node') ? (
+              <div style={{ padding: '0.6rem 0.75rem' }}>
+                <ChatInput
+                  value={msgInput}
+                  onChange={setMsgInput}
+                  onSubmit={() => handleSendMsg()}
+                  sending={sendingMsg}
+                  placeholder="Frag Hermes…"
+                />
+              </div>
+            ) : (
+              <form onSubmit={handleSendMsg} className={styles.chatInputForm}>
+                <input
+                  type="text"
+                  className={styles.chatMsgInput}
+                  placeholder="Sichere Nachricht verfassen..."
+                  value={msgInput}
+                  onChange={e => setMsgInput(e.target.value)}
+                  disabled={sendingMsg}
+                />
+                <button type="submit" className={styles.chatSendBtn} disabled={sendingMsg || !msgInput.trim()} style={sendingMsg ? { opacity: 0.6 } : {}}>
+                  {sendingMsg ? 'SENDET…' : 'SENDEN'}
+                </button>
+              </form>
+            )}
           </div>
         ) : (
           <div className={styles.noChatSelected}>

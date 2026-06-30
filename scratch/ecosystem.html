@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pronoia Ecosystem</title>
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@400;500;600;700;800&amp;family=Playfair+Display:ital,wght@0,400;0,600;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface": "#121411",
+                    "outline": "#8e9192",
+                    "secondary-fixed": "#ffe088",
+                    "on-error-container": "#ffdad6",
+                    "surface-dim": "#121411",
+                    "background": "#121411",
+                    "on-tertiary-fixed": "#002113",
+                    "on-secondary-fixed-variant": "#574500",
+                    "on-surface": "#e3e3de",
+                    "primary": "#c8c6c5",
+                    "on-secondary": "#3c2f00",
+                    "primary-fixed": "#e5e2e1",
+                    "on-tertiary": "#003824",
+                    "surface-tint": "#c8c6c5",
+                    "surface-container": "#1e201d",
+                    "on-background": "#e3e3de",
+                    "on-primary-container": "#7e7d7d",
+                    "surface-container-lowest": "#0d0f0c",
+                    "on-primary": "#313030",
+                    "error": "#ffb4ab",
+                    "surface-bright": "#383a36",
+                    "tertiary-container": "#00160c",
+                    "inverse-on-surface": "#2f312e",
+                    "on-secondary-container": "#342800",
+                    "on-primary-fixed": "#1c1b1b",
+                    "secondary-container": "#af8d11",
+                    "outline-variant": "#444748",
+                    "tertiary": "#4edea3",
+                    "error-container": "#93000a",
+                    "inverse-surface": "#e3e3de",
+                    "surface-container-highest": "#333532",
+                    "tertiary-fixed": "#6ffbbe",
+                    "primary-container": "#121212",
+                    "on-secondary-fixed": "#241a00",
+                    "tertiary-fixed-dim": "#4edea3",
+                    "on-tertiary-fixed-variant": "#005236",
+                    "surface-container-high": "#292a27",
+                    "primary-fixed-dim": "#c8c6c5",
+                    "surface-variant": "#333532",
+                    "secondary": "#e9c349",
+                    "inverse-primary": "#5f5e5e",
+                    "on-surface-variant": "#c4c7c7",
+                    "on-primary-fixed-variant": "#474646",
+                    "surface-container-low": "#1a1c19",
+                    "on-error": "#690005",
+                    "secondary-fixed-dim": "#e9c349",
+                    "on-tertiary-container": "#008f62"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "stack-sm": "12px",
+                    "gutter": "24px",
+                    "unit": "4px",
+                    "margin-mobile": "16px",
+                    "container-max": "1280px",
+                    "margin-desktop": "64px",
+                    "stack-lg": "48px",
+                    "stack-md": "24px"
+            },
+            "fontFamily": {
+                    "body-lg": ["Inter", "sans-serif"],
+                    "price-display": ["Geist", "sans-serif"],
+                    "label-sm": ["Geist", "sans-serif"],
+                    "display-lg-mobile": ["Manrope", "sans-serif"],
+                    "display-lg": ["Manrope", "sans-serif"],
+                    "headline-md": ["Manrope", "sans-serif"],
+                    "body-md": ["Inter", "sans-serif"],
+                    "serif": ["Playfair Display", "serif"]
+            },
+            "fontSize": {
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "price-display": ["20px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "display-lg-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body {
+            background-color: #121411; /* fallback */
+        }
+        .bg-noise {
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+        }
+        
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1); 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1); 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.2); 
+        }
+
+        .glass-panel {
+            background: rgba(18, 20, 17, 0.4);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .glass-panel-hover:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .emerald-glow {
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen antialiased flex flex-col md:flex-row relative">
+<!-- Ambient Background -->
+<div class="fixed inset-0 pointer-events-none z-[-1] overflow-hidden">
+<div class="absolute top-[-10%] right-[-5%] w-[50%] h-[50%] rounded-full bg-surface-container-highest opacity-30 blur-[120px]"></div>
+<div class="absolute bottom-[-10%] left-[-5%] w-[40%] h-[40%] rounded-full bg-[#002113] opacity-20 blur-[100px]"></div>
+<div class="absolute inset-0 bg-noise mix-blend-overlay opacity-30"></div>
+</div>
+<!-- SideNavBar (Hidden on Mobile) -->
+<aside class="hidden md:flex flex-col h-screen w-64 left-0 sticky border-r border-white/5 bg-surface-container-lowest/15 dark:bg-surface-container-lowest/15 backdrop-blur-2xl py-stack-md shrink-0 z-40">
+<div class="px-6 mb-10 flex flex-col items-start gap-4">
+<div class="w-12 h-12 rounded-full overflow-hidden border border-white/10 relative">
+<img class="w-full h-full object-cover" data-alt="A striking digital installation art piece featuring glowing, generative geometric shapes suspended in a vast, minimalist gallery space. The room is illuminated by high-key, soft white lighting that creates a bright, modern light-mode aesthetic. The artwork relies on a sophisticated palette of deep blacks and pristine whites, punctuated by intense accents of vibrant red. The mood is serene yet technologically advanced." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA_KoZOyS2R_tTUh_5ZKlq97ERzWe44A4ZgmawfIxTrZiMoZTiaz7x6PX_v4HOTJEzzs-V5rXx9B0gwABoq-qP1IygK-Fb4Ejtr9zHrFDnxq-ibUg1XlQXALx6j4ZVN_UUPRsNIt9e1yVKwtdku8SWJQ4CzwoKekhb2XKopsTC7wedC_ZpFhpz1dmgGak9lfB28kv5vWJNXYU4tH3kibbD2WL-VfMZg40kcca9QIKyCanfW3xIW6-jg-hwtJQ4BvcsOETuBi8N3IXt9"/>
+</div>
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface tracking-tight">Member Elite</h2>
+<p class="font-label-sm text-label-sm text-outline mt-1 uppercase tracking-widest">Premium Tier</p>
+</div>
+</div>
+<nav class="flex-1 flex flex-col gap-2 px-4">
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-outline hover:bg-white/5 scale-98 transition-transform group" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">dashboard</span>
+<span class="font-label-sm text-label-sm uppercase tracking-widest group-hover:text-on-surface transition-colors">Dashboard</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-secondary-fixed font-bold border-r-2 border-secondary-fixed bg-white/5 scale-98 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">layers</span>
+<span class="font-label-sm text-label-sm uppercase tracking-widest">Active Stacks</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-outline hover:bg-white/5 scale-98 transition-transform group" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">shopping_bag</span>
+<span class="font-label-sm text-label-sm uppercase tracking-widest group-hover:text-on-surface transition-colors">Shop All</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-outline hover:bg-white/5 scale-98 transition-transform group" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">receipt_long</span>
+<span class="font-label-sm text-label-sm uppercase tracking-widest group-hover:text-on-surface transition-colors">Orders</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-outline hover:bg-white/5 scale-98 transition-transform group" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">help_outline</span>
+<span class="font-label-sm text-label-sm uppercase tracking-widest group-hover:text-on-surface transition-colors">Support</span>
+</a>
+</nav>
+<div class="px-4 mt-auto flex flex-col gap-4">
+<button class="w-full py-3 bg-[#D4AF37] text-black font-label-sm text-label-sm uppercase tracking-widest rounded transition-transform hover:scale-95 active:scale-90">
+                Upgrade Plan
+            </button>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-outline hover:bg-white/5 scale-98 transition-transform group" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">logout</span>
+<span class="font-label-sm text-label-sm uppercase tracking-widest group-hover:text-on-surface transition-colors">Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Wrapper -->
+<div class="flex-1 flex flex-col min-w-0">
+<!-- TopNavBar (Web & Mobile) -->
+<header class="flex justify-between items-center px-margin-mobile md:px-margin-desktop h-20 w-full z-50 bg-surface/10 dark:bg-surface/10 backdrop-blur-xl border-b border-white/10 top-0 sticky shadow-2xl transition-all duration-300 ease-in-out shrink-0">
+<div class="flex items-center gap-4">
+<h1 class="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg tracking-tighter text-on-surface">Pronoia</h1>
+</div>
+<nav class="hidden md:flex items-center gap-8 h-full">
+<a class="h-full flex items-center text-outline hover:text-on-surface transition-colors font-body-md text-body-md" href="#">NorthStar</a>
+<a class="h-full flex items-center text-outline hover:text-on-surface transition-colors font-body-md text-body-md" href="#">Frequency</a>
+<a class="h-full flex items-center text-outline hover:text-on-surface transition-colors font-body-md text-body-md" href="#">Rituals</a>
+<a class="h-full flex items-center text-outline hover:text-on-surface transition-colors font-body-md text-body-md" href="#">Archives</a>
+<a class="h-full flex items-center text-secondary border-b-2 border-secondary pb-1 font-body-md text-body-md font-medium" href="#">Ecosystem</a>
+</nav>
+<div class="flex items-center gap-4 text-primary">
+<button class="p-2 rounded-full hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 rounded-full hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-white/20 ml-2 block md:hidden">
+<img class="w-full h-full object-cover" data-alt="A striking digital installation art piece featuring glowing, generative geometric shapes suspended in a vast, minimalist gallery space. The room is illuminated by high-key, soft white lighting that creates a bright, modern light-mode aesthetic. The artwork relies on a sophisticated palette of deep blacks and pristine whites, punctuated by intense accents of vibrant red. The mood is serene yet technologically advanced." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHd8ZiAia_Qu6Zrhl0zje-ZAbRg_egc7ehs5P4_-PydW02A3qkYSmQAPLhk2NrBkOs4HDGmjV4WAFnkErQ1dVyJajyFqsrgb7Z7TWfAKMiB5_U9WBP41XkLADXclUn3EBsThp5X6lIaJwjbRuFfRg5Q1OifLOn1PrmRBglvMkSeN1GWW5fow8x3rBB42sLBi3_7t5fuASln5dNtt2oPuRB50lRr7hJLBRm5ymGqrll3yhpvAa5uMozCukH1dAcg-hBCf_LqnYQruHj"/>
+</div>
+</div>
+</header>
+<!-- Canvas -->
+<main class="flex-1 p-margin-mobile md:p-margin-desktop grid grid-cols-1 xl:grid-cols-12 gap-gutter max-w-container-max mx-auto w-full">
+<!-- Left Pane: Subscriptions & Stacks -->
+<section class="xl:col-span-5 flex flex-col gap-stack-md">
+<header class="flex items-center justify-between">
+<h2 class="font-serif text-3xl tracking-wide text-on-surface">Active Stacks</h2>
+<span class="px-3 py-1 rounded-full border border-[#10B981] bg-[#10B981]/10 text-[#10B981] font-label-sm text-label-sm uppercase tracking-wider flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
+                        Active
+                    </span>
+</header>
+<div class="glass-panel rounded-xl p-8 flex flex-col gap-6 relative overflow-hidden emerald-glow transition-all duration-500">
+<div class="flex items-start gap-6 relative z-10">
+<div class="w-24 h-32 rounded-lg bg-surface-container-highest overflow-hidden shrink-0 border border-white/5 relative">
+<img alt="PX-V1" class="w-full h-full object-cover mix-blend-luminosity opacity-80" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAL8Zu9p6RdMx4q8WYiKftxKf3qLUacHc1gW4bNiAtAcK-o7h333h6XpW_vDlWzihUsR6Ur8aoEi2NsoHFIqiTF_BvlJIgRZabcbxDDjaBtANxnX-xcwiAdKTX_oxw3dJrERD1edC5_rIDucBjInFci-_D7NPlDV_3yY-vtIVW7AgbeM3I14esFzqixas1lroyr_ol6nGX1W-Cdq6CkYqNI6MZp-WsO7gDAxxzSLra0Jrf1Atarrq6bfKiPV5yENY3nRXv3pBsuodYT"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+</div>
+<div class="flex flex-col gap-2">
+<p class="font-label-sm text-label-sm text-secondary tracking-widest uppercase">Subscription Core</p>
+<h3 class="font-headline-md text-headline-md text-on-surface leading-tight">PX-V1 Nootropic Matrix</h3>
+<p class="text-outline text-sm mt-2 line-clamp-2">Optimized for cognitive endurance and neural plasticity. Replenishment scheduled.</p>
+</div>
+</div>
+<!-- Progress Visualizer -->
+<div class="mt-4 relative z-10">
+<div class="flex justify-between items-end mb-3">
+<span class="font-label-sm text-label-sm uppercase tracking-widest text-on-surface">Current Cycle</span>
+<span class="font-price-display text-price-display text-secondary">12 Days Left</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-gradient-to-r from-secondary-fixed to-[#10B981] w-[60%] rounded-full relative">
+<div class="absolute right-0 top-0 bottom-0 w-10 bg-white/20 blur-[2px]"></div>
+</div>
+</div>
+<div class="flex justify-between mt-2 text-[10px] text-outline uppercase tracking-widest">
+<span>Day 1</span>
+<span>Day 30</span>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex flex-col gap-3 mt-4 z-10">
+<button class="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded font-label-sm text-label-sm uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+                            Delay next delivery by 7 days
+                        </button>
+<div class="grid grid-cols-2 gap-3">
+<button class="py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded font-label-sm text-label-sm uppercase tracking-widest transition-colors">
+                                Reschedule Refill
+                            </button>
+<button class="py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded font-label-sm text-label-sm uppercase tracking-widest transition-colors">
+                                Adjust Dosage
+                            </button>
+</div>
+</div>
+</div>
+<!-- Past Timeline Item (Visual Depth Example) -->
+<div class="glass-panel rounded-xl p-6 opacity-40 hover:opacity-100 transition-opacity flex items-center gap-4 border-dashed cursor-pointer">
+<span class="material-symbols-outlined text-outline">history</span>
+<div class="flex-1">
+<h4 class="font-label-sm text-label-sm uppercase tracking-widest text-on-surface">Previous Cycle</h4>
+<p class="text-xs text-outline mt-1">Completed on Oct 12, 2023</p>
+</div>
+<span class="material-symbols-outlined text-outline">chevron_right</span>
+</div>
+</section>
+<!-- Right Pane: Boutique Shop -->
+<section class="xl:col-span-7 flex flex-col gap-stack-md mt-10 xl:mt-0">
+<header class="flex items-center justify-between border-b border-white/10 pb-4">
+<h2 class="font-serif text-3xl tracking-wide text-on-surface">Pronoia Shop</h2>
+<a class="font-label-sm text-label-sm uppercase tracking-widest text-outline hover:text-on-surface flex items-center gap-1 transition-colors" href="#">
+                        View All <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</header>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Product 1 -->
+<article class="glass-panel glass-panel-hover rounded-xl overflow-hidden flex flex-col group transition-all duration-300">
+<div class="aspect-square bg-surface-container-lowest relative overflow-hidden">
+<img alt="PX-V1 Nootropic Matrix" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAL8Zu9p6RdMx4q8WYiKftxKf3qLUacHc1gW4bNiAtAcK-o7h333h6XpW_vDlWzihUsR6Ur8aoEi2NsoHFIqiTF_BvlJIgRZabcbxDDjaBtANxnX-xcwiAdKTX_oxw3dJrERD1edC5_rIDucBjInFci-_D7NPlDV_3yY-vtIVW7AgbeM3I14esFzqixas1lroyr_ol6nGX1W-Cdq6CkYqNI6MZp-WsO7gDAxxzSLra0Jrf1Atarrq6bfKiPV5yENY3nRXv3pBsuodYT"/>
+<div class="absolute top-4 left-4">
+<span class="px-2 py-1 rounded border border-[#D4AF37] text-[#D4AF37] text-[10px] uppercase tracking-widest bg-black/40 backdrop-blur-sm">Restocked</span>
+</div>
+</div>
+<div class="p-6 flex flex-col flex-1">
+<div class="flex justify-between items-start gap-4 mb-4">
+<h3 class="font-serif text-xl tracking-wide leading-snug">PX-V1 Nootropic Matrix</h3>
+<span class="font-price-display text-price-display text-on-surface shrink-0">€34</span>
+</div>
+<p class="text-sm text-outline mb-6 line-clamp-2">Cognitive enhancement protocol in a 30-day supply.</p>
+<div class="mt-auto grid grid-cols-2 gap-2">
+<button class="py-2.5 bg-transparent border border-white/20 hover:border-white/40 rounded text-xs uppercase tracking-widest transition-colors text-on-surface">Explore Batch</button>
+<button class="py-2.5 bg-[#F5F5F0] text-black hover:bg-white rounded text-xs uppercase tracking-widest transition-colors font-medium">Add to Cart</button>
+</div>
+</div>
+</article>
+<!-- Product 2 -->
+<article class="glass-panel glass-panel-hover rounded-xl overflow-hidden flex flex-col group transition-all duration-300">
+<div class="aspect-square bg-surface-container-lowest relative overflow-hidden">
+<img alt="Linen Ritual Tee" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDXqhxbw0w7oTOJDX_CKlkHtBCsm3x_rhepo1rAHcAKRpw1cz1gMcEmxPqeimax0ARhVZjO8b0SgGhJIi4KXecvENVWNJnNMuINGnojeBl5slhZ1sSLZJpxs4Z4XbjV3_PvcmMnAw3ND9DGDl350mB10OUlBV8gFskAbd78YabRB9B6BU41AK7u5nYMql7F-qzw0wVwSnWEMf1Kt1owANx5KdcOPWsdQYyCrHf7-VZcZaekj6A4tCoDByBf6g9JkWeaEl7g80cEvZ7O"/>
+</div>
+<div class="p-6 flex flex-col flex-1">
+<div class="flex justify-between items-start gap-4 mb-4">
+<h3 class="font-serif text-xl tracking-wide leading-snug">Linen Ritual Tee</h3>
+<span class="font-price-display text-price-display text-on-surface shrink-0">€29</span>
+</div>
+<p class="text-sm text-outline mb-6 line-clamp-2">Organic cotton and linen blend. Cut for meditation and movement.</p>
+<div class="mt-auto grid grid-cols-2 gap-2">
+<button class="py-2.5 bg-transparent border border-white/20 hover:border-white/40 rounded text-xs uppercase tracking-widest transition-colors text-on-surface">Explore Batch</button>
+<button class="py-2.5 bg-[#F5F5F0] text-black hover:bg-white rounded text-xs uppercase tracking-widest transition-colors font-medium">Add to Cart</button>
+</div>
+</div>
+</article>
+<!-- Product 3 -->
+<article class="glass-panel glass-panel-hover rounded-xl overflow-hidden flex flex-col group transition-all duration-300 md:col-span-2 xl:col-span-1">
+<div class="aspect-[2/1] xl:aspect-square bg-surface-container-lowest relative overflow-hidden">
+<img alt="Aleppo Spa Soap" class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB-4vQqJ-MwDCil8vM3cZPXsqqzdoQU7bePozo1GHYD-zVP4L7nnrROm2Sy0RqY2pjU8_1nqdzcR-7981yzE5iBA2wL3sIdXYLVhQjNNefqGGNZXdUwSuHejnay86PSUY3KLvcrg0AOmgsK8FMEljpkvnDcAjX4zuF25mcPVXXik-rh05IrjrLTdwIzYX3Ga8Ctlm_4ydzln3rQsy1dI07aFcEAv6DL_JRa_tYGtSNYW_nlaXtU9mJHeNhGfpB7SsZf1cNSz4ECAFCu"/>
+<div class="absolute top-4 left-4">
+<span class="px-2 py-1 rounded border border-white/20 text-on-surface text-[10px] uppercase tracking-widest bg-black/40 backdrop-blur-sm">Boutique</span>
+</div>
+</div>
+<div class="p-6 flex flex-col flex-1">
+<div class="flex justify-between items-start gap-4 mb-4">
+<h3 class="font-serif text-xl tracking-wide leading-snug">Aleppo Spa Soap</h3>
+<span class="font-price-display text-price-display text-on-surface shrink-0">€15</span>
+</div>
+<p class="text-sm text-outline mb-6 line-clamp-2">Traditional olive and laurel oil blend for purification rituals.</p>
+<div class="mt-auto grid grid-cols-2 gap-2">
+<button class="py-2.5 bg-transparent border border-white/20 hover:border-white/40 rounded text-xs uppercase tracking-widest transition-colors text-on-surface">Explore Batch</button>
+<button class="py-2.5 bg-[#F5F5F0] text-black hover:bg-white rounded text-xs uppercase tracking-widest transition-colors font-medium">Add to Cart</button>
+</div>
+</div>
+</article>
+</div>
+</section>
+</main>
+</div>
+</body></html>

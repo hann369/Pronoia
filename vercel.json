@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/cleanup-messages",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/automate",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/diary",
+      "schedule": "0 21 * * *"
     }
   ]
 }

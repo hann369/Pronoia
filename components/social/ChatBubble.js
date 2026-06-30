@@ -48,6 +48,41 @@ export default function ChatBubble({ message, isSelf, styles }) {
       }
     }
 
+    if (message.type === 'chess-invite') {
+      try {
+        const invite = JSON.parse(message.text);
+        return (
+          <div className={styles.shareCard} style={{
+            background: 'rgba(124, 58, 237, 0.08)',
+            border: '1px solid rgba(124, 58, 237, 0.3)',
+            borderRadius: '8px',
+            padding: '0.85rem 1rem'
+          }}>
+            <div className={styles.shareCardHeader} style={{ color: '#8B5CF6', marginBottom: '0.4rem' }}>
+              ♟ Schach-Herausforderung
+            </div>
+            <div className={styles.shareCardBody}>
+              <strong style={{ fontSize: '0.85rem' }}>{invite.title || 'Schach-Match'}</strong>
+              <p style={{ margin: '0.3rem 0 0', fontSize: '0.72rem', opacity: 0.8, lineHeight: '1.4' }}>
+                {invite.desc || 'Du wurdest zu einer Partie Schach herausgefordert.'}
+              </p>
+              <div style={{
+                marginTop: '0.6rem',
+                fontFamily: 'monospace',
+                fontSize: '0.6rem',
+                opacity: 0.45,
+                letterSpacing: '0.04em'
+              }}>
+                Match ID: {invite.gameId}
+              </div>
+            </div>
+          </div>
+        );
+      } catch (e) {
+        return <p className={styles.bubbleText}>{message.text}</p>;
+      }
+    }
+
     if (isE2EError) {
       return (
         <p className={styles.bubbleText} style={{ color: 'var(--red, #ff4d4d)', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>

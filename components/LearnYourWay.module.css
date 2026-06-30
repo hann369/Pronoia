@@ -1,0 +1,1215 @@
+/* Learn Your Way CSS Module */
+
+.lywShell {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  font-family: var(--font-body, sans-serif);
+  color: #F9F9F9;
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  position: relative; /* needed for loading overlay */
+}
+
+
+.lywHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 1.5rem;
+}
+
+.lywTitleBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.lywBrand {
+  display: flex;
+  flex-direction: column;
+}
+
+.lywEyebrow {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #22D3EE;
+}
+
+.lywTitle {
+  font-family: var(--font-display, serif);
+  font-size: 2rem;
+  font-weight: 300;
+  margin: 0.25rem 0 0 0;
+  background: linear-gradient(135deg, #fff 30%, rgba(255, 255, 255, 0.7));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Selectors block */
+.lywSelectors {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.lywSelectorGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.lywSelectLabel {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.lywSelect {
+  background: rgba(10, 14, 23, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  backdrop-filter: blur(10px);
+}
+
+.lywSelect:focus {
+  border-color: #22D3EE;
+  background: rgba(34, 196, 238, 0.05);
+}
+
+.lywPills {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.lywPill {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  padding: 0.45rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-body, sans-serif);
+}
+
+.lywPill:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.lywPillActive {
+  background: rgba(34, 211, 238, 0.12);
+  border-color: #22D3EE;
+  color: #22D3EE;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.1);
+}
+
+/* Modality navigation tabs */
+.lywModalityTabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 0.1rem;
+  overflow-x: auto;
+}
+
+.lywTabBtn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.85rem;
+  font-family: var(--font-mono, monospace);
+  padding: 0.75rem 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  white-space: nowrap;
+}
+
+.lywTabBtn:hover {
+  color: #fff;
+}
+
+.lywTabBtnActive {
+  color: #22D3EE;
+}
+
+.lywTabBtnActive::after {
+  content: '';
+  position: absolute;
+  bottom: -0.1rem;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #22D3EE;
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.5);
+}
+
+/* Main Workspace layout (3 COLUMNS) */
+.lywWorkspace {
+  display: grid;
+  grid-template-columns: 260px 1fr 340px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .lywWorkspace {
+    grid-template-columns: 220px 1fr;
+  }
+  .lywRightPanel {
+    grid-column: span 2;
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .lywWorkspace {
+    grid-template-columns: 1fr;
+  }
+  .lywTocSidebar {
+    display: none;
+  }
+  .lywRightPanel {
+    grid-column: auto;
+  }
+}
+
+/* COLUMN 1: LEFT SIDEBAR TABLE OF CONTENTS */
+.lywTocSidebar {
+  background: rgba(10, 14, 23, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1.25rem;
+  backdrop-filter: blur(15px);
+  position: sticky;
+  top: 1.5rem;
+}
+
+.lywTocTitle {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+  display: block;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 0.5rem;
+}
+
+.lywTocList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.lywTocItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: none;
+  border: 1px solid transparent;
+  color: rgba(255, 255, 255, 0.65);
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+  font-size: 0.8rem;
+}
+
+.lywTocItem:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: #fff;
+}
+
+.lywTocItemActive {
+  background: rgba(34, 211, 238, 0.06);
+  border-color: rgba(34, 211, 238, 0.2);
+  color: #22D3EE;
+}
+
+.lywTocStatus {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9rem;
+  color: #22D3EE;
+  width: 18px;
+  display: flex;
+  justify-content: center;
+}
+
+.lywTocName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+
+/* COLUMN 2: CENTER PRESENTATION AREA */
+.lywContentArea {
+  background: rgba(10, 14, 23, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 2.25rem;
+  backdrop-filter: blur(20px);
+}
+
+.lywChapterTitle {
+  font-family: var(--font-display, serif);
+  font-size: 1.6rem;
+  font-weight: 300;
+  margin: 0 0 2rem 0;
+  color: #fff;
+  border-left: 2px solid #22D3EE;
+  padding-left: 0.75rem;
+}
+
+.lywSectionBlock {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1.75rem;
+  transition: all 0.25s;
+}
+
+.lywSectionActive {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.lywSectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.lywSectionHeading {
+  font-family: var(--font-body, sans-serif);
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #fff;
+  margin: 0;
+}
+
+.lywSectionCheck {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  background: rgba(0, 196, 140, 0.1);
+  border: 1px solid rgba(0, 196, 140, 0.2);
+  color: #00c48c;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+/* Immersive Text View styling */
+.lywParagraph {
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 1rem;
+}
+
+.lywParagraphHighlighted {
+  border-left: 2px solid #22D3EE;
+  padding-left: 1rem;
+  color: #fff;
+}
+
+.lywPersonalized {
+  background: rgba(251, 113, 133, 0.04);
+  border-left: 3px solid #FB7185;
+  border-radius: 0 10px 10px 0;
+  padding: 1.25rem 1.5rem;
+  margin-top: 1rem;
+  box-shadow: inset 0 0 12px rgba(251, 113, 133, 0.02);
+}
+
+.lywPersoBadge {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6rem;
+  color: #FB7185;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.lywInlineQuestionBtn {
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  color: #22D3EE;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.lywInlineQuestionBtn:hover {
+  background: #22D3EE;
+  color: #000;
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
+}
+
+.lywInlineQuestionBtnDone {
+  background: rgba(0, 196, 140, 0.1);
+  border-color: rgba(0, 196, 140, 0.4);
+  color: #00c48c;
+}
+
+/* Source mode custom */
+.lywSourceView {
+  display: flex;
+  flex-direction: column;
+}
+
+.lywSourceBanner {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 1.5rem;
+}
+
+/* Widgets */
+.lywWidgetCard {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin: 2rem 0;
+}
+
+.lywWidgetHead {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.lywWidgetIcon {
+  font-size: 1.1rem;
+  color: #22D3EE;
+}
+
+.lywWidgetTitle {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+}
+
+/* Vertical Timeline list with connect lines */
+.lywTimelineList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: relative;
+  padding-left: 0.5rem;
+}
+
+.lywTimelineList::before {
+  content: '';
+  position: absolute;
+  left: 20px;
+  top: 1.5rem;
+  bottom: 1.5rem;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  z-index: 0;
+}
+
+.lywTimelineItem {
+  background: rgba(10, 14, 23, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  z-index: 1;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.lywTimelineItem:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.lywTimelineItemCorrect {
+  border-color: rgba(0, 196, 140, 0.3) !important;
+  background: rgba(0, 196, 140, 0.03) !important;
+}
+
+.lywTimelineIndex {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  color: #22D3EE;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(34, 211, 238, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.lywTimelineItemCorrect .lywTimelineIndex {
+  background: rgba(0, 196, 140, 0.2);
+  color: #00c48c;
+}
+
+.lywTimelineLabel {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.lywTimelineReorder {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.lywReorderBtn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-size: 0.65rem;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.lywReorderBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.lywReorderBtn:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
+.lywSuccessAlert {
+  background: rgba(0, 196, 140, 0.08);
+  border: 1px solid rgba(0, 196, 140, 0.25);
+  color: #00c48c;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  margin-top: 1rem;
+  text-align: center;
+  box-shadow: 0 0 15px rgba(0, 196, 140, 0.05);
+}
+
+/* Memory aid mnemonic */
+.lywMnemonicBox {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 1.25rem;
+  background: rgba(34, 211, 238, 0.03);
+  border: 1px dashed rgba(34, 211, 238, 0.2);
+  border-radius: 8px;
+}
+
+.lywMnemonicWord {
+  font-family: var(--font-mono, monospace);
+  font-size: 1.8rem;
+  font-weight: bold;
+  letter-spacing: 0.15em;
+  color: #22D3EE;
+  text-shadow: 0 0 10px rgba(34, 211, 238, 0.2);
+}
+
+.lywMnemonicMeaning {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* Visual illustration card */
+.lywIllustrationCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.lywIllustrationImg {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.lywIllustrationText {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0;
+}
+
+/* Slides View Styling */
+.lywSlideContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.lywSlideDeck {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 3.5rem 2.5rem;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: inset 0 0 20px rgba(255,255,255,0.01);
+}
+
+.lywSlideTitle {
+  font-family: var(--font-display, serif);
+  font-size: 1.5rem;
+  color: #fff;
+  margin: 0 0 1.5rem 0;
+}
+
+.lywSlideBullets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.lywSlideBullet {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.lywBulletPoint {
+  color: #22D3EE;
+}
+
+.lywSlideNav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.lywSlideIndex {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.lywNarrationPanel {
+  background: rgba(10, 14, 23, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.lywNarrationHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.lywAudioBtn {
+  background: rgba(34, 211, 238, 0.1);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  color: #22D3EE;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-mono, monospace);
+}
+
+.lywAudioBtn:hover {
+  background: #22D3EE;
+  color: #000;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.2);
+}
+
+.lywAudioBtnActive {
+  background: #FB7185 !important;
+  border-color: #FB7185 !important;
+  color: #fff !important;
+  box-shadow: 0 0 10px rgba(251, 113, 133, 0.2) !important;
+}
+
+.lywNarrationParagraph {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+  margin: 0;
+}
+
+/* Pulsing equalizer bars */
+.lywAudioEqualizer {
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+  height: 16px;
+  margin-bottom: 0.5rem;
+}
+
+.lywEqualizerBar {
+  width: 3px;
+  height: 3px;
+  background: #22D3EE;
+  animation: eqBounce 1.2s ease-in-out infinite alternate;
+}
+
+.lywAudioEqualizer .lywEqualizerBar:nth-child(2) { animation-delay: 0.15s; }
+.lywAudioEqualizer .lywEqualizerBar:nth-child(3) { animation-delay: 0.3s; }
+.lywAudioEqualizer .lywEqualizerBar:nth-child(4) { animation-delay: 0.45s; }
+.lywAudioEqualizer .lywEqualizerBar:nth-child(5) { animation-delay: 0.6s; }
+
+@keyframes eqBounce {
+  0% { height: 3px; }
+  100% { height: 16px; }
+}
+
+/* Audio Lesson Dialogue View */
+.lywAudioLesson {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.lywAudioPlayerSimulator {
+  background: rgba(10, 14, 23, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.lywPlayCircle {
+  background: #22D3EE;
+  color: #0d131f;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 10px rgba(34, 211, 238, 0.25);
+  outline: none;
+}
+
+.lywPlayCircle:hover {
+  transform: scale(1.05);
+  background: #67e8f9;
+}
+
+.lywPlayCircleActive {
+  background: #FB7185;
+  box-shadow: 0 4px 10px rgba(251, 113, 133, 0.25);
+}
+
+.lywPodcastInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex-grow: 1;
+}
+
+.lywPodcastTitle {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #fff;
+}
+
+.lywPodcastSub {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.lywDialogueList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  border: 1px solid rgba(255,255,255,0.03);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.1);
+}
+
+.lywBubble {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 80%;
+  padding: 0.85rem 1.1rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  animation: bubbleFadeIn 0.3s ease forwards;
+}
+
+@keyframes bubbleFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.lywTeacherBubble {
+  background: rgba(34, 211, 238, 0.05);
+  border: 1px solid rgba(34, 211, 238, 0.12);
+  border-bottom-left-radius: 2px;
+  color: rgba(255, 255, 255, 0.9);
+  align-self: flex-start;
+}
+
+.lywStudentBubble {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom-right-radius: 2px;
+  color: rgba(255, 255, 255, 0.85);
+  align-self: flex-end;
+}
+
+.lywBubbleSpeaker {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.lywTeacherBubble .lywBubbleSpeaker {
+  color: #22D3EE;
+}
+
+.lywBubbleText {
+  word-break: break-word;
+}
+
+/* Mindmap Visual Hierarchy Tree */
+.lywMindmapSubheader {
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.lywMindmapWrapper {
+  overflow-x: auto;
+  padding: 1rem 0;
+}
+
+.lywMindmapNode {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  padding-left: 1.25rem;
+  margin-top: 0.5rem;
+}
+
+.lywMindmapHeader {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.85);
+  width: max-content;
+  max-width: 320px;
+  transition: all 0.2s;
+  z-index: 2;
+}
+
+.lywMindmapHeader:hover {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.15);
+  color: #fff;
+}
+
+.lywMindmapToggle {
+  font-size: 0.6rem;
+  color: #22D3EE;
+}
+
+.lywMindmapChildren {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  margin-left: 0.75rem;
+  padding-left: 0.75rem;
+}
+
+/* Connection tree lines */
+.lywMindmapChildren::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -0.5rem;
+  bottom: 1rem;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  z-index: 1;
+}
+
+.lywMindmapNode::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 1rem;
+  width: 1rem;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  z-index: 1;
+}
+
+/* COLUMN 3: RIGHT PANEL FOR EMBEDDED UNDERSTANDING QUESTIONS */
+.lywRightPanel {
+  background: rgba(10, 14, 23, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 1.5rem;
+  position: sticky;
+  top: 1.5rem;
+  backdrop-filter: blur(25px);
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+}
+
+.lywSidePanelTitle {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #22D3EE;
+  margin-bottom: 0.25rem;
+}
+
+.lywSidePanelCloseBtn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+  padding: 0.25rem;
+}
+
+.lywSidePanelCloseBtn:hover {
+  color: #fff;
+}
+
+.lywSidePanelPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-grow: 1;
+  padding: 2rem 1rem;
+}
+
+.lywSidePanelPlaceholderIcon {
+  font-size: 2.2rem;
+  margin-bottom: 1rem;
+  opacity: 0.7;
+}
+
+/* Quiz block styling */
+.lywQuizBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.lywQuestionText {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.lywQuizQuestionSpan {
+  display: block;
+  margin-top: 0.5rem;
+  color: #fff;
+  font-weight: 300;
+  line-height: 1.6;
+}
+
+.lywOptionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.lywOptionBtn {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-body, sans-serif);
+  line-height: 1.4;
+  outline: none;
+}
+
+.lywOptionBtn:hover:not(.lywOptionCorrect):not(.lywOptionWrong) {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.lywOptionSelected {
+  border-color: #22D3EE;
+  background: rgba(34, 211, 238, 0.04);
+  color: #fff;
+}
+
+.lywOptionCorrect {
+  border-color: #00c48c !important;
+  background: rgba(0, 196, 140, 0.1) !important;
+  color: #00c48c !important;
+  font-weight: bold;
+}
+
+.lywOptionWrong {
+  border-color: #ff4d4d !important;
+  background: rgba(255, 77, 77, 0.08) !important;
+  color: #ff4d4d !important;
+}
+
+.lywExplanation {
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 2px solid #22D3EE;
+  padding: 0.8rem 1rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 0 6px 6px 0;
+}
+
+.lywCloseQuizBtn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lywCloseQuizBtn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Practice Quiz Entry Card */
+.lywQuizSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 3rem 2rem;
+  background: rgba(34, 211, 238, 0.01);
+  border: 1px dashed rgba(34, 211, 238, 0.15);
+  border-radius: 12px;
+  margin-top: 3rem;
+}
+
+.lywQuizSecTitle {
+  font-family: var(--font-display, serif);
+  font-size: 1.3rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.lywQuizSecText {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 1.5rem;
+}
+
+.lywCtaBtn {
+  background: #22D3EE;
+  color: #0d131f;
+  border: none;
+  padding: 0.75rem 1.75rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.85rem;
+  box-shadow: 0 4px 15px rgba(34, 211, 238, 0.15);
+  outline: none;
+}
+
+.lywCtaBtn:hover {
+  background: #67e8f9;
+  box-shadow: 0 6px 20px rgba(34, 211, 238, 0.25);
+  transform: translateY(-1px);
+}
+
+/* Quiz Results Card & Score Circle SVG */
+.lywResultsCard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  padding: 1rem 0;
+}
+
+.lywResultScoreWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lywScoreWheel {
+  width: 110px;
+  height: 110px;
+}
+
+.lywScoreWheelBg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.04);
+  stroke-width: 2.8;
+}
+
+.lywScoreWheelColor {
+  fill: none;
+  stroke: #22D3EE;
+  stroke-width: 2.8;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.35s;
+}
+
+.lywScoreText {
+  fill: #fff;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.55rem;
+  font-weight: bold;
+  text-anchor: middle;
+}
+
+.lywScoreLabel {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+}
+
+.lywGlowsGrows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 600px) {
+  .lywGlowsGrows {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lywGlowCard {
+  background: rgba(0, 196, 140, 0.03);
+  border: 1px solid rgba(0, 196, 140, 0.15);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.lywGrowCard {
+  background: rgba(245, 166, 35, 0.03);
+  border: 1px solid rgba(245, 166, 35, 0.15);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.lywFeedbackTitle {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.lywFeedbackText {
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

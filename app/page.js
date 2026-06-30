@@ -2,12 +2,29 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { useTheme } from 'next-themes';
 import styles from './page.module.css';
+import PricingGrid from '@/components/ui/pricing-card-component';
+import { Sparkles } from '@/components/ui/sparkles';
+import { InfiniteSlider } from '@/components/ui/infinite-slider';
+import { ProgressiveBlur } from '@/components/ui/progressive-blur';
+import { useForceDarkTheme } from '@/hooks/useForceDarkTheme';
 
 export default function HomePage() {
+  useForceDarkTheme();
   const [isLoading, setIsLoading] = useState(true);
   const [fadeLoader, setFadeLoader] = useState(false);
   const loaderVideoRef = useRef(null);
+
+  // Landing page keeps its original look: pin to the legacy "cyber" mode while
+  // mounted, and restore the calm "os" baseline on leave so the rest of the app
+  // (which defaults to os) is never affected.
+  useEffect(() => {
+    const root = document.documentElement;
+    const previous = root.getAttribute('data-ui-mode');
+    root.setAttribute('data-ui-mode', 'cyber');
+    return () => { root.setAttribute('data-ui-mode', previous || 'os'); };
+  }, []);
 
   useEffect(() => {
     // When loader video ends
@@ -75,22 +92,22 @@ export default function HomePage() {
           
           <div className="hero-content-center" style={{ position: 'relative', zIndex: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center', padding: '0 2rem' }}>
             <span className="ed-label" style={{ color: 'var(--text)', opacity: 0.8, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1.5rem', display: 'block', fontWeight: 600 }}>
-              Human Optimization System
+              Human-Optimierungssystem
             </span>
             <h1 className="hero-h1-10x" style={{ fontSize: 'clamp(3.5rem, 8vw, 6rem)', lineHeight: 1.1, margin: '0', fontFamily: 'var(--font-display)', color: 'var(--text)' }}>
-              <span className="h-line" style={{ display: 'block' }}>Silent.</span>
-              <span className="h-line" style={{ display: 'block' }}>Superior.</span>
+              <span className="h-line" style={{ display: 'block' }}>Leise.</span>
+              <span className="h-line" style={{ display: 'block' }}>Überlegen.</span>
               <span className="h-line" style={{ display: 'block', color: 'var(--tan)' }}>Pronoia.</span>
             </h1>
             <p className="hero-p-10x" style={{ fontSize: '1.25rem', opacity: 0.8, maxWidth: '600px', margin: '2rem auto', color: 'var(--text)' }}>
-              An integrated system for biological and cognitive upgrade.
+              Ein integriertes System für dein biologisches und kognitives Upgrade.
             </p>
             <div className="hero-btn-group" style={{ display: 'flex', gap: '1rem', marginTop: '1rem', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
               <Link href="/auth" className="btn-10x btn-10x-solid" style={{ padding: '1rem 2.5rem', background: 'var(--tan)', color: 'var(--bg)', textDecoration: 'none', borderRadius: '50px', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.15em', fontWeight: 700, transition: 'all 0.3s' }}>
-                Begin Assessment
+                Assessment starten
               </Link>
               <Link href="/life-os" className="btn-10x btn-10x-outline" style={{ padding: '1rem 2.5rem', border: '1px solid var(--border-strong)', color: 'var(--text)', textDecoration: 'none', borderRadius: '50px', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.15em', fontWeight: 700, transition: 'all 0.3s', backdropFilter: 'blur(10px)' }}>
-                Explore Life OS
+                Life OS entdecken
               </Link>
             </div>
           </div>
@@ -121,15 +138,162 @@ export default function HomePage() {
       {/* ═══ EVOLUTION STAGES ═══ */}
       <StagesSection />
 
+      {/* ═══ PRICING ═══ */}
+      <PricingSection />
+
       {/* ═══ AUTO-REPLENISHMENT VISUALIZER ═══ */}
       <ReplenishmentVisualizer />
 
       {/* ═══ FREQUENTLY ASKED QUESTIONS ═══ */}
       <FaqSection />
 
+      {/* ═══ TRUST SLIDER + SPARKLES HORIZON ═══ */}
+      <SparklesOutro />
+
       {/* ═══ MANIFESTO & FOOTER ═══ */}
       <ManifestoAndFooter />
     </>
+  );
+}
+
+/* ═══ PRICING SECTION (Landing) ═══════════════════════ */
+const LANDING_PLANS = [
+  {
+    name: 'Free',
+    price: '0',
+    yearlyPrice: '0',
+    period: 'dauerhaft',
+    features: ['Life OS Dashboard', 'Max. 2 API-Konnektoren', 'Zirkadianer Kalender & Skill Lab'],
+    description: 'Core Life OS System',
+    buttonText: 'Kostenlos starten',
+    href: '/life-os?tab=store',
+    isPopular: false,
+  },
+  {
+    name: 'Premium',
+    price: '59',
+    yearlyPrice: '59',
+    period: 'Monat',
+    features: ['Unbegrenzte API-Konnektoren', 'Automatisierte PX-V1 Refills', 'Bio-Adaptive Fuel (curated meals)'],
+    description: 'Nootropics & Bio-Fuel Sync',
+    buttonText: 'Premium aktivieren',
+    href: '/life-os?tab=store',
+    isPopular: true,
+  },
+  {
+    name: 'Max',
+    price: '99',
+    yearlyPrice: '99',
+    period: 'Monat',
+    features: ['Alles aus Premium', 'Erweiterte Bio-Meals & Superfoods', 'Shell V1 Textile Apparel'],
+    description: 'Biometrics & Apparel Shield',
+    buttonText: 'System maximieren',
+    href: '/life-os?tab=store',
+    isPopular: false,
+  },
+];
+
+function PricingSection() {
+  return (
+    <section id="pricing" style={{ background: 'var(--bg)', borderTop: '1px solid var(--border)' }}>
+      <PricingGrid
+        plans={LANDING_PLANS}
+        heading="Wähle dein System-Level"
+        subheading="Drei Stufen. Ein Protokoll. Jederzeit kündbar."
+      />
+    </section>
+  );
+}
+
+/* ═══ SPARKLES OUTRO (Trust slider + particle horizon) ═ */
+const TRUST_ITEMS = [
+  'PX-V1 NOOTROPIC MATRIX', 'HPLC 99.85% PURITY', 'GOTS ORGANIC CERTIFIED',
+  'ICP-MS < 0.05 PPM', 'GC-MS ND SOLVENTS', 'E2E ENCRYPTED', 'BATCH #PX-2026-B01',
+  'ZIRKADIANE TAKTUNG', 'CoA TRANSPARENT',
+];
+
+function SparklesOutro() {
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  return (
+    <section style={{ background: 'var(--bg)', overflow: 'hidden' }}>
+      {/* Trust marquee with progressive blur edges */}
+      <div style={{ position: 'relative', padding: '3.5rem 0 1rem' }}>
+        <InfiniteSlider className="flex h-full w-full items-center" duration={35} gap={56}>
+          {TRUST_ITEMS.map((item) => (
+            <span
+              key={item}
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.7rem',
+                letterSpacing: '0.18em',
+                color: 'var(--text3, #6a7890)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {item}
+            </span>
+          ))}
+        </InfiniteSlider>
+        <ProgressiveBlur
+          className="pointer-events-none absolute top-0 left-0 h-full w-[160px]"
+          direction="left"
+          blurIntensity={1}
+        />
+        <ProgressiveBlur
+          className="pointer-events-none absolute top-0 right-0 h-full w-[160px]"
+          direction="right"
+          blurIntensity={1}
+        />
+      </div>
+
+      {/* Particle horizon above the manifesto */}
+      <div
+        style={{
+          position: 'relative',
+          height: '320px',
+          width: '100%',
+          overflow: 'hidden',
+          maskImage: 'radial-gradient(50% 50%, white, transparent)',
+          WebkitMaskImage: 'radial-gradient(50% 50%, white, transparent)',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'radial-gradient(circle at bottom center, var(--theme-accent, #1A6AFF), transparent 70%)',
+            opacity: 0.25,
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            left: '-50%',
+            top: '55%',
+            aspectRatio: '1 / 0.7',
+            width: '200%',
+            borderRadius: '100%',
+            borderTop: '1px solid rgba(255,255,255,0.18)',
+            background: 'var(--bg)',
+            zIndex: 10,
+          }}
+        />
+        {mounted && resolvedTheme === 'dark' && (
+          <Sparkles
+            density={900}
+            speed={0.6}
+            color="#ffffff"
+            className="absolute inset-x-0 bottom-0 h-full w-full"
+          />
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -141,22 +305,22 @@ const TELEMETRY_ITEMS = [
   { label: 'VO₂ MAX', value: '54.1', delta: '+1.3', status: 'OPTIMAL' },
   { label: 'CORTISOL', value: '12 MG/DL', status: 'NOMINAL' },
   { label: 'HRV', value: '82MS', delta: '+4.2%', status: 'OPTIMAL' },
-  { label: 'DEEP SLEEP', value: '2H 24M', status: 'OPTIMAL' },
-  { label: 'GLUCOSE', value: '92 MG/DL', status: 'STABLE' },
-  { label: 'COGNITIVE LOAD', value: '34%', status: 'AVAILABLE' },
-  { label: 'PURITY INDEX', value: '99.8%', status: 'VERIFIED' },
-  { label: 'BATCH', value: '#001', status: 'ACTIVE' },
+  { label: 'TIEFSCHLAF', value: '2H 24M', status: 'OPTIMAL' },
+  { label: 'GLUKOSE', value: '92 MG/DL', status: 'STABIL' },
+  { label: 'KOGNITIVE LAST', value: '34%', status: 'VERFÜGBAR' },
+  { label: 'REINHEITS-INDEX', value: '99.8%', status: 'VERIFIZIERT' },
+  { label: 'CHARGE', value: '#001', status: 'AKTIV' },
 ];
 
 const SOCIAL_PROOF_ITEMS = [
-  { label: 'USER #104', value: '+12%', status: 'DEEP WORK FOCUS' },
-  { label: 'USER #082', value: '-14%', status: 'CORTISOL REDUCTION' },
-  { label: 'USER #219', value: '+18MS', status: 'HRV IMPROVEMENT' },
-  { label: 'USER #055', value: '+22%', status: 'DEEP SLEEP' },
-  { label: 'USER #174', value: '94%', status: 'BIOMARKER COMPLIANCE' },
-  { label: 'USER #311', value: '-8 BPM', status: 'RESTING HEART RATE' },
-  { label: 'USER #067', value: '+31%', status: 'FOCUS DURATION' },
-  { label: 'USER #198', value: '7 WEEKS', status: 'PROTOCOL ADHERENCE' },
+  { label: 'NUTZER #104', value: '+12%', status: 'DEEP-WORK-FOKUS' },
+  { label: 'NUTZER #082', value: '-14%', status: 'CORTISOL-REDUKTION' },
+  { label: 'NUTZER #219', value: '+18MS', status: 'HRV-VERBESSERUNG' },
+  { label: 'NUTZER #055', value: '+22%', status: 'TIEFSCHLAF' },
+  { label: 'NUTZER #174', value: '94%', status: 'BIOMARKER-COMPLIANCE' },
+  { label: 'NUTZER #311', value: '-8 BPM', status: 'RUHEPULS' },
+  { label: 'NUTZER #067', value: '+31%', status: 'FOKUS-DAUER' },
+  { label: 'NUTZER #198', value: '7 WOCHEN', status: 'PROTOKOLL-TREUE' },
 ];
 
 /* ═══════════════════════════════════════════════════════
@@ -190,56 +354,56 @@ function ParadigmShift() {
     <section className={styles.paradigmSection}>
       <div className={styles.paradigmGrid}>
         <div className={styles.columnFriction}>
-          <span className="label-mono" style={{ color: 'var(--red)', marginBottom: '1.5rem', display: 'block' }}>The Antagonist</span>
-          <h2 className={styles.paradigmTitle}>The <em>Friction</em></h2>
+          <span className="label-mono" style={{ color: 'var(--red)', marginBottom: '1.5rem', display: 'block' }}>Der Gegenspieler</span>
+          <h2 className={styles.paradigmTitle}>Die <em>Friction</em></h2>
           <div className={styles.contrastList}>
             <div className={styles.contrastItem}>
               <span className={styles.contrastNum}>01</span>
               <div className={styles.contrastContent}>
-                <h3>Dashboard Paralysis</h3>
-                <p>Noisy streaks, gamified scores, and attention-seeking push notifications. A system that sells dependency instead of self-mastery.</p>
+                <h3>Dashboard-Paralyse</h3>
+                <p>Lärmende Streaks, gamifizierte Scores und aufmerksamkeitshungrige Push-Benachrichtigungen. Ein System, das Abhängigkeit verkauft statt Selbstbeherrschung.</p>
               </div>
             </div>
             <div className={styles.contrastItem}>
               <span className={styles.contrastNum}>02</span>
               <div className={styles.contrastContent}>
-                <h3>Proprietary Blends</h3>
-                <p>Supplement formulations with hidden dosages, massive marketing markups, and unverified raw materials sourced from the grey market.</p>
+                <h3>Proprietäre Blends</h3>
+                <p>Supplement-Formulierungen mit versteckten Dosierungen, massiven Marketing-Aufschlägen und unverifizierten Rohstoffen vom Graumarkt.</p>
               </div>
             </div>
             <div className={styles.contrastItem}>
               <span className={styles.contrastNum}>03</span>
               <div className={styles.contrastContent}>
-                <h3>Environmental Toxicity</h3>
-                <p>Synthetic clothing, disruptors in soaps, and poor light exposure cycles that quietly sap your baseline performance.</p>
+                <h3>Umwelt-Toxizität</h3>
+                <p>Synthetische Kleidung, Disruptoren in Seifen und schlechte Lichtzyklen, die deine Baseline-Leistung still aushöhlen.</p>
               </div>
             </div>
           </div>
         </div>
-        
+
         <div className={styles.columnSystem}>
-          <span className="label-mono" style={{ color: 'var(--green)', marginBottom: '1.5rem', display: 'block' }}>The Solution</span>
-          <h2 className={styles.paradigmTitle}>The <em>System</em></h2>
+          <span className="label-mono" style={{ color: 'var(--green)', marginBottom: '1.5rem', display: 'block' }}>Die Lösung</span>
+          <h2 className={styles.paradigmTitle}>Das <em>System</em></h2>
           <div className={styles.contrastList}>
             <div className={styles.contrastItem}>
               <span className={styles.contrastNum}>01</span>
               <div className={styles.contrastContent}>
-                <h3>Subtractive Routines</h3>
-                <p>No streaks, no badges. A silent protocol runner showing only the next 3 actions based on circadian phase and bio-cognitive load.</p>
+                <h3>Subtraktive Routinen</h3>
+                <p>Keine Streaks, keine Badges. Ein stiller Protokoll-Runner, der nur die nächsten 3 Aktionen zeigt – basierend auf zirkadianer Phase und bio-kognitiver Last.</p>
               </div>
             </div>
             <div className={styles.contrastItem}>
               <span className={styles.contrastNum}>02</span>
               <div className={styles.contrastContent}>
-                <h3>CoA Transparency</h3>
-                <p>Full ingredient disclosure, certified laboratory analysis published for each batch, and formulations aligned with clinical evidence.</p>
+                <h3>CoA-Transparenz</h3>
+                <p>Vollständige Offenlegung der Inhaltsstoffe, zertifizierte Laboranalysen für jede Charge und Formulierungen im Einklang mit klinischer Evidenz.</p>
               </div>
             </div>
             <div className={styles.contrastItem}>
               <span className={styles.contrastNum}>03</span>
               <div className={styles.contrastContent}>
-                <h3>Physical Integrity</h3>
-                <p>Dermal detox protocols, organic textile sync, and zirkadian light regulation to establish a clean foundation for focus.</p>
+                <h3>Physische Integrität</h3>
+                <p>Dermale Detox-Protokolle, organische Textil-Synchronisation und zirkadiane Lichtregulierung als saubere Grundlage für Fokus.</p>
               </div>
             </div>
           </div>
@@ -253,39 +417,39 @@ function ParadigmShift() {
 const AGENTS = [
   {
     id: 'A.01',
-    title: 'Neuro-Cognitive',
-    subtitle: 'FLOW ARCHITECT',
-    desc: 'Monitors EEG-derived focus indices and gates incoming notifications to protect deep work windows.',
+    title: 'Neuro-Kognitiv',
+    subtitle: 'FLOW-ARCHITEKT',
+    desc: 'Überwacht EEG-basierte Fokus-Indizes und filtert eingehende Benachrichtigungen, um Deep-Work-Fenster zu schützen.',
   },
   {
     id: 'A.02',
-    title: 'Metabolic Director',
-    subtitle: 'FUEL SCHEDULER',
-    desc: 'Tracks glucose variability and insulin sensitivity, recommending meal composition and timing in real time.',
+    title: 'Metabolik-Direktor',
+    subtitle: 'FUEL-PLANER',
+    desc: 'Verfolgt Glukose-Variabilität und Insulinsensitivität und empfiehlt Mahlzeiten-Zusammensetzung und -Timing in Echtzeit.',
   },
   {
     id: 'A.03',
-    title: 'Circadian Guardian',
-    subtitle: 'LIGHT & TEMPERATURE',
-    desc: 'Choreographs lux exposure, ambient temperature, and sleep onset to preserve architectural sleep stages.',
+    title: 'Zirkadian-Wächter',
+    subtitle: 'LICHT & TEMPERATUR',
+    desc: 'Choreografiert Lux-Exposition, Umgebungstemperatur und Einschlafzeitpunkt, um die Schlafarchitektur zu erhalten.',
   },
   {
     id: 'A.04',
-    title: 'Recovery Conductor',
-    subtitle: 'LOAD BALANCER',
-    desc: 'Calibrates training intensity against HRV, sleep debt, and inflammatory markers to prevent overshoot.',
+    title: 'Regenerations-Dirigent',
+    subtitle: 'LAST-AUSGLEICH',
+    desc: 'Kalibriert die Trainingsintensität gegen HRV, Schlafdefizit und Entzündungsmarker, um Übersteuerung zu verhindern.',
   },
   {
     id: 'A.05',
-    title: 'Behavioral Anchor',
-    subtitle: 'HABIT ENFORCER',
-    desc: 'Nudges, contracts, and friction adjustments that translate intent into compounding daily behavior.',
+    title: 'Verhaltens-Anker',
+    subtitle: 'GEWOHNHEITS-WÄCHTER',
+    desc: 'Nudges, Verträge und Friction-Anpassungen, die Absicht in tägliches, sich verstärkendes Verhalten übersetzen.',
   },
   {
     id: 'A.06',
     title: 'Orchestrator',
     subtitle: 'META-AGENT',
-    desc: 'Resolves conflicts between specialized agents and surfaces a single coherent protocol for the day.',
+    desc: 'Löst Konflikte zwischen spezialisierten Agenten und liefert ein einziges kohärentes Protokoll für den Tag.',
   },
 ];
 
@@ -294,10 +458,10 @@ function AgentCoreGrid() {
     <section className={styles.agentsSection}>
       <div className="container">
         <div className={styles.agentsHeader}>
-          <span className="label-mono" style={{ color: 'var(--cobalt-bright)', marginBottom: '1rem', display: 'block' }}>System Intelligence</span>
-          <h2 className={styles.agentsTitle}>Six Agents. One Protocol.</h2>
+          <span className="label-mono" style={{ color: 'var(--cobalt-bright)', marginBottom: '1rem', display: 'block' }}>System-Intelligenz</span>
+          <h2 className={styles.agentsTitle}>Sechs Agenten. Ein Protokoll.</h2>
           <p className={styles.agentsSub}>
-            Each agent operates autonomously, feeding a single coherent daily queue. No dashboards, no noise — just the next optimal action.
+            Jeder Agent arbeitet autonom und speist eine einzige kohärente Tages-Queue. Keine Dashboards, kein Lärm – nur die nächste optimale Aktion.
           </p>
         </div>
         <div className={styles.agentsGrid}>
@@ -307,7 +471,7 @@ function AgentCoreGrid() {
                 <span className={styles.agentId}>{agent.id}</span>
                 <span className={styles.agentStatus}>
                   <span className={styles.agentDot} />
-                  ACTIVE
+                  AKTIV
                 </span>
               </div>
               <h3 className={styles.agentTitle}>{agent.title}</h3>
@@ -344,9 +508,9 @@ function EcosystemGrid() {
   return (
     <section className={styles.ecosystemSection}>
       <div className={styles.ecosystemHeader}>
-        <span className="label-mono" style={{ color: 'var(--tan)', marginBottom: '1rem', display: 'block' }}>Platform Core</span>
-        <h2 className={styles.ecosystemTitle}>Integrated Performance</h2>
-        <p className={styles.ecosystemSub}>Five pillars operating as a unified system to align biological telemetry and cognitive execution.</p>
+        <span className="label-mono" style={{ color: 'var(--tan)', marginBottom: '1rem', display: 'block' }}>Plattform-Kern</span>
+        <h2 className={styles.ecosystemTitle}>Integrierte Performance</h2>
+        <p className={styles.ecosystemSub}>Fünf Säulen, die als ein einheitliches System arbeiten, um biologische Telemetrie und kognitive Ausführung in Einklang zu bringen.</p>
       </div>
       <div className={styles.ecosystemGrid}>
         {pillars.map(p => {
@@ -365,7 +529,7 @@ function EcosystemGrid() {
               <div className={styles.ecoIcon}>{p.icon}</div>
               <h3 className={styles.ecoLabel}>{p.label}</h3>
               <p className={styles.ecoDesc}>{p.desc}</p>
-              <span className={styles.ecoArrow}>Access Pillar _</span>
+              <span className={styles.ecoArrow}>Säule öffnen _</span>
             </Link>
           );
         })}
@@ -408,9 +572,9 @@ function ReplenishmentVisualizer() {
       <div className={styles.replenishGrid}>
         <div className={styles.replenishVisual}>
           <div className={styles.visualHeader}>
-            <span className={styles.visualTitle}>STACK SUPPLY RADAR</span>
+            <span className={styles.visualTitle}>STACK-VORRAT-RADAR</span>
             <span className={`${styles.stackStatus} ${isCritical ? styles.statusCritical : styles.statusNormal}`}>
-              {isCritical ? 'Supply Low' : 'Supply OK'}
+              {isCritical ? 'Vorrat niedrig' : 'Vorrat OK'}
             </span>
           </div>
           <div className={styles.replenishWidget}>
@@ -429,7 +593,7 @@ function ReplenishmentVisualizer() {
                   cursor: 'pointer' 
                 }}
               >
-                REFILL STACK
+                STACK AUFFÜLLEN
               </button>
             </div>
             <div className={styles.widgetProgressContainer}>
@@ -442,8 +606,8 @@ function ReplenishmentVisualizer() {
               />
             </div>
             <div className={styles.widgetDetails}>
-              <span>Supply Level: {supply}%</span>
-              <span>{supply <= 7 ? 'Critical Threshold reached' : `${Math.ceil(supply / 3.3)} Days remaining`}</span>
+              <span>Vorrat: {supply}%</span>
+              <span>{supply <= 7 ? 'Kritische Schwelle erreicht' : `Noch ${Math.ceil(supply / 3.3)} Tage`}</span>
             </div>
           </div>
 
@@ -451,29 +615,29 @@ function ReplenishmentVisualizer() {
             <div className={`${styles.replenishAlert} ${styles.alertCritical}`}>
               <span className={styles.alertIcon}>⚡</span>
               <div>
-                <strong>[Auto-Ship Triggered]</strong>
-                <p style={{ marginTop: '0.2rem', opacity: 0.8 }}>Stripe Webhook received. Authorized payment for Batch #002. Shipping label generated automatically.</p>
+                <strong>[Auto-Versand ausgelöst]</strong>
+                <p style={{ marginTop: '0.2rem', opacity: 0.8 }}>Stripe-Webhook empfangen. Zahlung für Charge #002 autorisiert. Versandetikett automatisch erstellt.</p>
               </div>
             </div>
           ) : (
             <div className={`${styles.replenishAlert} ${styles.alertNormal}`}>
               <span className={styles.alertIcon}>✓</span>
               <div>
-                <strong>Stack Safe</strong>
-                <p style={{ marginTop: '0.2rem', opacity: 0.8 }}>No action required. The system is tracking your protocol usage. Invoicing will trigger when levels hit 15%.</p>
+                <strong>Stack gesichert</strong>
+                <p style={{ marginTop: '0.2rem', opacity: 0.8 }}>Keine Aktion nötig. Das System verfolgt deinen Protokoll-Verbrauch. Die Abrechnung wird ausgelöst, sobald der Vorrat 15 % erreicht.</p>
               </div>
             </div>
           )}
         </div>
 
         <div>
-          <span className="label-mono" style={{ color: 'var(--tan)', marginBottom: '1.5rem', display: 'block' }}>Zero Friction Logistics</span>
-          <h2 className={styles.replenishHeadline}>Your stack knows when it&apos;s running low.</h2>
+          <span className="label-mono" style={{ color: 'var(--tan)', marginBottom: '1.5rem', display: 'block' }}>Zero-Friction-Logistik</span>
+          <h2 className={styles.replenishHeadline}>Dein Stack weiß, wann er zur Neige geht.</h2>
           <p className={styles.replenishText}>
-            Pronoia links stack metrics to protocol timers. When your PX-V1 supplies reach the critical 7-day reserve mark, the system automatically triggers replenishment through Stripe invoicing. No checkout screens, no checkout carts, no decision fatigue.
+            Pronoia verknüpft Stack-Metriken mit Protokoll-Timern. Sobald deine PX-V1-Vorräte die kritische 7-Tage-Reserve erreichen, löst das System die Nachbestellung automatisch per Stripe-Abrechnung aus. Keine Checkout-Screens, keine Warenkörbe, keine Entscheidungsmüdigkeit.
           </p>
           <Link href="/auth" className="btn btn-dark btn-lg">
-            Initialize Protocol Auto-Ship
+            Protokoll-Auto-Versand aktivieren
           </Link>
         </div>
       </div>
@@ -490,8 +654,8 @@ function ManifestoAndFooter() {
             &quot;Die meisten Menschen scheitern nicht an Talent. Sie scheitern an Friction. Wir bauen das System, das <em>Friction entfernt</em>. Der Rest bist du.&quot;
           </blockquote>
           <div className={styles.manifestoBtnGroup}>
-            <Link href="/auth" className="btn btn-primary btn-lg">Begin System Assessment</Link>
-            <Link href="/life-os" className="btn btn-ghost btn-lg" style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.2)' }}>Launch Life OS</Link>
+            <Link href="/auth" className="btn btn-primary btn-lg">System-Assessment starten</Link>
+            <Link href="/life-os" className="btn btn-ghost btn-lg" style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.2)' }}>Life OS starten</Link>
           </div>
         </div>
       </section>
@@ -504,7 +668,7 @@ function ManifestoAndFooter() {
           <Link href="/store">Store</Link>
         </div>
         <div className={styles.footerCopy}>
-          &copy; 2026 PRONOIA SYSTEM. BATCH #001 COMPLIANCE REGULATION. ALL RIGHTS RESERVED.
+          &copy; 2026 PRONOIA SYSTEM. CHARGE #001 COMPLIANCE-REGULIERUNG. ALLE RECHTE VORBEHALTEN.
         </div>
       </footer>
     </>
@@ -517,19 +681,19 @@ function TrustBar() {
       <div className={styles.trustInner}>
         <div className={styles.trustMetric}>
           <span className={styles.metricValue}>99.85%</span>
-          <span className={styles.metricLabel}>VERIFIED PURITY (HPLC)</span>
+          <span className={styles.metricLabel}>VERIFIZIERTE REINHEIT (HPLC)</span>
         </div>
         <div className={styles.trustMetric}>
           <span className={styles.metricValue}>&lt; 0.05 PPM</span>
-          <span className={styles.metricLabel}>HEAVY METALS (ICP-MS)</span>
+          <span className={styles.metricLabel}>SCHWERMETALLE (ICP-MS)</span>
         </div>
         <div className={styles.trustMetric}>
           <span className={styles.metricValue}>GC-MS ND</span>
-          <span className={styles.metricLabel}>RESIDUAL SOLVENTS</span>
+          <span className={styles.metricLabel}>RESTLÖSEMITTEL</span>
         </div>
         <div className={styles.trustMetric}>
           <span className={styles.metricValue}>#PX-2026-B01</span>
-          <span className={styles.metricLabel}>BATCH TRACEABILITY</span>
+          <span className={styles.metricLabel}>CHARGEN-RÜCKVERFOLGUNG</span>
         </div>
       </div>
     </div>

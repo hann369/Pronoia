@@ -5,18 +5,44 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useProtocol } from '@/hooks/useProtocol';
+import { useTabData } from '@/hooks/useTabData';
+import { useForceDarkTheme } from '@/hooks/useForceDarkTheme';
 import TelemetryVisualizer from '@/components/TelemetryVisualizer';
 import styles from './page.module.css';
 
-import { collection, query, orderBy, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, getDoc, getDocs, addDoc, deleteDoc, doc, onSnapshot, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Connectors } from '@/lib/connectorEngine';
 import SocialHub from '@/components/social/SocialHub';
+import TribeHub from '@/components/social/TribeHub';
 import PronoiaLab from '@/components/lab/PronoiaLab';
+import ChessLab from '@/components/games/ChessLab';
+import MonkMode from '@/components/manager/MonkMode';
 import { useChat } from '@/hooks/useChat';
 import FloatingChat from '@/components/social/FloatingChat';
+import SpotifyMiniPlayer from '@/components/social/SpotifyMiniPlayer';
 import OnboardingWizard from '@/components/onboarding/OnboardingWizard';
 import TabManager from '@/components/manager/TabManager';
+import AgentsTab from '@/components/lifeos/AgentsTab';
+import DashboardTab from '@/components/lifeos/DashboardTab';
+import VaultTab from '@/components/lifeos/VaultTab';
+import BiometricsTab from '@/components/lifeos/BiometricsTab';
+import StoreTab from '@/components/lifeos/StoreTab';
+import ConnectorsTab from '@/components/lifeos/ConnectorsTab';
+import NorthStarTab from '@/components/lifeos/NorthStarTab';
+import ProfileTab from '@/components/lifeos/ProfileTab';
+import GymTab from '@/components/lifeos/GymTab';
+import BehaviorTab from '@/components/lifeos/BehaviorTab';
+import SkillLabModal from '@/components/SkillLabModal';
+import LearnYourWay from '@/components/LearnYourWay';
+import FrequencyEngine from '@/components/frequency/FrequencyEngine';
+import CinematicThemeSwitcher from '@/components/ui/cinematic-theme-switcher';
+import { GlassCalendar } from '@/components/ui/glass-calendar';
+import { ShineBorder } from '@/components/ui/shine-border';
+import { AnimatedStatsCard } from '@/components/ui/card-4';
+import { BadgeDelta } from '@/components/ui/badge-delta';
+import PricingCardComponent from '@/components/ui/pricing-card-component';
+import { Heart, Activity, Moon, TrendingUp, TrendingDown } from 'lucide-react';
 
 
 /* ─── Constants ─── */
@@ -26,7 +52,8 @@ const AGENTS = [
   { id: 'A.03', name: 'Circadian Guardian', role: 'LIGHT & TEMPERATURE' },
   { id: 'A.04', name: 'Recovery Conductor', role: 'LOAD BALANCER' },
   { id: 'A.05', name: 'Behavioral Anchor', role: 'HABIT ENFORCER' },
-  { id: 'A.06', name: 'Orchestrator', role: 'META-AGENT' }
+  { id: 'A.06', name: 'Orchestrator', role: 'META-AGENT' },
+  { id: 'A.07', name: 'NorthStar', role: 'FUTURE SELF' }
 ];
 const WEEKDAYS = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
 const AVATAR_PRESETS = [
@@ -110,12 +137,31 @@ const renderNavIcon = (id, active) => {
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
       );
+    case 'tribe':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      );
     case 'lab':
       return (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
           <path d="M4.7 19h14.6" />
           <path d="M9 3h6" />
           <path d="M10 3v5L5.8 17.6A2 2 0 0 0 7.6 20h8.8a2 2 0 0 0 1.8-2.4L14 8V3h-4z" />
+        </svg>
+      );
+    case 'games':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <rect x="2" y="6" width="20" height="12" rx="3" />
+          <path d="M6 12h4" />
+          <path d="M8 10v4" />
+          <line x1="15" y1="11" x2="15.01" y2="11" strokeWidth="3" />
+          <line x1="18" y1="13" x2="18.01" y2="13" strokeWidth="3" />
         </svg>
       );
     case 'manager':
@@ -126,10 +172,80 @@ const renderNavIcon = (id, active) => {
           <line x1="10" y1="14" x2="21" y2="3" />
         </svg>
       );
+    case 'northstar':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <polygon points="12 2 14.4 9.2 22 9.6 16 14.2 18 21.4 12 17.2 6 21.4 8 14.2 2 9.6 9.6 9.2" />
+        </svg>
+      );
+    case 'frequencies':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <line x1="3" y1="12" x2="5" y2="12" />
+          <line x1="8" y1="6" x2="8" y2="18" />
+          <line x1="12" y1="3" x2="12" y2="21" />
+          <line x1="16" y1="8" x2="16" y2="16" />
+          <line x1="19" y1="11" x2="21" y2="11" />
+        </svg>
+      );
+    case 'monk-mode':
+    case 'monk_mode':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      );
+    case 'gym':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <rect x="1" y="9" width="3" height="6" rx="1" />
+          <rect x="4" y="7" width="3" height="10" rx="1" />
+          <line x1="7" y1="12" x2="17" y2="12" />
+          <rect x="17" y="7" width="3" height="10" rx="1" />
+          <rect x="20" y="9" width="3" height="6" rx="1" />
+        </svg>
+      );
+    case 'behavior':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <path d="M17 2.1 21 6l-4 3.9" />
+          <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+          <path d="M7 21.9 3 18l4-3.9" />
+          <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </svg>
+      );
+    case 'learn-your-way':
+    case 'auto_stories':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.3s ease' }}>
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        </svg>
+      );
     default:
       return null;
   }
 };
+
+// On-brand placeholder "mockup" image for blueprints until real artwork is supplied.
+// Returns a self-contained SVG data-URI tinted by category — swap `image` for a real URL later.
+const BP_CAT_COLOR = { BIOHACKING: '#1A6AFF', LONGEVITY: '#2DD4BF', SLEEP: '#8B5CF6' };
+function blueprintMock(category, name = '') {
+  const c = BP_CAT_COLOR[(category || '').toUpperCase()] || '#1A6AFF';
+  const label = (category || 'PROTOCOL').toUpperCase();
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='600' height='400'>`
+    + `<defs>`
+    + `<linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#070709'/><stop offset='1' stop-color='${c}' stop-opacity='0.30'/></linearGradient>`
+    + `<radialGradient id='r' cx='0.72' cy='0.28' r='0.65'><stop offset='0' stop-color='${c}' stop-opacity='0.38'/><stop offset='1' stop-color='${c}' stop-opacity='0'/></radialGradient>`
+    + `</defs>`
+    + `<rect width='600' height='400' fill='url(#g)'/><rect width='600' height='400' fill='url(#r)'/>`
+    + `<circle cx='300' cy='176' r='66' fill='none' stroke='${c}' stroke-opacity='0.55' stroke-width='1.5'/>`
+    + `<circle cx='300' cy='176' r='104' fill='none' stroke='${c}' stroke-opacity='0.22' stroke-width='1'/>`
+    + `<text x='300' y='298' text-anchor='middle' font-family='monospace' font-size='17' letter-spacing='6' fill='${c}' fill-opacity='0.92'>${label}</text>`
+    + `<text x='300' y='328' text-anchor='middle' font-family='monospace' font-size='10' letter-spacing='4' fill='#ffffff' fill-opacity='0.4'>PRONOIA PROTOCOL</text>`
+    + `</svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
 
 const TIERS = [
   {
@@ -233,7 +349,11 @@ function GateScreen({ reason }) {
         textAlign: 'center', backdropFilter: 'blur(20px)',
         boxShadow: '0 30px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)'
       }}>
-        <div style={{ fontSize: '2.5rem', marginBottom: '1.25rem' }}>{isAuth ? '🔐' : '⚡'}</div>
+        <img src="/pronoia-wordmark.png" alt="Pronoia" style={{
+          height: '32px', width: 'auto', display: 'block', margin: '0 auto 1.5rem',
+          filter: 'invert(1) brightness(1.6)'
+        }} />
+        <div style={{ fontSize: '1.75rem', marginBottom: '1rem' }}>{isAuth ? '🔐' : '⚡'}</div>
         <div style={{
           fontFamily: 'var(--font-mono)', fontSize: '0.55rem', fontWeight: 700,
           color: 'var(--cobalt-bright)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '1rem'
@@ -261,8 +381,8 @@ function GateScreen({ reason }) {
    MAIN PAGE
 ═══════════════════════════════════════════════════════ */
 function LifeOSDashboard() {
-  const { user, loading: authLoading } = useAuth();
-  const { chatUnreadCount } = useChat();
+  const { user, loading: authLoading, logout, resetPassword } = useAuth();
+  const { chatUnreadCount, exportE2EPrivateKey, importE2EPrivateKey, resetE2EKeys } = useChat();
   const {
     blocks, blockIdx, timeLeft, totalTime, isRunning,
     circadianMode, setCircadianMode, overrideActiveBlockDuration,
@@ -275,8 +395,46 @@ function LifeOSDashboard() {
     consumeStackItem, addStackItem, removeStackItem, updateStackItem,
     saveProfile, linkTelegramId, logFriction, loadProtocolQueue, addCustomBlock, uploadDataSource,
     manualPeekIdx, setManualPeekIdx, pendingQueueOverride, setPendingQueueOverride, confirmQueueOverride, restoreCalendarBlocks,
-    activateOptimalProtocol, consensusData
+    activateOptimalProtocol, consensusData,
+    consensusLoading, lastConsensusAt, refreshConsensus, acknowledgeDirective, dismissDirective
   } = useProtocol();
+
+  const { data: managerConfig } = useTabData('managerConfig', { mappings: [], autoOpenEnabled: false });
+
+  const { data: monkModeConfig } = useTabData('monkModeConfig', {
+    initialTime: 5400,
+    blockedProtocols: { youtube: true, social: true, gaming: false, caffeine: false, junkfood: true }
+  });
+
+  const isMonkModeActive = !!(monkModeConfig && monkModeConfig.activeSession);
+  const blockedProtocols = monkModeConfig?.blockedProtocols || {};
+
+  const isUrlBlockedByMonkMode = (url) => {
+    if (!isMonkModeActive) return false;
+    const lowerUrl = url.toLowerCase();
+    if (blockedProtocols.youtube && (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be') || lowerUrl.includes('netflix.com') || lowerUrl.includes('twitch.tv'))) return 'Video Streaming';
+    if (blockedProtocols.social && (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com') || lowerUrl.includes('instagram.com') || lowerUrl.includes('tiktok.com') || lowerUrl.includes('facebook.com'))) return 'Social Networks';
+    if (blockedProtocols.gaming && (lowerUrl.includes('steampowered.com') || lowerUrl.includes('epicgames.com') || lowerUrl.includes('roblox.com'))) return 'Steam & Gaming';
+    if (blockedProtocols.caffeine && (lowerUrl.includes('starbucks.com') || lowerUrl.includes('redbull.com') || lowerUrl.includes('nespresso.com'))) return 'Koffein Tracker';
+    if (blockedProtocols.junkfood && (lowerUrl.includes('lieferando.de') || lowerUrl.includes('ubereats.com') || lowerUrl.includes('dominos.de') || lowerUrl.includes('pizza.de'))) return 'Fast-Food Portale';
+    return false;
+  };
+
+  useEffect(() => {
+    const handleGlobalClick = (e) => {
+      if (!isMonkModeActive) return;
+      const anchor = e.target.closest('a');
+      if (anchor && anchor.href) {
+        const blockReason = isUrlBlockedByMonkMode(anchor.href);
+        if (blockReason) {
+          e.preventDefault();
+          alert(`🛡️ Monk Mode Block\n\nDieser Link ist aktuell blockiert: ${blockReason}`);
+        }
+      }
+    };
+    document.addEventListener('click', handleGlobalClick);
+    return () => document.removeEventListener('click', handleGlobalClick);
+  }, [isMonkModeActive, blockedProtocols]);
 
   // Drag/Swipe gestures states on Chronometer
   const [dragStartX, setDragStartX] = useState(null);
@@ -404,7 +562,21 @@ function LifeOSDashboard() {
     window.history.replaceState(null, '', url.toString());
   }, [activeTab]);
 
+  const prevTabRef = useRef('apps');
+  useEffect(() => {
+    if (activeTab !== 'skills') {
+      prevTabRef.current = activeTab;
+    } else {
+      setIsSkillLabOpen(true);
+      setActiveTab(prevTabRef.current);
+    }
+  }, [activeTab]);
+
   const [portalTab, setPortalTab] = useState('subscriptions'); // 'subscriptions' | 'store'
+  const [storeView, setStoreView] = useState('grid'); // 'grid' | 'product' | 'cart'
+  const [storeCategory, setStoreCategory] = useState('all');
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [cart, setCart] = useState([]); // [{ id, name, price, image, category, qty }]
 
   /* ─── Live Clock ─── */
   const [liveTime, setLiveTime] = useState(new Date());
@@ -512,8 +684,19 @@ function LifeOSDashboard() {
   /* ─── Ecosystem Shop State ─── */
   const [activeInvoice, setActiveInvoice] = useState(null);
 
+  // Custom interactive states for generated pages
+  const [expandedConnectors, setExpandedConnectors] = useState({ whoop: false, notion: false, paypal: false, zapier: false });
+  const [connectorPermissions, setConnectorPermissions] = useState({
+    whoop: { sleep: true, hrv: true, recovery: true },
+    notion: { read: true, write: true },
+    paypal: { payments: false, transactions: false },
+    zapier: { webhook: true }
+  });
+  const [profileToast, setProfileToast] = useState('');
+
   /* ─── Modals ─── */
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [isSkillLabOpen, setIsSkillLabOpen] = useState(false);
   const [skillContent, setSkillContent] = useState('');
   const [isGeneratingSkill, setIsGeneratingSkill] = useState(false);
   const [dayChatInput, setDayChatInput] = useState('');
@@ -533,25 +716,287 @@ function LifeOSDashboard() {
   /* ─── Vault ─── */
   const [vaultItems, setVaultItems] = useState([]);
   const [vaultLoading, setVaultLoading] = useState(true);
-  const [vaultFilterTag, setVaultFilterTag] = useState('all');
+  // vaultFilterTag now lives in VaultTab via useTabData('vaultFilter') — persisted per user.
   const [vaultForm, setVaultForm] = useState({ type: 'note', title: '', content: '', tags: '' });
   const [vaultSaving, setVaultSaving] = useState(false);
   const [vaultToast, setVaultToast] = useState('');
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
+  // --- NorthStar (Future Self agent) states ---
+  const [nsDraft, setNsDraft] = useState(null);
+  const [nsMessage, setNsMessage] = useState('');
+  const [nsBusy, setNsBusy] = useState(false);
+  const [nsNudge, setNsNudge] = useState('');
+  const [nsRecalInput, setNsRecalInput] = useState('');
+  const [nsRecalMsg, setNsRecalMsg] = useState('');
+  const [nsRecalBusy, setNsRecalBusy] = useState(false);
+  const [nsReexplore, setNsReexplore] = useState(false);
+  const nsEditedRef = useRef(false);
+
+  // --- Library Module States & Handlers ---
+  const [libraryBooks, setLibraryBooks] = useState([]);
+  const [libraryLoading, setLibraryLoading] = useState(true);
+  const [librarySaving, setLibrarySaving] = useState(false);
+  const [libraryToast, setLibraryToast] = useState('');
+  const [libraryForm, setLibraryForm] = useState({
+    title: '',
+    author: '',
+    genre: '',
+    status: 'reading',
+    rating: 5,
+    progress: 0,
+    notes: '',
+    quote: '',
+  });
+
+  const triggerLibraryToast = (msg) => { setLibraryToast(msg); setTimeout(() => setLibraryToast(''), 3000); };
+
+  // --- Blueprint Module States & Handlers ---
+  const [blueprints, setBlueprints] = useState([
+    {
+      id: 'huberman_dopamine',
+      name: 'Huberman Dopamin-Protokoll',
+      creator: 'Andrew Huberman',
+      category: 'BIOHACKING',
+      price: 149,
+      rating: 4.9,
+      difficulty: 'Intermediate',
+      duration: '6 Wochen',
+      description: 'Optimiere deine Dopamin-Baselines, steigere die Motivation und etabliere gesunde neurologische Zyklen.',
+      overview: 'Ein evidenzbasiertes 6-Wochen-Protokoll zur Wiederherstellung gesunder Dopamin-Baselines. Durch gezielte Reizkontrolle, Kältexposition und zeitlich getaktete Belohnungen lernst du, intrinsische Motivation aufzubauen statt sie an kurzfristige Dopamin-Spitzen zu verlieren.',
+      benefits: ['Höhere intrinsische Motivation', 'Besseres Dopamin-Gleichgewicht', 'Gesteigerte Konzentration'],
+      protocol: [
+        ['Phase 1 · Baseline-Reset', 'Eliminiere künstliche Dopamin-Spitzen für 7 Tage (Reizfasten).'],
+        ['Phase 2 · Kälte & Licht', 'Morgendliches Sonnenlicht + Kälteexposition zur Rezeptor-Sensibilisierung.'],
+        ['Phase 3 · Effort-Reward', 'Koppele Anstrengung an die Belohnung, nicht das Ergebnis.'],
+      ],
+      includes: ['Tägliche Protokoll-Checkliste', 'Audio-Briefings', 'Tracking-Vorlage für Baselines'],
+      image: blueprintMock('BIOHACKING'),
+    },
+    {
+      id: 'bryan_johnson_blueprint',
+      name: 'Bryan Johnson Blueprint',
+      creator: 'Bryan Johnson',
+      category: 'LONGEVITY',
+      price: 299,
+      rating: 4.8,
+      difficulty: 'Advanced',
+      duration: '12 Wochen',
+      description: 'Zelluläre Verjüngung und organische Langlebigkeit durch präzise circadiane und biologische Taktung.',
+      overview: 'Das vollständige Langlebigkeits-Betriebssystem: präzise Mahlzeiten-Taktung, Schlaf-Architektur und Bewegungsdosierung, abgestimmt auf messbare Biomarker. Ein anspruchsvolles Protokoll für Anwender, die ihr biologisches Alter aktiv senken wollen.',
+      benefits: ['Zelluläre Regeneration', 'Reduziertes biologisches Alter', 'Optimale Organ-Funktion'],
+      protocol: [
+        ['Phase 1 · Messung', 'Erhebe Baseline-Biomarker (HRV, Schlaf, Entzündungswerte).'],
+        ['Phase 2 · Taktung', 'Feste Mahlzeiten-Fenster + circadiane Lichthygiene.'],
+        ['Phase 3 · Optimierung', 'Iterative Anpassung anhand wöchentlicher Messwerte.'],
+      ],
+      includes: ['Biomarker-Tracking-Dashboard', 'Mahlzeiten-Taktungsplan', 'Wöchentliche Review-Vorlage'],
+      image: blueprintMock('LONGEVITY'),
+    },
+    {
+      id: 'sleep_synergy_v4',
+      name: 'Sleep Synergy V4',
+      creator: 'Pronoia Core',
+      category: 'SLEEP',
+      price: 89,
+      rating: 5.0,
+      difficulty: 'Beginner',
+      duration: '4 Wochen',
+      description: 'Maximierung des Tiefschlaf-Anteils und Senkung der Latenzzeit durch neuro-auditorisches Entrainment.',
+      overview: 'Ein sanftes 4-Wochen-Einsteigerprotokoll, das Tiefschlaf-Anteil und Einschlaflatenz verbessert. Kombiniert abendliche Lichthygiene, Temperaturabsenkung und neuro-auditorisches Entrainment zu einer verlässlichen Schlafroutine.',
+      benefits: ['Tiefschlaf-Steigerung um 35%', 'Schnelleres Einschlafen', 'Erhöhter morgendlicher HRV-Wert'],
+      protocol: [
+        ['Phase 1 · Wind-Down', 'Blaulicht-Reduktion + Temperaturabsenkung 90 Min vor dem Schlaf.'],
+        ['Phase 2 · Entrainment', 'Neuro-auditorische Delta-Frequenzen beim Einschlafen.'],
+        ['Phase 3 · Konsolidierung', 'Feste Schlaf-/Wachzeiten zur circadianen Stabilisierung.'],
+      ],
+      includes: ['Abend-Routine-Checkliste', 'Delta-Frequenz-Audiospuren', 'Schlaf-Tracking-Vorlage'],
+      image: blueprintMock('SLEEP'),
+    }
+  ]);
+  const [blueprintsLoading, setBlueprintsLoading] = useState(false);
+  const [installedBlueprints, setInstalledBlueprints] = useState([]);
+  const [blueprintSearch, setBlueprintSearch] = useState('');
+  const [blueprintCategory, setBlueprintCategory] = useState('all');
+  const [selectedBlueprint, setSelectedBlueprint] = useState(null);
+  const [bpPriceCap, setBpPriceCap] = useState(null); // null = no cap (show all)
+  const [bpInstallToast, setBpInstallToast] = useState(null); // { type:'ok'|'err', msg }
+
+  useEffect(() => {
+    if (!db) return;
+    setBlueprintsLoading(true);
+    const blueprintsRef = collection(db, 'blueprints');
+    const q = query(blueprintsRef);
+    getDocs(q).then((snap) => {
+      if (!snap.empty) {
+        const list = [];
+        snap.forEach((doc) => {
+          list.push({ id: doc.id, ...doc.data() });
+        });
+        setBlueprints(list);
+      }
+      setBlueprintsLoading(false);
+    }).catch((err) => {
+      console.warn("Could not load blueprints from firestore, using defaults:", err);
+      setBlueprintsLoading(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!user || !db) {
+      setInstalledBlueprints([]);
+      return;
+    }
+    const installedRef = collection(db, 'users', user.uid, 'installedBlueprints');
+    const unsub = onSnapshot(installedRef, (snap) => {
+      const list = [];
+      snap.forEach((doc) => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      setInstalledBlueprints(list);
+    }, (err) => {
+      console.error("Failed to load installed blueprints:", err);
+    });
+    return () => unsub();
+  }, [user]);
+
+  const handleInstallBlueprint = async (blueprint) => {
+    if (!user) {
+      setBpInstallToast({ type: 'err', msg: 'Bitte melde dich an, um Protokolle zu installieren.' });
+      return;
+    }
+    try {
+      const installedDocRef = doc(db, 'users', user.uid, 'installedBlueprints', blueprint.id);
+      await setDoc(installedDocRef, {
+        name: blueprint.name,
+        installedAt: new Date().toISOString(),
+        status: 'active'
+      });
+      setBpInstallToast({ type: 'ok', msg: `„${blueprint.name}" wurde installiert.` });
+    } catch (err) {
+      console.error("Failed to install blueprint:", err);
+      setBpInstallToast({ type: 'err', msg: 'Fehler beim Installieren des Protokolls.' });
+    }
+  };
+
+  // Auto-dismiss the blueprint install toast.
+  useEffect(() => {
+    if (!bpInstallToast) return;
+    const t = setTimeout(() => setBpInstallToast(null), 3200);
+    return () => clearTimeout(t);
+  }, [bpInstallToast]);
+
+  useEffect(() => {
+    if (!user || !db) {
+      setLibraryBooks([]);
+      setLibraryLoading(false);
+      return;
+    }
+    setLibraryLoading(true);
+    const booksRef = collection(db, 'users', user.uid, 'books');
+    const q = query(booksRef, orderBy('addedAt', 'desc'));
+    
+    const unsub = onSnapshot(q, (snap) => {
+      const booksList = [];
+      snap.forEach((doc) => {
+        booksList.push({ id: doc.id, ...doc.data() });
+      });
+      setLibraryBooks(booksList);
+      setLibraryLoading(false);
+    }, (err) => {
+      console.error("Failed to load personal library:", err);
+      setLibraryLoading(false);
+    });
+
+    return () => unsub();
+  }, [user]);
+
+  const handleSaveBook = async (e) => {
+    if (e) e.preventDefault();
+    if (!libraryForm.title.trim()) return triggerLibraryToast('Buchtitel ist erforderlich.');
+    if (!libraryForm.author.trim()) return triggerLibraryToast('Autor ist erforderlich.');
+    
+    setLibrarySaving(true);
+    try {
+      const booksRef = collection(db, 'users', user.uid, 'books');
+      await addDoc(booksRef, {
+        title: libraryForm.title.trim(),
+        author: libraryForm.author.trim(),
+        genre: libraryForm.genre.trim() || 'Allgemein',
+        status: libraryForm.status,
+        rating: Number(libraryForm.rating) || 5,
+        progress: Number(libraryForm.progress) || 0,
+        notes: libraryForm.notes.trim(),
+        quote: libraryForm.quote.trim(),
+        addedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      setLibraryForm({
+        title: '',
+        author: '',
+        genre: '',
+        status: 'reading',
+        rating: 5,
+        progress: 0,
+        notes: '',
+        quote: '',
+      });
+      triggerLibraryToast('Buch erfolgreich hinzugefügt.');
+    } catch (err) {
+      console.error("Failed to save book:", err);
+      triggerLibraryToast('Fehler beim Speichern des Buches.');
+    } finally {
+      setLibrarySaving(false);
+    }
+  };
+
+  const handleDeleteBook = async (bookId) => {
+    if (!confirm('Möchtest du dieses Buch wirklich löschen?')) return;
+    try {
+      const bookDocRef = doc(db, 'users', user.uid, 'books', bookId);
+      await deleteDoc(bookDocRef);
+      triggerLibraryToast('Buch gelöscht.');
+    } catch (err) {
+      console.error("Failed to delete book:", err);
+      triggerLibraryToast('Fehler beim Löschen des Buches.');
+    }
+  };
+
+  const handleUpdateBookProgress = async (bookId, newProgress) => {
+    try {
+      const progressNum = Math.min(100, Math.max(0, Number(newProgress) || 0));
+      const bookDocRef = doc(db, 'users', user.uid, 'books', bookId);
+      await updateDoc(bookDocRef, {
+        progress: progressNum,
+        status: progressNum === 100 ? 'completed' : progressNum > 0 ? 'reading' : 'unread',
+        updatedAt: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error("Failed to update book progress:", err);
+    }
+  };
+
   // --- App Launcher States & Handlers ---
   const defaultApps = useMemo(() => [
     { id: 'dashboard',  name: 'Dashboard',   desc: 'Kognitiver Taktgeber & System-Chronometer', icon: 'dashboard' },
+    { id: 'northstar',  name: 'North Star',  desc: 'Dein Future Self & langfristige Vision',   icon: 'northstar' },
+    { id: 'frequencies',name: 'Frequencies', desc: 'Binaurale Beats & Audio-Entrainment',      icon: 'frequencies' },
     { id: 'biometrics', name: 'Biometrie',   desc: 'Bio-Stack & Biometrische Indikatoren',     icon: 'biometrics' },
     { id: 'skills',     name: 'Skill Lab',   desc: 'Agentic Deliberate Practice Lab',          icon: 'skills' },
     { id: 'store',      name: 'Ecosystem',   desc: 'Abonnements & Auto-Replenishment',         icon: 'store' },
     { id: 'connectors', name: 'Konnektoren', desc: 'Schnittstellen zu Wearables & Notion',     icon: 'connectors' },
     { id: 'vault',      name: 'Vault',       desc: 'Wissens-Repository & Dokumente',           icon: 'vault' },
+    { id: 'library',    name: 'Bibliothek',  desc: 'Deine persönliche Bibliothek & Notizen',   icon: 'local_library' },
     { id: 'agents',     name: 'Agenten',     desc: 'Kognitive Sub-Agenten consensus status',   icon: 'agents' },
     { id: 'social',     name: 'Social Hub',  desc: 'Freunde, Chats & Community Channel',       icon: 'social' },
+    { id: 'tribe',      name: 'Tribe',       desc: 'Bruderschaft Leaderboard & Bookclub',      icon: 'tribe' },
     { id: 'lab',        name: 'Pronoia Lab', desc: 'Nootropics Library & Stack Builder',      icon: 'lab' },
+    { id: 'games',      name: 'Schach-Labor', desc: 'Schach & Bio-kognitive Spielanalyse',     icon: 'sports_esports' },
     { id: 'manager',    name: 'Manager',     desc: 'Automatischer Link-Öffner für aktive Blöcke', icon: 'manager' },
+    { id: 'monk-mode',  name: 'Monk Mode',   desc: 'Dopamin Detox & Deep Work Hub',             icon: 'monk_mode' },
+    { id: 'gym',        name: 'Gym',         desc: 'KI-Workouts & Trainings-Log',              icon: 'gym' },
+    { id: 'behavior',   name: 'Verhalten',   desc: 'Gewohnheiten aufbauen, ablegen & verändern', icon: 'behavior' },
   ], []);
 
   const appsList = useMemo(() => profile?.appConfig?.apps || defaultApps, [profile?.appConfig?.apps, defaultApps]);
@@ -560,7 +1005,7 @@ function LifeOSDashboard() {
 
   const sidebarItems = useMemo(() => {
     const baseItems = [{ id: 'apps', name: 'Apps', label: 'Apps', icon: 'apps' }];
-    const pinnedIds = profile?.appConfig?.pinnedAppIds || ['dashboard', 'biometrics', 'skills', 'lab', 'social'];
+    const pinnedIds = profile?.appConfig?.pinnedAppIds || ['dashboard', 'northstar', 'frequencies', 'biometrics', 'skills', 'lab', 'social'];
     const pinned = pinnedIds
       .map(id => appsList.find(a => a.id === id) || defaultApps.find(a => a.id === id))
       .filter(Boolean);
@@ -571,7 +1016,7 @@ function LifeOSDashboard() {
     if (!appId) return;
     if (appId === 'apps' || appId === 'profile') return;
 
-    const currentPinned = profile?.appConfig?.pinnedAppIds || ['dashboard', 'biometrics', 'skills', 'lab', 'social'];
+    const currentPinned = profile?.appConfig?.pinnedAppIds || ['dashboard', 'northstar', 'frequencies', 'biometrics', 'skills', 'lab', 'social'];
     
     if (currentPinned.includes(appId) && !targetId) return;
 
@@ -600,7 +1045,7 @@ function LifeOSDashboard() {
   };
 
   const handleUnpinApp = (appId) => {
-    const currentPinned = profile?.appConfig?.pinnedAppIds || ['dashboard', 'biometrics', 'skills', 'lab', 'social'];
+    const currentPinned = profile?.appConfig?.pinnedAppIds || ['dashboard', 'northstar', 'frequencies', 'biometrics', 'skills', 'lab', 'social'];
     const newPinned = currentPinned.filter(id => id !== appId);
     saveProfile({
       appConfig: {
@@ -614,7 +1059,7 @@ function LifeOSDashboard() {
   };
 
   const handleReorderPinnedApps = (draggedId, targetId) => {
-    const currentPinned = profile?.appConfig?.pinnedAppIds || ['dashboard', 'biometrics', 'skills', 'lab', 'social'];
+    const currentPinned = profile?.appConfig?.pinnedAppIds || ['dashboard', 'northstar', 'frequencies', 'biometrics', 'skills', 'lab', 'social'];
     if (!currentPinned.includes(draggedId) || !currentPinned.includes(targetId)) return;
 
     const newPinned = [...currentPinned];
@@ -833,14 +1278,120 @@ function LifeOSDashboard() {
     }
 
     const checkout = searchParams.get('checkout');
+    const checkoutKind = searchParams.get('kind');
     if (checkout === 'success') {
-      setAgentMsg('Zahlung erfolgreich. Dein Abo wird nach Bestätigung durch Stripe aktiviert.');
+      setAgentMsg(
+        checkoutKind === 'products'
+          ? 'Zahlung erfolgreich. Vielen Dank für deinen Einkauf — deine Bestellung wird bearbeitet.'
+          : 'Zahlung erfolgreich. Dein Abo wird nach Bestätigung durch Stripe aktiviert.'
+      );
     } else if (checkout === 'cancel') {
-      setAgentMsg('Checkout abgebrochen. Kein Abo abgeschlossen.');
+      setAgentMsg(
+        checkoutKind === 'products'
+          ? 'Bezahlung abgebrochen. Dein Warenkorb ist weiterhin gespeichert.'
+          : 'Checkout abgebrochen. Kein Abo abgeschlossen.'
+      );
     }
   }, [searchParams]);
 
+  /* ─── Subscription checkout (used by the PricingCard selector) ─── */
+  const [tierCheckoutBusy, setTierCheckoutBusy] = useState(false);
+  // Inline status shown on the pricing UI itself. agentMsg only surfaces in the
+  // agent chat panel, which is not visible on the Store tab — so a checkout
+  // failure there would otherwise be silent. { type: 'error' | 'success' | 'info', text }
+  const [tierCheckoutMsg, setTierCheckoutMsg] = useState(null);
+  const handleTierCheckout = async (tierId) => {
+    const tier = TIERS.find(t => t.id === tierId);
+    if (!tier || authLoading || tierCheckoutBusy) return;
+    setTierCheckoutMsg(null);
+
+    // Free tier needs no payment — set it directly.
+    if (tier.price === 0) {
+      try {
+        await saveProfile({ subscriptionTier: tier.id });
+        setAgentMsg(`Abonnement auf ${tier.name} aktualisiert.`);
+        setTierCheckoutMsg({ type: 'success', text: `Abonnement auf ${tier.name} aktualisiert.` });
+      } catch (e) {
+        setAgentMsg('Fehler beim Speichern des System-Abos.');
+        setTierCheckoutMsg({ type: 'error', text: 'Fehler beim Speichern des System-Abos. Bitte erneut versuchen.' });
+      }
+      return;
+    }
+    if (!user) {
+      setAgentMsg('Bitte zuerst einloggen, um ein Abo abzuschließen.');
+      setTierCheckoutMsg({ type: 'error', text: 'Bitte zuerst einloggen, um ein Abo abzuschließen.' });
+      return;
+    }
+    setTierCheckoutBusy(true);
+    setAgentMsg(`Leite zur sicheren Stripe-Kasse für ${tier.name}…`);
+    setTierCheckoutMsg({ type: 'info', text: `Leite zur sicheren Stripe-Kasse für ${tier.name}…` });
+    try {
+      const idToken = await user.getIdToken();
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ tierId: tier.id })
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      setAgentMsg(`Checkout nicht verfügbar: ${data.error || 'unbekannter Fehler'}`);
+      setTierCheckoutMsg({ type: 'error', text: 'Checkout ist derzeit nicht verfügbar. Bitte versuche es später erneut oder kontaktiere den Support.' });
+    } catch (e) {
+      setAgentMsg(`Checkout-Fehler: ${e.message}`);
+      setTierCheckoutMsg({ type: 'error', text: 'Verbindung zur Kasse fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.' });
+    } finally {
+      setTierCheckoutBusy(false);
+    }
+  };
+
   /* ─── Ecosystem Shop Checkout & Stripe WebSocket client ─── */
+  const addToCart = (product) => {
+    setCart(prev => {
+      const found = prev.find(i => i.id === product.id);
+      if (found) return prev.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i);
+      return [...prev, { id: product.id, name: product.name, price: product.price, image: product.image, category: product.category, qty: 1 }];
+    });
+    setAgentMsg(`${product.name} in den Warenkorb gelegt.`);
+  };
+  const removeFromCart = (id) => setCart(prev => prev.filter(i => i.id !== id));
+  const setCartQty = (id, delta) => setCart(prev => prev
+    .map(i => i.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
+
+  // Real one-time checkout for the physical store products via Stripe.
+  // The server resolves prices from product ids, so we only send id + qty.
+  const [cartCheckoutBusy, setCartCheckoutBusy] = useState(false);
+  const [cartCheckoutMsg, setCartCheckoutMsg] = useState(null); // { type, text }
+  const handleCartCheckout = async () => {
+    if (cart.length === 0 || cartCheckoutBusy) return;
+    if (!user) {
+      setCartCheckoutMsg({ type: 'error', text: 'Bitte zuerst einloggen, um zu bestellen.' });
+      return;
+    }
+    setCartCheckoutBusy(true);
+    setCartCheckoutMsg({ type: 'info', text: 'Leite zur sicheren Stripe-Kasse…' });
+    try {
+      const idToken = await user.getIdToken();
+      const res = await fetch('/api/stripe/cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ items: cart.map(i => ({ id: i.id, qty: i.qty })) }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      setCartCheckoutMsg({ type: 'error', text: 'Kasse ist derzeit nicht verfügbar. Bitte versuche es später erneut.' });
+    } catch (e) {
+      setCartCheckoutMsg({ type: 'error', text: 'Verbindung zur Kasse fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.' });
+    } finally {
+      setCartCheckoutBusy(false);
+    }
+  };
+
   const handleOrderProduct = (product) => {
     const timeVal = new Date().getTime();
     const orderId = `PRN-OS-${Math.floor(100000 + (timeVal % 900000))}`;
@@ -876,8 +1427,6 @@ function LifeOSDashboard() {
     // Auto-log the purchase in the Finance Tracker (Manager → Finanzen),
     // so store orders show up as expenses without manual entry.
     try {
-      const managerConfig = profile?.managerConfig || {};
-      const financeConfig = managerConfig.finance || { transactions: [] };
       const categoryByBadge = {
         TEXTIL: 'Living', FOOTWEAR: 'Living', APPAREL: 'Living', 'BIO-HACK': 'Health/Bio',
         NOOTROPIC: 'Health/Bio', 'FOCUS-FUEL': 'Health/Bio', 'CORE-STACK': 'Health/Bio', DOPAMIN: 'Health/Bio',
@@ -892,15 +1441,40 @@ function LifeOSDashboard() {
         description: `${product.name} (Pronoia Store, ${orderId})`,
         source: 'store'
       };
-      saveProfile({
-        managerConfig: {
-          ...managerConfig,
+
+      if (user && db) {
+        const userRef = doc(db, 'users', user.uid);
+        getDoc(userRef).then(snap => {
+          const userData = snap.exists() ? snap.data() : {};
+          const tabs = userData.tabs || {};
+          const currentConfig = tabs.managerConfig || userData.profile?.managerConfig || {};
+          const financeConfig = currentConfig.finance || {};
+          const currentTx = financeConfig.transactions || [];
+          
+          const updatedConfig = {
+            ...currentConfig,
+            finance: {
+              ...financeConfig,
+              transactions: [newTx, ...currentTx]
+            }
+          };
+          setDoc(userRef, { tabs: { managerConfig: updatedConfig } }, { merge: true })
+            .catch(err => console.error("Store purchase log to Firestore failed:", err));
+        });
+      } else if (typeof window !== 'undefined') {
+        const raw = window.localStorage.getItem('pronoia_tab_managerConfig');
+        const currentConfig = raw ? JSON.parse(raw) : {};
+        const financeConfig = currentConfig.finance || {};
+        const currentTx = financeConfig.transactions || [];
+        const updatedConfig = {
+          ...currentConfig,
           finance: {
             ...financeConfig,
-            transactions: [newTx, ...(financeConfig.transactions || [])]
+            transactions: [newTx, ...currentTx]
           }
-        }
-      });
+        };
+        window.localStorage.setItem('pronoia_tab_managerConfig', JSON.stringify(updatedConfig));
+      }
     } catch (e) {
       console.warn('Store purchase finance auto-log failed:', e);
     }
@@ -912,10 +1486,24 @@ function LifeOSDashboard() {
   useEffect(() => {
     if (!profile?.customization) return;
     const { accent, mode } = profile.customization;
-    
-    // Set UI Mode
-    document.documentElement.setAttribute('data-ui-mode', mode || 'serious');
-    
+    const root = document.documentElement;
+
+    // Noir is a monochrome variant of the os baseline: it reuses all os
+    // styling (so DOM ui-mode stays "os") and only recolors the accent to the
+    // text color, which adapts to light/dark automatically.
+    const isNoir = mode === 'noir';
+    root.setAttribute('data-ui-mode', isNoir ? 'os' : (mode || 'os'));
+
+    if (isNoir) {
+      root.setAttribute('data-accent', 'noir');
+      root.style.setProperty('--theme-accent', 'var(--text)');
+      root.style.setProperty('--theme-accent-dark', 'var(--text2)');
+      root.style.setProperty('--theme-accent-dim', 'var(--bg3)');
+      root.style.setProperty('--theme-accent-glow', 'transparent');
+      return;
+    }
+    root.removeAttribute('data-accent');
+
     // Map accents
     const ACCENTS = {
       blue: { accent: '#1A6AFF', dark: '#0047AB', dim: 'rgba(26, 106, 255, 0.12)', glow: 'rgba(26, 106, 255, 0.18)' },
@@ -925,13 +1513,90 @@ function LifeOSDashboard() {
       red: { accent: '#FF4D4D', dark: '#B30000', dim: 'rgba(255, 77, 77, 0.12)', glow: 'rgba(255, 77, 77, 0.18)' },
       pink: { accent: '#FF33A8', dark: '#B30071', dim: 'rgba(255, 51, 168, 0.12)', glow: 'rgba(255, 51, 168, 0.18)' }
     };
-    
+
     const sel = ACCENTS[accent] || ACCENTS.blue;
-    document.documentElement.style.setProperty('--theme-accent', sel.accent);
-    document.documentElement.style.setProperty('--theme-accent-dark', sel.dark);
-    document.documentElement.style.setProperty('--theme-accent-dim', sel.dim);
-    document.documentElement.style.setProperty('--theme-accent-glow', sel.glow);
+    root.style.setProperty('--theme-accent', sel.accent);
+    root.style.setProperty('--theme-accent-dark', sel.dark);
+    root.style.setProperty('--theme-accent-dim', sel.dim);
+    root.style.setProperty('--theme-accent-glow', sel.glow);
   }, [profile?.customization]);
+
+  // NorthStar: sync the editable draft from the persisted future self until the
+  // user starts editing (handles async Firestore load without clobbering edits).
+  useEffect(() => {
+    if (!profile?.futureSelf || nsEditedRef.current) return;
+    const fs = profile.futureSelf;
+    setNsDraft({
+      identity: fs.identity || '',
+      visions: { y1: '', y3: '', y5: '', ...(fs.visions || {}) },
+      values: fs.values || [],
+      pillarTargets: { focus: 3, health: 3, skills: 3, social: 3, recovery: 3, ...(fs.pillarTargets || {}) },
+      archetypeName: fs.archetypeName || '',
+      shadowWork: { recognizedShadow: '', hiddenPower: '', integration: '', ...(fs.shadowWork || {}) }
+    });
+  }, [profile?.futureSelf]);
+
+  const saveFutureSelf = () => {
+    if (!nsDraft) return;
+    saveProfile({ futureSelf: nsDraft });
+    setNsReexplore(false);
+    setAgentMsg('NorthStar: Vision aktualisiert. Ich richte dein Protokoll daran aus.');
+  };
+
+  const callNorthStar = async (mode = 'mentor', userInput = '') => {
+    try {
+      const res = await fetch('/api/northstar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode,
+          userInput,
+          futureSelf: nsDraft || profile?.futureSelf || {},
+          context: {
+            goals: profile?.goals || '',
+            metrics: profile?.metrics || {},
+            todayBlocks: (blocks || []).slice(0, 6).map(b => b.title)
+          }
+        })
+      });
+      const data = await res.json();
+      return data.message || 'NorthStar ist momentan nicht erreichbar.';
+    } catch (e) {
+      return 'NorthStar ist momentan nicht erreichbar.';
+    }
+  };
+
+  const askNorthStar = async () => {
+    setNsBusy(true);
+    setNsMessage(await callNorthStar('mentor'));
+    setNsBusy(false);
+  };
+
+  const recalibrate = async () => {
+    if (!nsRecalInput.trim()) return;
+    setNsRecalBusy(true);
+    setNsRecalMsg(await callNorthStar('recalibrate', nsRecalInput.trim()));
+    setNsRecalBusy(false);
+  };
+
+  // Daily "thought from your future self" — fetched once per day, cached locally.
+  // Only once a vision actually exists (otherwise the nudge has nothing to say).
+  useEffect(() => {
+    if (!nsDraft || nsNudge) return;
+    const hasVision = (nsDraft.identity || '').trim() ||
+      Object.values(nsDraft.visions || {}).some(v => (v || '').trim());
+    if (!hasVision) return;
+    const today = new Date().toDateString();
+    try {
+      const cached = JSON.parse(localStorage.getItem('pronoia_ns_nudge') || 'null');
+      if (cached && cached.date === today && cached.message) { setNsNudge(cached.message); return; }
+    } catch (e) {}
+    callNorthStar('nudge').then(msg => {
+      setNsNudge(msg);
+      try { localStorage.setItem('pronoia_ns_nudge', JSON.stringify({ date: today, message: msg })); } catch (e) {}
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nsDraft, nsNudge]);
 
   /* ─── Effects ─── */
   useEffect(() => {
@@ -969,7 +1634,6 @@ function LifeOSDashboard() {
     
     lastOpenedBlockRef.current = activeBlock.title;
 
-    const managerConfig = profile?.managerConfig;
     if (managerConfig && managerConfig.autoOpenEnabled && managerConfig.mappings) {
       const titleLower = activeBlock.title.toLowerCase();
       // Find matching mappings (case-insensitive substring match)
@@ -984,6 +1648,22 @@ function LifeOSDashboard() {
           if (url) {
             if (!/^https?:\/\//i.test(url)) {
               url = 'https://' + url;
+            }
+            const blockReason = isUrlBlockedByMonkMode(url);
+            if (blockReason) {
+              setAgentMsg(`[MONK MODE BLOCK] Link blockiert: ${blockReason} (${url})`);
+              setManagerHistory(prev => [
+                {
+                  id: `hist_${Date.now()}_${Math.random()}`,
+                  time: new Date().toLocaleTimeString('de-DE'),
+                  blockTitle: activeBlock.title,
+                  url,
+                  success: false,
+                  reason: `Blockiert durch Monk Mode (${blockReason})`
+                },
+                ...prev
+              ].slice(0, 50));
+              return;
             }
             try {
               window.open(url, '_blank');
@@ -1004,7 +1684,7 @@ function LifeOSDashboard() {
         });
       }
     }
-  }, [blocks, blockIdx, profile?.managerConfig]);
+  }, [blocks, blockIdx, managerConfig]);
 
   useEffect(() => {
     if (profile && profile.hasCompletedTutorial === false && tutorialStep === 0) {
@@ -1321,6 +2001,21 @@ function LifeOSDashboard() {
     addCalendarBlock(t, time);
   };
 
+  const handleAddCalendarNote = () => {
+    const dateStr = formatDate(selectedDate);
+    const currentNote = calendar[dateStr]?.note || '';
+    const note = prompt('Notiz für diesen Tag hinzufügen:', currentNote);
+    if (note !== null) {
+      setCalendar(prev => ({
+        ...prev,
+        [dateStr]: {
+          ...prev[dateStr],
+          note
+        }
+      }));
+    }
+  };
+
   const handleEditCalendarBlock = (idx, currentTitle, currentTime) => {
     const newTitle = prompt('Titel anpassen:', currentTitle);
     const newTime = prompt('Startzeit anpassen (HH:MM):', currentTime);
@@ -1478,21 +2173,490 @@ function LifeOSDashboard() {
   /* ═══════════════════════════════════════════════════════
      MAIN RENDER
   ═══════════════════════════════════════════════════════ */
+  const renderLibraryTabContent = () => {
+    const BOOK_STATUS = {
+      unread: 'Ungelesen',
+      reading: 'Aktuell am Lesen',
+      completed: 'Gelesen'
+    };
+    
+    const allBookGenres = [...new Set(libraryBooks.map(b => b.genre || 'Allgemein'))];
+    
+    return (
+      <div className={styles.vtView}>
+        <div className={styles.vtGlow} aria-hidden="true" style={{ background: 'radial-gradient(circle, rgba(34,220,238,0.06) 0%, transparent 65%)' }} />
+
+        <header className={styles.vtHero}>
+          <div className={styles.vtEyebrow}>Library · Ingestion &amp; Wisdom Vault</div>
+          <h1 className={styles.vtTitle}>Deine persönliche<br />Bibliothek.</h1>
+          <p className={styles.vtLede}>Archiviere gelesene Werke, erfasse deine Erkenntnisse und verwalte deinen Lesefortschritt.</p>
+          <div className={styles.vtStats}>
+            <span><strong>{libraryBooks.length}</strong> Bücher</span>
+            <span><strong>{allBookGenres.length}</strong> Genres</span>
+          </div>
+        </header>
+
+        <div className={styles.vtGrid}>
+          <section className={styles.vtCard}>
+            <div className={styles.vtCardHead}>
+              <span className={styles.vtCardIndex}>+</span>
+              Buch hinzufügen
+            </div>
+            <div className={styles.vtCardBody}>
+              {libraryToast && <div className={styles.vtToast} style={{ background: 'rgba(34,220,238,0.15)', color: '#22D3EE', border: '1px solid rgba(34,220,238,0.3)' }}>{libraryToast}</div>}
+              
+              <label className={styles.vtLabel}>Buchtitel</label>
+              <input 
+                type="text" 
+                className={styles.vtInput} 
+                placeholder="z.B. Meditations..." 
+                value={libraryForm.title} 
+                onChange={e => setLibraryForm(f => ({ ...f, title: e.target.value }))} 
+              />
+              
+              <label className={styles.vtLabel}>Autor</label>
+              <input 
+                type="text" 
+                className={styles.vtInput} 
+                placeholder="z.B. Marcus Aurelius..." 
+                value={libraryForm.author} 
+                onChange={e => setLibraryForm(f => ({ ...f, author: e.target.value }))} 
+              />
+              
+              <label className={styles.vtLabel}>Genre / Tag</label>
+              <input 
+                type="text" 
+                className={styles.vtInput} 
+                placeholder="z.B. Philosophie, Psychologie..." 
+                value={libraryForm.genre} 
+                onChange={e => setLibraryForm(f => ({ ...f, genre: e.target.value }))} 
+              />
+
+              <label className={styles.vtLabel}>Status</label>
+              <div className={styles.vtTypeGrid} style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                {[
+                  { v: 'unread', label: 'Ungelesen' },
+                  { v: 'reading', label: 'Lesen' },
+                  { v: 'completed', label: 'Gelesen' }
+                ].map(s => (
+                  <button
+                    type="button"
+                    key={s.v}
+                    className={`${styles.vtTypeBtn} ${libraryForm.status === s.v ? styles.vtTypeBtnActive : ''}`}
+                    style={libraryForm.status === s.v ? { borderColor: '#22D3EE', color: '#22D3EE', background: 'rgba(34,220,238,0.06)' } : {}}
+                    onClick={() => setLibraryForm(f => ({ ...f, status: s.v, progress: s.v === 'completed' ? 100 : s.v === 'unread' ? 0 : f.progress }))}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+
+              {libraryForm.status === 'reading' && (
+                <>
+                  <label className={styles.vtLabel} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Lesefortschritt</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#22D3EE' }}>{libraryForm.progress}%</span>
+                  </label>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="100" 
+                    className={styles.vtInput}
+                    style={{ accentColor: '#22D3EE', cursor: 'pointer', height: '4px', padding: 0 }}
+                    value={libraryForm.progress} 
+                    onChange={e => setLibraryForm(f => ({ ...f, progress: Number(e.target.value) }))} 
+                  />
+                </>
+              )}
+
+              <label className={styles.vtLabel}>Bewertung (1-5★)</label>
+              <div className={styles.vtTypeGrid} style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+                {[1, 2, 3, 4, 5].map(stars => (
+                  <button
+                    type="button"
+                    key={stars}
+                    className={`${styles.vtTypeBtn} ${Number(libraryForm.rating) === stars ? styles.vtTypeBtnActive : ''}`}
+                    style={Number(libraryForm.rating) === stars ? { borderColor: '#22D3EE', color: '#22D3EE', background: 'rgba(34,220,238,0.06)' } : {}}
+                    onClick={() => setLibraryForm(f => ({ ...f, rating: stars }))}
+                  >
+                    {stars}★
+                  </button>
+                ))}
+              </div>
+
+              <label className={styles.vtLabel}>Wichtige Erkenntnis / Zitat</label>
+              <input 
+                type="text" 
+                className={styles.vtInput} 
+                placeholder="Lieblingszitat aus dem Buch..." 
+                value={libraryForm.quote} 
+                onChange={e => setLibraryForm(f => ({ ...f, quote: e.target.value }))} 
+              />
+
+              <label className={styles.vtLabel}>Persönliche Notizen &amp; Erkenntnisse</label>
+              <textarea 
+                className={styles.vtInput} 
+                rows={4} 
+                style={{ resize: 'none' }} 
+                placeholder="Was hast du aus diesem Buch gelernt?..." 
+                value={libraryForm.notes} 
+                onChange={e => setLibraryForm(f => ({ ...f, notes: e.target.value }))} 
+              />
+              
+              <button 
+                className={styles.vtIngestBtn} 
+                style={{ background: 'linear-gradient(135deg, #22D3EE 0%, #0891B2 100%)', color: '#000', fontWeight: 'bold' }}
+                onClick={handleSaveBook} 
+                disabled={librarySaving}
+              >
+                {librarySaving ? 'Archiviere...' : 'Buch archivieren →'}
+              </button>
+            </div>
+          </section>
+
+          <aside className={styles.vtCard}>
+            <div className={styles.vtCardHead}>
+              <span className={styles.vtCardIndex}>◫</span>
+              Bücherregal
+            </div>
+            <div className={styles.vtCardBody}>
+              <div className={styles.vtItemScroll} style={{ maxHeight: '680px' }}>
+                {libraryLoading ? (
+                  <p className={styles.vtEmpty}>Lade Bibliothek…</p>
+                ) : libraryBooks.length === 0 ? (
+                  <p className={styles.vtEmpty}>Noch keine Bücher archiviert.</p>
+                ) : (
+                  libraryBooks.map(book => {
+                    const status = book.status || 'unread';
+                    const progress = status === 'completed' ? 100 : (book.progress || 0);
+                    const statusMeta = {
+                      reading: { label: 'Aktuell am Lesen', color: '#22D3EE' },
+                      completed: { label: 'Abgeschlossen', color: '#34d399' },
+                      unread: { label: 'Ungelesen', color: 'rgba(255,255,255,0.4)' }
+                    }[status];
+                    return (
+                      <div
+                        key={book.id}
+                        className={styles.vtItem}
+                        style={{
+                          display: 'flex',
+                          gap: '1.25rem',
+                          padding: '1.1rem',
+                          borderLeft: 'none',
+                          opacity: status === 'unread' ? 0.7 : 1
+                        }}
+                      >
+                        {/* Cover spine */}
+                        <div style={{ position: 'relative', flexShrink: 0, width: '84px', height: '128px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.35)', overflow: 'hidden', boxShadow: '0 8px 20px rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.06), transparent)' }} />
+                          <span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', transform: 'rotate(-90deg)', whiteSpace: 'nowrap' }}>
+                            {book.author}
+                          </span>
+                        </div>
+
+                        {/* Content */}
+                        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+                                <span className={styles.vtItemType} style={{ color: '#22D3EE', background: 'rgba(34,220,238,0.1)' }}>{book.genre || 'Allgemein'}</span>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontFamily: 'var(--font-mono)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: statusMeta.color }}>
+                                  {status === 'reading' && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22D3EE', boxShadow: '0 0 8px #22D3EE' }} className={styles.pulseDot} />}
+                                  {statusMeta.label}
+                                </span>
+                              </div>
+                              <h4 className={styles.vtItemTitle} style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', margin: 0 }}>
+                                {book.title}
+                              </h4>
+                              <p style={{ margin: '0.15rem 0 0', fontSize: '0.78rem', opacity: 0.55 }}>{book.author}</p>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                              {book.rating ? (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.15rem', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: '#22D3EE' }}>
+                                  {book.rating}/5 <span style={{ color: '#F59E0B' }}>★</span>
+                                </span>
+                              ) : (
+                                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'rgba(255,255,255,0.25)' }}>–/5 ★</span>
+                              )}
+                              <button className={styles.vtItemDelete} onClick={() => handleDeleteBook(book.id)} aria-label="Löschen">✕</button>
+                            </div>
+                          </div>
+
+                          {(book.notes || book.quote) ? (
+                            book.quote ? (
+                              <blockquote style={{ margin: '0.6rem 0 0', paddingLeft: '0.6rem', borderLeft: '2px solid rgba(34,220,238,0.3)', fontStyle: 'italic', fontSize: '0.76rem', color: 'var(--text2)', lineHeight: 1.4 }}>
+                                &ldquo;{book.quote}&rdquo;
+                              </blockquote>
+                            ) : (
+                              <p className={styles.vtItemContent} style={{ fontSize: '0.78rem', marginTop: '0.6rem', lineHeight: 1.45, opacity: 0.75 }}>{book.notes}</p>
+                            )
+                          ) : (
+                            <p style={{ fontSize: '0.76rem', marginTop: '0.6rem', fontStyle: 'italic', opacity: 0.35 }}>Noch keine Notizen erfasst.</p>
+                          )}
+
+                          {/* Progress */}
+                          <div style={{ marginTop: 'auto', paddingTop: '0.85rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.4)' }}>Fortschritt</span>
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: status === 'completed' ? 'rgba(255,255,255,0.5)' : '#22D3EE' }}>{progress}%</span>
+                            </div>
+                            <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '999px', height: '3px', width: '100%', overflow: 'hidden' }}>
+                              <div style={{ background: status === 'completed' ? 'rgba(255,255,255,0.4)' : '#22D3EE', height: '100%', width: `${progress}%`, boxShadow: status === 'completed' ? 'none' : '0 0 10px rgba(34,211,238,0.5)' }} />
+                            </div>
+                            {status === 'reading' && (
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={book.progress || 0}
+                                style={{ accentColor: '#22D3EE', height: '10px', padding: 0, width: '100%', marginTop: '0.4rem', cursor: 'pointer' }}
+                                onChange={e => handleUpdateBookProgress(book.id, e.target.value)}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    );
+  };
+
+  const renderBlueprintsView = () => {
+    const ACCENT = '#1A6AFF';
+    const bpCats = ['all', ...Array.from(new Set(blueprints.map(b => b.category).filter(Boolean)))];
+    const q = blueprintSearch.trim().toLowerCase();
+    const prices = blueprints.map(b => b.price || 0);
+    const minPrice = prices.length ? Math.min(...prices) : 0;
+    const maxPrice = prices.length ? Math.max(...prices) : 0;
+    const priceCap = bpPriceCap == null ? maxPrice : bpPriceCap;
+    const visibleBlueprints = blueprints.filter(bp => {
+      const catOk = blueprintCategory === 'all' || bp.category === blueprintCategory;
+      const searchOk = !q || (bp.name + ' ' + (bp.creator || '') + ' ' + (bp.description || '')).toLowerCase().includes(q);
+      const priceOk = (bp.price || 0) <= priceCap;
+      return catOk && searchOk && priceOk;
+    });
+    const renderStars = (rating = 5) => {
+      const full = Math.floor(rating);
+      const half = rating - full >= 0.5;
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '1px', color: '#F59E0B' }}>
+          {[0, 1, 2, 3, 4].map(i => (
+            <span key={i} className="material-symbols-outlined" style={{ fontSize: '0.95rem', fontVariationSettings: i < full ? "'FILL' 1" : (i === full && half ? "'FILL' 1" : undefined), opacity: i < full || (i === full && half) ? 1 : 0.3 }}>
+              {i === full && half ? 'star_half' : 'star'}
+            </span>
+          ))}
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text3)', marginLeft: '0.35rem' }}>{(rating || 5).toFixed(1)}</span>
+        </span>
+      );
+    };
+
+    const toast = bpInstallToast ? (
+      <div className={`${styles.bpToast} ${bpInstallToast.type === 'err' ? styles.bpToastErr : ''}`}>
+        <span className="material-symbols-outlined">{bpInstallToast.type === 'err' ? 'error' : 'check_circle'}</span>
+        {bpInstallToast.msg}
+      </div>
+    ) : null;
+
+    // ─── Blueprint detail page ───
+    if (selectedBlueprint) {
+      const bp = selectedBlueprint;
+      const isInstalled = installedBlueprints.some(i => i.id === bp.id);
+      return (
+        <div className={styles.ecoDetail} style={{ marginTop: '2rem' }}>
+          {toast}
+          <button className={styles.ecoBack} onClick={() => setSelectedBlueprint(null)}>← Zurück zu den Protokollen</button>
+          <div className={styles.ecoDetailTop}>
+            <div className={styles.ecoDetailImg}>
+              <img src={bp.image} alt={bp.name} onError={(e) => { e.currentTarget.src = blueprintMock(bp.category); }} />
+            </div>
+            <div className={styles.ecoDetailInfo}>
+              <div className={styles.ecoDetailCat}>{bp.category} · {bp.difficulty}{bp.duration ? ` · ${bp.duration}` : ''}</div>
+              <h2 className={styles.ecoDetailName}>{bp.name}</h2>
+              <p style={{ fontSize: '0.8rem', opacity: 0.6, margin: '0.25rem 0 0.6rem' }}>von {bp.creator}</p>
+              <div style={{ marginBottom: '1rem' }}>{renderStars(bp.rating)}</div>
+              <div className={styles.ecoDetailPrice}>{bp.price > 0 ? `${bp.price} €` : 'FREE'} <span>einmalig</span></div>
+              <p className={styles.ecoDetailDesc}>{bp.overview || bp.description}</p>
+              <button
+                className={styles.ecoAddBtnLg}
+                style={{ background: isInstalled ? 'rgba(26,106,255,0.1)' : ACCENT, color: isInstalled ? ACCENT : '#fff', border: isInstalled ? `1px solid ${ACCENT}` : 'none' }}
+                onClick={() => handleInstallBlueprint(bp)}
+                disabled={isInstalled}
+              >
+                {isInstalled ? '✓ Installiert' : 'Erwerben & installieren'}
+              </button>
+            </div>
+          </div>
+          <div className={styles.ecoDetailCards}>
+            <div className={styles.ecoInfoCard}>
+              <div className={styles.ecoInfoLabel}>Vorteile</div>
+              <ul className={styles.ecoInfoList}>
+                {(bp.benefits || []).map((b, i) => <li key={i}>{b}</li>)}
+              </ul>
+            </div>
+            <div className={styles.ecoInfoCard}>
+              <div className={styles.ecoInfoLabel}>Das Protokoll</div>
+              <div className={styles.ecoIngredients}>
+                {(bp.protocol || []).map(([phase, detail], i) => (
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', padding: '0.5rem 0', borderBottom: i < (bp.protocol.length - 1) ? '1px solid var(--border-s)' : 'none' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: ACCENT }}>{phase}</span>
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text2)', lineHeight: 1.5 }}>{detail}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className={styles.ecoInfoCard}>
+              <div className={styles.ecoInfoLabel}>Enthalten</div>
+              <ul className={styles.ecoInfoList}>
+                {(bp.includes || []).map((it, i) => <li key={i}>{it}</li>)}
+              </ul>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ marginTop: '2rem', display: 'flex', gap: '2.5rem', alignItems: 'flex-start' }} className={styles.bpLayout}>
+        {toast}
+        {/* Left filter sidebar */}
+        <aside className={styles.bpSidebar}>
+          <div style={{ position: 'relative' }}>
+            <span className="material-symbols-outlined" style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)', fontSize: '1.1rem' }}>search</span>
+            <input
+              type="text"
+              value={blueprintSearch}
+              onChange={e => setBlueprintSearch(e.target.value)}
+              placeholder="Protokolle durchsuchen..."
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', padding: '0.75rem 1rem 0.75rem 2.75rem', fontSize: '0.85rem', color: 'var(--text)', outline: 'none' }}
+            />
+          </div>
+
+          <div>
+            <h3 style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.2em', color: 'var(--text3)', marginBottom: '1rem' }}>Kategorien</h3>
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {bpCats.map(c => {
+                const active = blueprintCategory === c;
+                return (
+                  <li key={c}>
+                    <button
+                      onClick={() => setBlueprintCategory(c)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: active ? ACCENT : 'var(--text2)', transition: 'color 0.2s' }}
+                    >
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: active ? ACCENT : 'rgba(255,255,255,0.2)', boxShadow: active ? '0 0 8px rgba(26,106,255,0.8)' : 'none' }} />
+                      {c === 'all' ? 'Alle' : c.charAt(0) + c.slice(1).toLowerCase()}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1rem' }}>
+              <h3 style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.2em', color: 'var(--text3)' }}>Investment Level</h3>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: ACCENT }}>≤ {priceCap} €</span>
+            </div>
+            <input
+              type="range"
+              min={minPrice}
+              max={maxPrice}
+              step={10}
+              value={priceCap}
+              onChange={(e) => setBpPriceCap(Number(e.target.value))}
+              className={styles.bpSlider}
+              aria-label="Maximaler Preis"
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text3)', marginTop: '0.5rem' }}>
+              <span>{minPrice} €</span>
+              <span>{maxPrice} €</span>
+            </div>
+            {bpPriceCap != null && bpPriceCap < maxPrice && (
+              <button
+                onClick={() => setBpPriceCap(null)}
+                style={{ marginTop: '0.75rem', background: 'none', border: 'none', color: 'var(--text3)', fontFamily: 'var(--font-mono)', fontSize: '0.62rem', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}
+              >
+                Filter zurücksetzen
+              </button>
+            )}
+          </div>
+        </aside>
+
+        {/* Main grid */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {blueprintsLoading ? (
+            <p className={styles.ecoEmpty}>Lade Blueprints…</p>
+          ) : visibleBlueprints.length === 0 ? (
+            <p className={styles.ecoEmpty}>Keine Protokolle gefunden.</p>
+          ) : (
+            <div className={styles.ecoGrid}>
+              {visibleBlueprints.map((bp, idx) => {
+                const isInstalled = installedBlueprints.some(i => i.id === bp.id);
+                const featured = idx === 0;
+                return (
+                  <article
+                    key={bp.id}
+                    className={styles.ecoCard}
+                    style={{ border: isInstalled ? `1px solid ${ACCENT}` : '1px solid var(--border)', cursor: 'pointer' }}
+                    onClick={() => setSelectedBlueprint(bp)}
+                  >
+                    <div className={styles.ecoCardImg} style={{ position: 'relative' }}>
+                      <img src={bp.image} alt={bp.name} style={{ height: '180px', objectFit: 'cover', width: '100%' }} onError={(e) => { e.currentTarget.src = blueprintMock(bp.category); }} />
+                      <span className={styles.ecoCardCat} style={{ background: featured ? ACCENT : 'rgba(255,255,255,0.1)' }}>
+                        {featured ? 'Bestseller' : bp.category}
+                      </span>
+                    </div>
+                    <div className={styles.ecoCardBody}>
+                      <div style={{ marginBottom: '0.5rem' }}>{renderStars(bp.rating)}</div>
+                      <div className={styles.ecoCardTop}>
+                        <h3 className={styles.ecoCardName}>{bp.name}</h3>
+                      </div>
+                      <p style={{ fontSize: '0.72rem', opacity: 0.55, margin: '0 0 0.5rem' }}>von {bp.creator}</p>
+                      <p className={styles.ecoCardDesc} style={{ minHeight: '3.2rem' }}>{bp.description}</p>
+                      <div className={styles.ecoCardFoot} style={{ alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-s)', paddingTop: '1rem' }}>
+                        <span className={styles.ecoCardPrice} style={{ fontFamily: 'var(--font-mono)' }}>
+                          {bp.price > 0 ? `${bp.price} €` : 'FREE'}
+                        </span>
+                        <button
+                          className={styles.ecoAddBtn}
+                          style={{ background: isInstalled ? 'rgba(26,106,255,0.1)' : ACCENT, color: isInstalled ? ACCENT : '#fff', border: isInstalled ? `1px solid ${ACCENT}` : 'none' }}
+                          onClick={(e) => { e.stopPropagation(); handleInstallBlueprint(bp); }}
+                          disabled={isInstalled}
+                        >
+                          {isInstalled ? '✓ Installiert' : 'Erwerben'}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'apps':
         return (
           <div className={styles.launcherShell}>
             <div className={styles.launcherHeader}>
-              <div className={styles.launcherMeta}>SYSTEM APPS // LAUNCHER NODE</div>
+              <div className={styles.launcherMeta}>Module</div>
               <h2 className={styles.launcherTitle}>Willkommen im Pronoia Life OS</h2>
               <p className={styles.launcherSub}>
-                Wähle ein Modul, um es als Anwendung in Life OS zu laden. Du kannst App-Icons und Namen über das Zahnrad-Symbol bearbeiten.
+                Wähle ein Modul, um es zu öffnen. Ziehe es in die Seitenleiste, um es anzupinnen — Icons und Namen lassen sich über das Zahnrad bearbeiten.
               </p>
             </div>
 
             <div className={styles.appsGrid}>
-              {appsList.map(app => {
+              {appsList.map((app, idx) => {
                 const isEditing = editingAppId === app.id;
                 return (
                   <div
@@ -1509,6 +2673,7 @@ function LifeOSDashboard() {
                       }
                     }}
                   >
+                    <span className={styles.appCardIndex}>{String(idx + 1).padStart(2, '0')}</span>
                     {/* App icon or custom image */}
                     <div className={styles.appCardIconWrapper}>
                       {app.image ? (
@@ -1570,6 +2735,7 @@ function LifeOSDashboard() {
                       <div className={styles.appCardInfo}>
                         <div className={styles.appCardName}>{app.name}</div>
                         <div className={styles.appCardDesc}>{app.desc}</div>
+                        <div className={styles.appCardOpen}>Öffnen<span aria-hidden="true"> →</span></div>
                       </div>
                     )}
                   </div>
@@ -1586,521 +2752,100 @@ function LifeOSDashboard() {
         );
       case 'social':
         return <SocialHub setActiveTab={setActiveTab} stack={stack} />;
+      case 'tribe':
+        return <TribeHub />;
       case 'lab':
         return <PronoiaLab setActiveTab={setActiveTab} />;
+      case 'games':
+        return <ChessLab setActiveTab={setActiveTab} />;
+      case 'monk-mode':
+        return <MonkMode setActiveTab={setActiveTab} />;
+      case 'gym':
+        return <GymTab setActiveTab={setActiveTab} />;
+      case 'behavior':
+        return <BehaviorTab setActiveTab={setActiveTab} />;
       case 'dashboard':
         return (
-          <div className={styles.tabContentGrid}>
-            <div className={styles.tabContentMainCol}>
-              {/* Block label under status bar */}
-              <div className={styles.blockLabel}>
-                <span className={styles.mainHeaderBadge}>
-                  {circadianMode && currentBlock.calculatedStartMin !== undefined && currentBlock.calculatedEndMin !== undefined ? (
-                    `${formatMinToTime(currentBlock.calculatedStartMin)} – ${formatMinToTime(currentBlock.calculatedEndMin)} · ${currentBlock.type}`
-                  ) : (
-                    currentBlock.type
-                  )}
-                </span>
-                <h1 className={styles.mainHeaderTitle}>{currentBlock.title}</h1>
-              </div>
-
-              {/* CHRONOMETER */}
-              <div className={styles.chronoSection}>
-                <div className={styles.chronoControlLayout} style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', justifyContent: 'center', width: '100%', touchAction: 'none' }}>
-                  <button 
-                    className={styles.chronoArrowBtn} 
-                    onClick={prevBlock}
-                    title="Vorheriger Block"
-                    style={{
-                      background: 'none',
-                      border: '1px solid var(--border-s)',
-                      borderRadius: '50%',
-                      color: 'var(--text2)',
-                      width: '40px',
-                      height: '40px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      fontSize: '1.2rem',
-                      transition: 'all 0.3s ease',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--cobalt-bright)'; e.currentTarget.style.color = 'var(--text)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-s)'; e.currentTarget.style.color = 'var(--text2)'; }}
-                  >
-                    ←
-                  </button>
-
-                  <div 
-                    className={styles.chronoWrapper}
-                    onMouseDown={(e) => handleDragStart(e.clientX, e)}
-                    onTouchStart={(e) => handleDragStart(e.touches[0].clientX)}
-                    onTouchMove={(e) => handleDragMove(e.touches[0].clientX)}
-                    onTouchEnd={handleDragEnd}
-                    style={{
-                      cursor: 'grab',
-                      userSelect: 'none',
-                      transform: `translateX(${dragStartX !== null ? (dragCurrentX - dragStartX) * 0.35 : 0}px)`,
-                      transition: dragStartX !== null ? 'none' : 'transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)'
-                    }}
-                  >
-                    <svg width="240" height="240" className={styles.chronoSvg}>
-                      <defs>
-                        <linearGradient id="progGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="var(--theme-accent, #1A6AFF)" />
-                          <stop offset="100%" stopColor="var(--tan, #d5b893)" />
-                        </linearGradient>
-                      </defs>
-                      <circle cx="120" cy="120" r="115" className={styles.chronoOuter} />
-                      <circle cx="120" cy="120" r={radius} className={styles.chronoTrack} />
-                      <circle
-                        cx="120" cy="120" r={radius}
-                        className={styles.chronoProgress}
-                        strokeDasharray={circumference}
-                        strokeDashoffset={strokeDashoffset}
-                      />
-                    </svg>
-                    <div className={styles.chronoCenter}>
-                      {showTimeEdit ? (
-                        <form 
-                          onSubmit={handleTimeEditSubmit} 
-                          onClick={e => e.stopPropagation()} 
-                          onMouseDown={e => e.stopPropagation()} 
-                          onTouchStart={e => e.stopPropagation()} 
-                          style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center', alignItems: 'center' }}
-                        >
-                          <input
-                            type="number"
-                            min="1"
-                            max="480"
-                            className={styles.chronoTimeInput}
-                            value={editTimeMinutes}
-                            onChange={e => setEditTimeMinutes(e.target.value)}
-                            autoFocus
-                            style={{
-                              width: '70px',
-                              background: 'var(--bg3)',
-                              border: '1px solid var(--border-s)',
-                              color: 'var(--text)',
-                              fontSize: '1.4rem',
-                              textAlign: 'center',
-                              borderRadius: '6px',
-                              outline: 'none'
-                            }}
-                          />
-                          <button type="submit" className="btn btn-primary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>✓</button>
-                        </form>
-                      ) : (
-                        <div 
-                          className={styles.chronoTime}
-                          onClick={() => { setEditTimeMinutes(Math.round(timeLeft / 60).toString()); setShowTimeEdit(true); }}
-                          title="Dauer manuell anpassen"
-                          style={{ cursor: 'pointer', transition: 'color 0.2s' }}
-                          onMouseEnter={e => e.currentTarget.style.color = 'var(--cobalt-bright)'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text)'}
-                        >
-                          {formatTime(timeLeft)}
-                        </div>
-                      )}
-                      <div className={styles.chronoStatus}>
-                        {circadianMode ? (manualPeekIdx !== null ? 'PEEK (TEMP)' : 'ZIRKADIAN') : isRunning ? 'AKTIV' : 'PAUSIERT'}
-                      </div>
-                      {circadianMode && manualPeekIdx !== null && (
-                        <button
-                          style={{
-                            background: 'rgba(26, 106, 255, 0.15)',
-                            color: 'var(--cobalt-bright)',
-                            border: '1px solid var(--cobalt-bright)',
-                            borderRadius: '12px',
-                            padding: '2px 8px',
-                            fontSize: '0.65rem',
-                            marginTop: '4px',
-                            cursor: 'pointer',
-                            fontFamily: 'var(--font-mono)',
-                            letterSpacing: '0.05em'
-                          }}
-                          onClick={() => setManualPeekIdx(null)}
-                        >
-                          ↩ LIVE BLOCK
-                        </button>
-                      )}
-                      {!circadianMode && (
-                        <button
-                          className={`${styles.chronoBtn} ${isRunning ? styles.chronoBtnPause : styles.chronoBtnStart}`}
-                          onClick={toggleTimer}
-                        >
-                          {isRunning ? 'PAUSE' : 'START'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <button 
-                    className={styles.chronoArrowBtn} 
-                    onClick={skipBlock}
-                    title="Nächster Block"
-                    style={{
-                      background: 'none',
-                      border: '1px solid var(--border-s)',
-                      borderRadius: '50%',
-                      color: 'var(--text2)',
-                      width: '40px',
-                      height: '40px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      fontSize: '1.2rem',
-                      transition: 'all 0.3s ease',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--cobalt-bright)'; e.currentTarget.style.color = 'var(--text)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-s)'; e.currentTarget.style.color = 'var(--text2)'; }}
-                  >
-                    →
-                  </button>
-                </div>
-
-                {/* Zirkadian Mode Toggle Control */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem', marginBottom: '0.5rem' }}>
-                  <button
-                    onClick={() => setCircadianMode(!circadianMode)}
-                    style={{
-                      background: circadianMode ? 'rgba(26, 106, 255, 0.08)' : 'none',
-                      border: '1px solid',
-                      borderColor: circadianMode ? 'var(--cobalt-bright)' : 'var(--border-s)',
-                      borderRadius: '20px',
-                      color: circadianMode ? 'var(--cobalt-bright)' : 'var(--text3)',
-                      padding: '0.4rem 1rem',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.7rem',
-                      letterSpacing: '0.05em',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      transition: 'all 0.3s ease',
-                      boxShadow: circadianMode ? '0 0 12px rgba(26,106,255,0.15)' : 'none'
-                    }}
-                  >
-                    <span style={{ 
-                      width: '6px', 
-                      height: '6px', 
-                      borderRadius: '50%', 
-                      background: circadianMode ? 'var(--cobalt-bright)' : 'var(--text3)',
-                      display: 'inline-block'
-                    }} />
-                    ZIRKADIANER SYNC: {circadianMode ? 'AKTIV (ECHTZEIT)' : 'MANUELL'}
-                  </button>
-                </div>
-
-                {/* Progress markers */}
-                <div className={styles.chronoMeta}>
-                  <div className={styles.chronoMetaItem}>
-                    <span className={styles.chronoMetaLabel}>BLOCK</span>
-                    <span className={styles.chronoMetaValue}>{blockIdx + 1} / {blocks.length || 1}</span>
-                  </div>
-                  <div className={styles.chronoMetaItem}>
-                    <span className={styles.chronoMetaLabel}>PROTOKOLL</span>
-                    <span className={styles.chronoMetaValue}>{currentBlock.pillar?.toUpperCase() || 'FOCUS'}</span>
-                  </div>
-                  <div className={styles.chronoMetaItem}>
-                    <span className={styles.chronoMetaLabel}>HRV</span>
-                    <span className={styles.chronoMetaValue}>{profile?.metrics?.hrv || 72}ms</span>
-                  </div>
-                  <div className={styles.chronoMetaItem}>
-                    <span className={styles.chronoMetaLabel}>SCHLAF</span>
-                    <span className={styles.chronoMetaValue}>{profile?.metrics?.sleep || 84}%</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Live Telemetry Card */}
-              {(!profile?.customization || profile.customization.layout?.telemetry !== false) && (
-                <div className={styles.insightCard} style={{ marginTop: '0', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'stretch' }}>
-                  <span className={styles.insightLabel}>BIO-KOGNITIVE TELEMETRIE</span>
-                  <TelemetryVisualizer timeLeft={timeLeft} totalTime={totalTime} pillar={currentBlock.pillar} />
-                </div>
-              )}
-
-              {/* CURRENT BLOCK INSIGHT */}
-              {(!profile?.customization || profile.customization.layout?.directives !== false) && (
-                <div className={styles.insightCard}>
-                  <div className={styles.insightLeft}>
-                    <span className={styles.insightLabel}>SYSTEM-DIREKTIVE</span>
-                    <p className={styles.insightText}>{currentBlock.rec || currentBlock.insight || 'Starte das Protokoll, um Empfehlungen zu erhalten.'}</p>
-                  </div>
-                  <div className={styles.insightRight}>
-                    <div className={styles.neuroStat}>
-                      <span className={styles.neuroStatVal}>{ltpPotential}%</span>
-                      <span className={styles.neuroStatLabel}>LTP</span>
-                    </div>
-                    <div className={styles.neuroStat}>
-                      <span className={styles.neuroStatVal}>{plasticity}%</span>
-                      <span className={styles.neuroStatLabel}>Plastizität</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* FRICTION LOGGER */}
-              {(!profile?.customization || profile.customization.layout?.friction !== false) && (
-                <div className={styles.frictionRow}>
-                  <span className={styles.frictionLabel}>Fokus-Status</span>
-                  <div className={styles.frictionBtns}>
-                    <button className={`${styles.frictionBtn} ${styles.fbOk}`} onClick={() => logFriction('ok')}>🟢 Stabil</button>
-                    <button className={`${styles.frictionBtn} ${styles.fbWarn}`} onClick={() => logFriction('warn')}>🟡 Ablenkung</button>
-                    <button className={`${styles.frictionBtn} ${styles.fbMiss}`} onClick={() => logFriction('miss')}>🔴 Blockade</button>
-                  </div>
-                </div>
-              )}
-
-              {/* AI COMMAND CHAT */}
-              <div className={styles.chatBox}>
-                <div className={styles.chatMessages} ref={chatEndRef}>
-                  {messages.map((msg, i) => (
-                    <div key={i} className={`${styles.chatMsg} ${msg.role === 'agent' ? styles.chatMsgAgent : styles.chatMsgUser}`}>
-                      {msg.text}
-                    </div>
-                  ))}
-                  {isTyping && <div className={`${styles.chatMsg} ${styles.chatMsgAgent} ${styles.chatMsgTyping}`}>System analysiert…</div>}
-                </div>
-                <form className={styles.chatForm} onSubmit={handleSendChat}>
-                  <input
-                    type="text"
-                    className={styles.chatInput}
-                    placeholder="Systembefehl… (z.B. 'starte block 2', 'ersetze durch Meditation 15')"
-                    value={chatInput}
-                    onChange={e => setChatInput(e.target.value)}
-                    disabled={isTyping}
-                  />
-                  <button type="submit" className={styles.chatSend} disabled={isTyping}>SEND</button>
-                </form>
-              </div>
-            </div>
-
-            <div className={styles.tabContentSideCol}>
-              {/* Ablauf-Queue panel */}
-              <div className={styles.panelHeader}>
-                <h3 className={styles.panelTitle}>⏳ Ablauf-Queue</h3>
-              </div>
-              <div className={styles.panelBody}>
-                {pendingQueueOverride && (
-                  <div className={styles.alertCard} style={{ borderColor: 'var(--amber)', background: 'rgba(245, 166, 35, 0.05)', marginBottom: '1rem' }}>
-                    <strong>⚠️ Kalender-Blöcke vorhanden</strong>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.25rem 0' }}>Für heute sind bereits Kalender-Blöcke geplant. Möchtest du sie wirklich mit dem Protokoll &quot;{pendingQueueOverride}&quot; überschreiben?</p>
-                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                      <button className={styles.alertBtn} onClick={confirmQueueOverride} style={{ background: 'var(--cobalt-bright)', color: 'white', padding: '0.4rem 0.8rem', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', border: 'none' }}>Ja</button>
-                      <button className={styles.alertBtn} onClick={() => setPendingQueueOverride(null)} style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-s)', color: 'var(--text2)', padding: '0.4rem 0.8rem', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer' }}>Nein</button>
-                    </div>
-                  </div>
-                )}
-
-                {hasTodayCalBlocks && (
-                  <div style={{ marginBottom: '1rem' }}>
-                    <button 
-                      className={styles.alertBtn} 
-                      onClick={restoreCalendarBlocks} 
-                      style={{ 
-                        width: '100%', 
-                        background: 'rgba(0, 196, 140, 0.1)', 
-                        borderColor: 'var(--green)',
-                        color: 'var(--green)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.5rem',
-                        padding: '0.6rem',
-                        fontSize: '0.75rem',
-                        fontWeight: 'bold',
-                        letterSpacing: '0.05em',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        border: '1px solid var(--green)'
-                      }}
-                    >
-                      📅 HEUTIGEN KALENDER WIEDERHERSTELLEN
-                    </button>
-                  </div>
-                )}
-
-                {/* Protocol presets */}
-                <div className={styles.panelGroup}>
-                  <div className={styles.panelGroupLabel}>Protokoll laden</div>
-                  <div className={styles.presetGrid}>
-                    {[
-                      { id: 'focus_optimization', icon: '🧠', label: 'Focus Opt.' },
-                      { id: 'high_performance',   icon: '⚡', label: 'High Perf.' },
-                      { id: 'metabolic_rest',      icon: '💤', label: 'Metabolic' },
-                      { id: 'emergency_recovery',  icon: '🛡️', label: 'Recovery' },
-                      { id: 'physical_training',   icon: '🏋️', label: 'Physical' },
-                    ].map(p => (
-                      <button key={p.id} className={styles.presetBtn} onClick={() => loadProtocolQueue(p.id)}>
-                        {p.icon} {p.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* HRV nudge */}
-                {profile?.metrics?.hrv < 60 && (
-                  <div className={styles.alertCard}>
-                    <strong>⚡ Workflow-Optimierung</strong>
-                    <p>HRV: {profile.metrics.hrv}ms — Recovery-Workflow empfohlen.</p>
-                    <button className={styles.alertBtn} onClick={() => loadProtocolQueue('emergency_recovery')}>
-                      RECOVERY LADEN
-                    </button>
-                  </div>
-                )}
-
-                {/* Block list */}
-                <div className={styles.panelGroup}>
-                  <div className={styles.panelGroupLabel}>Aktive Queue ({blocks.length} Blöcke)</div>
-                  <div className={styles.queueList}>
-                    {blocks.map((block, idx) => {
-                      const isLiab = block.liability;
-                      return (
-                        <div 
-                          key={idx} 
-                          className={`${styles.queueItem} ${idx === blockIdx ? styles.queueItemActive : ''}`}
-                          style={isLiab ? { 
-                            background: 'rgba(255, 255, 255, 0.04)', 
-                            border: '1px dashed rgba(255, 255, 255, 0.15)', 
-                            color: 'rgba(255, 255, 255, 0.55)',
-                            cursor: 'pointer' 
-                          } : undefined}
-                          onClick={isLiab ? () => handleLiabilityClick(block) : undefined}
-                        >
-                          <span className={styles.queueNum}>{isLiab ? '🔒' : idx + 1}</span>
-                          <div className={styles.queueInfo}>
-                            <div className={styles.queueTitle}>{block.title}</div>
-                            <div className={styles.queueMeta}>
-                              {circadianMode && block.calculatedStartMin !== undefined && block.calculatedEndMin !== undefined ? (
-                                `${formatMinToTime(block.calculatedStartMin)} – ${formatMinToTime(block.calculatedEndMin)} (${Math.round((block.virtualDuration || block.duration) / 60)} Min) · ${block.type}`
-                              ) : (
-                                `${Math.round(block.duration / 60)} Min · ${block.type}`
-                              )}
-                            </div>
-                          </div>
-                          {idx === blockIdx && <span className={styles.queueActiveDot} />}
-                        </div>
-                      );
-                    })}
-                    {blocks.length === 0 && <p className={styles.emptyState}>Keine Blöcke aktiv.</p>}
-                  </div>
-                </div>
-
-                {/* Add custom block */}
-                <div className={styles.panelGroup}>
-                  <div className={styles.panelGroupLabel}>Custom Block anlegen</div>
-                  <form onSubmit={handleAddBlock} className={styles.stackedForm}>
-                    <input type="text" placeholder="Block Title…" className={styles.formInput} value={customTitle} onChange={e => setCustomTitle(e.target.value)} required />
-                    <input type="number" placeholder="Dauer in Minuten…" className={styles.formInput} value={customDuration} onChange={e => setCustomDuration(e.target.value)} required />
-                    <button type="submit" className={styles.formBtn}>BLOCK ANLEGEN</button>
-                  </form>
-                </div>
-
-                {/* Knowledge Vault trigger */}
-                <div className={styles.panelGroup}>
-                  <div className={styles.panelGroupLabel}>Kognitiver Kontext</div>
-                  <button className={styles.vaultTrigger} onClick={() => { setActiveTab('vault'); }}>
-                    ✦ Knowledge Vault öffnen
-                  </button>
-                  <div className={styles.fileUpload}>
-                    <span>CSV / JSON einlesen</span>
-                    <input type="file" accept=".csv,.json" onChange={e => e.target.files[0] && uploadDataSource(e.target.files[0])} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <DashboardTab
+            circadianMode={circadianMode}
+            setCircadianMode={setCircadianMode}
+            currentBlock={currentBlock}
+            blocks={blocks}
+            blockIdx={blockIdx}
+            timeLeft={timeLeft}
+            totalTime={totalTime}
+            isRunning={isRunning}
+            manualPeekIdx={manualPeekIdx}
+            setManualPeekIdx={setManualPeekIdx}
+            dragStartX={dragStartX}
+            dragCurrentX={dragCurrentX}
+            radius={radius}
+            circumference={circumference}
+            strokeDashoffset={strokeDashoffset}
+            showTimeEdit={showTimeEdit}
+            setShowTimeEdit={setShowTimeEdit}
+            editTimeMinutes={editTimeMinutes}
+            setEditTimeMinutes={setEditTimeMinutes}
+            profile={profile}
+            ltpPotential={ltpPotential}
+            plasticity={plasticity}
+            messages={messages}
+            isTyping={isTyping}
+            chatEndRef={chatEndRef}
+            chatInput={chatInput}
+            setChatInput={setChatInput}
+            pendingQueueOverride={pendingQueueOverride}
+            setPendingQueueOverride={setPendingQueueOverride}
+            hasTodayCalBlocks={hasTodayCalBlocks}
+            customTitle={customTitle}
+            setCustomTitle={setCustomTitle}
+            customDuration={customDuration}
+            setCustomDuration={setCustomDuration}
+            formatTime={formatTime}
+            formatMinToTime={formatMinToTime}
+            prevBlock={prevBlock}
+            skipBlock={skipBlock}
+            toggleTimer={toggleTimer}
+            handleDragStart={handleDragStart}
+            handleDragMove={handleDragMove}
+            handleDragEnd={handleDragEnd}
+            handleTimeEditSubmit={handleTimeEditSubmit}
+            logFriction={logFriction}
+            handleSendChat={handleSendChat}
+            confirmQueueOverride={confirmQueueOverride}
+            restoreCalendarBlocks={restoreCalendarBlocks}
+            loadProtocolQueue={loadProtocolQueue}
+            handleLiabilityClick={handleLiabilityClick}
+            handleAddBlock={handleAddBlock}
+            uploadDataSource={uploadDataSource}
+            setActiveTab={setActiveTab}
+            saveProfile={saveProfile}
+            addCalendarBlock={addCalendarBlock}
+          />
         );
       case 'biometrics':
         return (
-          <div className={styles.tabContentGrid}>
-            <div className={styles.tabContentMainCol}>
-              <div className={styles.panelHeader}>
-                <h3 className={styles.panelTitle}>📊 Biometrische Indikatoren</h3>
-              </div>
-              <div className={styles.panelBody}>
-                <form onSubmit={handleSaveMetrics} className={styles.metricsForm}>
-                  <div className={styles.metricCards}>
-                    <div className={styles.metricCard}>
-                      <div className={styles.metricCardVal}>{profile?.metrics?.hrv || 72}</div>
-                      <div className={styles.metricCardLabel}>HRV (ms)</div>
-                      <input type="number" className={styles.formInput} value={editHrv} onChange={e => setEditHrv(e.target.value)} />
-                    </div>
-                    <div className={styles.metricCard}>
-                      <div className={styles.metricCardVal}>{profile?.metrics?.sleep || 84}</div>
-                      <div className={styles.metricCardLabel}>Sleep Score</div>
-                      <input type="number" className={styles.formInput} value={editSleep} onChange={e => setEditSleep(e.target.value)} />
-                    </div>
-                  </div>
-                  <button type="submit" className={styles.formBtn} style={{ marginTop: '1rem' }}>SYNCHRONISIEREN</button>
-                </form>
-
-                <div className={styles.panelGroup} style={{ marginTop: '2rem' }}>
-                  <div className={styles.panelGroupLabel}>Neuro-Zustände (Live)</div>
-                  {[
-                    { label: 'LTP Potential', val: `${ltpPotential}%`, color: ltpPotential > 70 ? 'var(--green)' : 'var(--amber)' },
-                    { label: 'Plasticity Index', val: `${plasticity}%`, color: plasticity > 70 ? 'var(--green)' : 'var(--amber)' },
-                    { label: 'Circadian Gate', val: 'Offen', color: 'var(--green)' },
-                  ].map(r => (
-                    <div key={r.label} className={styles.neuroRow}>
-                      <span>{r.label}</span>
-                      <span style={{ color: r.color, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{r.val}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className={styles.panelGroup} style={{ marginTop: '2rem' }}>
-                  <div className={styles.panelGroupLabel}>Wochen-Ziele</div>
-                  {(profile?.weeklyGoals || []).map((goal, idx) => (
-                    <div key={idx} className={styles.goalItem} onClick={() => toggleGoal(idx)}>
-                      <input type="checkbox" checked={goal.completed} readOnly className={styles.goalCheck} />
-                      <span style={{ textDecoration: goal.completed ? 'line-through' : 'none', color: goal.completed ? 'var(--text3)' : 'var(--text)' }}>{goal.text}</span>
-                    </div>
-                  ))}
-                  <form onSubmit={handleAddGoal} className={styles.goalForm} style={{ marginTop: '1rem' }}>
-                    <input type="text" placeholder="Neues Ziel…" className={styles.formInput} value={newGoalText} onChange={e => setNewGoalText(e.target.value)} />
-                    <button type="submit" className={styles.formBtn} style={{ padding: '0 1rem' }}>+</button>
-                  </form>
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.tabContentSideCol}>
-              <div className={styles.panelHeader}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                  <h3 className={styles.panelTitle}>💊 Bio-Stack Inventar</h3>
-                  <button className={styles.addBtn} onClick={addStackItem}>+ ADD</button>
-                </div>
-              </div>
-              <div className={styles.panelBody}>
-                {stack.map((item, idx) => (
-                  <div key={idx} className={styles.stackCard}>
-                    <div className={styles.stackCardTop}>
-                      <div>
-                        <div className={styles.stackName}>{item.name}</div>
-                        <div className={styles.stackDose}>{item.dose} · {item.timing}</div>
-                      </div>
-                      <button className={styles.stackConsumeBtn} onClick={() => consumeStackItem(idx)}>KONSUM</button>
-                    </div>
-                    <div className={styles.stackBar}>
-                      <div
-                        className={styles.stackBarFill}
-                        style={{
-                          width: `${item.supply}%`,
-                          background: item.supply < 30 ? 'var(--red)' : item.supply < 60 ? 'var(--amber)' : 'var(--green)'
-                        }}
-                      />
-                    </div>
-                    <div className={styles.stackSupplyText}>{item.supply}% Vorrat</div>
-                  </div>
-                ))}
-                {stack.length === 0 && <p className={styles.emptyState}>Kein Stack konfiguriert.</p>}
-              </div>
-            </div>
-          </div>
+          <BiometricsTab
+            profile={profile}
+            ltpPotential={ltpPotential}
+            plasticity={plasticity}
+            editHrv={editHrv}
+            setEditHrv={setEditHrv}
+            editSleep={editSleep}
+            setEditSleep={setEditSleep}
+            newGoalText={newGoalText}
+            setNewGoalText={setNewGoalText}
+            stack={stack}
+            saveProfile={saveProfile}
+            setActiveTab={setActiveTab}
+            handleSaveMetrics={handleSaveMetrics}
+            toggleGoal={toggleGoal}
+            handleAddGoal={handleAddGoal}
+            addStackItem={addStackItem}
+            consumeStackItem={consumeStackItem}
+            updateStackItem={updateStackItem}
+            removeStackItem={removeStackItem}
+          />
         );
       case 'skills': {
         let parsedSkillSession = null;
@@ -2135,934 +2880,362 @@ function LifeOSDashboard() {
         const overallProgress = getOverallProgress();
         const selectedModule = parsedSkillSession?.modules?.find(m => m.id === activeModuleId);
 
+        const SK_TYPE = {
+          video: { icon: '▶', label: 'Video Lesson' },
+          theory: { icon: '◇', label: 'Theorie / Konzept' },
+          practice: { icon: '⌘', label: 'Isolierte Übung' },
+        };
+        const skThumb = (type) => {
+          if (type === 'video') {
+            return <div className={styles.skThumb}><span className={styles.skThumbPlay}>▶</span></div>;
+          }
+          if (type === 'theory') {
+            return (
+              <div className={styles.skThumb}>
+                <svg className={styles.skThumbNet} viewBox="0 0 100 60" aria-hidden="true">
+                  <line x1="20" y1="30" x2="50" y2="15" /><line x1="20" y1="30" x2="50" y2="45" />
+                  <line x1="50" y1="15" x2="80" y2="30" /><line x1="50" y1="45" x2="80" y2="30" />
+                  <line x1="20" y1="30" x2="80" y2="30" />
+                  <circle cx="20" cy="30" r="4" /><circle cx="50" cy="15" r="4" />
+                  <circle cx="50" cy="45" r="4" /><circle cx="80" cy="30" r="4" />
+                </svg>
+              </div>
+            );
+          }
+          return (
+            <div className={styles.skThumb}>
+              <div className={styles.skTerm}>
+                <div className={styles.skTermDots}><span /><span /><span /></div>
+                <div className={styles.skTermCode}>practice( )<br />&nbsp;&nbsp;focus…</div>
+              </div>
+            </div>
+          );
+        };
+        const xpPct = Math.min(100, ((profile?.xp || 0) / (profile?.nextLevelXp || 500)) * 100);
+
         return (
-          <div className={styles.singlePanelLayout}>
-            <div className={styles.panelHeader}>
-              <h3 className={styles.panelTitle}>🔬 Agentic Skill Lab</h3>
-            </div>
-            <div className={styles.panelBody}>
-              <div className={styles.skillsTopGrid}>
-                <div className={styles.panelGroup}>
-                  <div className={styles.panelGroupLabel}>Ziel-Skill & Stufe festlegen</div>
-                  <div className={styles.skillInputRow}>
-                    <input 
-                      type="text" 
-                      className={styles.formInput} 
-                      placeholder="Ziel-Skill (z.B. Python)..." 
-                      value={profile?.skill || ''} 
-                      onChange={e => saveProfile({ skill: e.target.value })} 
+          <div className={styles.skView}>
+            <div className={styles.skGlow} aria-hidden="true" />
+
+            {/* Hero */}
+            <header className={styles.skHero}>
+              <div className={styles.skEyebrow}>Skill Lab · Agentic Deliberate Practice</div>
+              <h1 className={styles.skTitle}>Übe, was dich formt.</h1>
+              <p className={styles.skLede}>Ein Raum für gezielte Meisterschaft und neuroplastisches Wachstum.</p>
+            </header>
+
+            {/* Setup row */}
+            <div className={styles.skSetupRow}>
+              <div className={styles.skCard}>
+                <div className={styles.skCardLabel}>Ziel-Skill &amp; Stufe</div>
+                <div className={styles.skSkillRow}>
+                  <input
+                    type="text"
+                    className={styles.skSkillInput}
+                    placeholder="Skill eingeben…"
+                    value={profile?.skill || ''}
+                    onChange={e => saveProfile({ skill: e.target.value })}
+                  />
+                  <div className={styles.skLvl}>
+                    <span className={styles.skLvlLabel}>Lvl</span>
+                    <input
+                      type="number"
+                      className={styles.skLvlInput}
+                      value={profile?.skillLevel || 1}
+                      onChange={e => saveProfile({ skillLevel: parseInt(e.target.value) || 1 })}
                     />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span className={styles.formLabel} style={{ margin: 0 }}>Lvl:</span>
-                      <input 
-                        type="number" 
-                        className={styles.formInput} 
-                        style={{ width: '80px' }} 
-                        value={profile?.skillLevel || 1} 
-                        onChange={e => saveProfile({ skillLevel: parseInt(e.target.value) || 1 })} 
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className={styles.panelGroup}>
-                  <div className={styles.panelGroupLabel}>Kognitives Level & XP Fortschritt</div>
-                  <div className={styles.xpRow}>
-                    <strong>Level {profile?.skillLevel || 1}</strong>
-                    <span className={styles.xpLabel}>{profile?.xp || 0} / {profile?.nextLevelXp || 500} XP</span>
-                  </div>
-                  <div className={styles.xpBar} style={{ marginTop: '0.5rem' }}>
-                    <div className={styles.xpFill} style={{ width: `${Math.min(100, ((profile?.xp || 0) / (profile?.nextLevelXp || 500)) * 100)}%` }} />
                   </div>
                 </div>
               </div>
 
-              <div className={styles.skillPracticeWorkspace} style={{ marginTop: '2rem' }}>
-                <div className={styles.panelGroupLabel}>Deliberate practice workspace</div>
-                {isGeneratingSkill ? (
-                  <div className={styles.generatingState}>
-                    <div className={styles.generatingSpinner} />
-                    <div className={styles.generatingText}>GENERATING_NEURAL_PATHWAYS…</div>
-                    <div className={styles.generatingSub}>Skill: {profile?.skill || 'Programmieren'} (Lvl {profile?.skillLevel || 1})</div>
-                  </div>
-                ) : parsedSkillSession ? (
-                  <div className={styles.practiceSessionWorkspace}>
-                    
-                    {/* Card grid row like in the user's screenshot */}
-                    <div className={styles.skillModulesGrid}>
-                      {parsedSkillSession.modules.map(mod => {
-                        const prog = getModuleProgress(mod);
-                        const isActive = mod.id === activeModuleId;
-                        return (
-                          <div 
-                            key={mod.id} 
-                            className={`${styles.skillModuleCard} ${isActive ? styles.skillModuleCardActive : ''}`}
-                            onClick={() => setActiveModuleId(mod.id)}
-                          >
-                            {/* Visual Thumbnail */}
-                            <div className={styles.skillModuleThumbnail}>
-                              {mod.type === 'video' && (
-                                <div className={`${styles.thumbnailBg} ${styles.thumbnailVideoBg}`}>
-                                  <div className={styles.videoPlayButton}>▶</div>
-                                  <span className={styles.thumbnailLabel}>YOUTUBE LESSON</span>
-                                </div>
-                              )}
-                              {mod.type === 'theory' && (
-                                <div className={`${styles.thumbnailBg} ${styles.thumbnailTheoryBg}`}>
-                                  <svg className={styles.neuralNetSvg} viewBox="0 0 100 60">
-                                    <line x1="20" y1="30" x2="50" y2="15" stroke="var(--border-strong)" strokeWidth="1" />
-                                    <line x1="20" y1="30" x2="50" y2="45" stroke="var(--border-strong)" strokeWidth="1" />
-                                    <line x1="50" y1="15" x2="80" y2="30" stroke="var(--border-strong)" strokeWidth="1" />
-                                    <line x1="50" y1="45" x2="80" y2="30" stroke="var(--border-strong)" strokeWidth="1" />
-                                    <line x1="20" y1="30" x2="80" y2="30" stroke="var(--border-strong)" strokeWidth="1" />
-                                    <circle cx="20" cy="30" r="4" fill="var(--theme-accent, var(--cobalt-bright))" />
-                                    <circle cx="50" cy="15" r="4" fill="var(--amber)" />
-                                    <circle cx="50" cy="45" r="4" fill="var(--green)" />
-                                    <circle cx="80" cy="30" r="4" fill="var(--theme-accent, var(--cobalt-bright))" />
-                                  </svg>
-                                  <span className={styles.thumbnailLabel}>THEORIE / KONZEPT</span>
-                                </div>
-                              )}
-                              {mod.type === 'practice' && (
-                                <div className={`${styles.thumbnailBg} ${styles.thumbnailPracticeBg}`}>
-                                  <div className={styles.miniTerminal}>
-                                    <div className={styles.terminalHeader}><span className={styles.termDot}/><span className={styles.termDot}/><span className={styles.termDot}/></div>
-                                    <div className={styles.terminalCode}>
-                                      <span className={styles.codeCyan}>const</span> <span className={styles.codeBlue}>practice</span> = () =&gt; &#123;<br/>
-                                      &nbsp;&nbsp;console.<span className={styles.codeGreen}>log</span>(<span className={styles.codeAmber}>&quot;Focus...&quot;</span>);<br/>
-                                      &#125;;
-                                    </div>
-                                  </div>
-                                  <span className={styles.thumbnailLabel}>ISOLIERTE ÜBUNG</span>
-                                </div>
-                              )}
-                            </div>
-                            
-                            {/* Card Details */}
-                            <div className={styles.skillModuleCardInfo}>
-                              <h4 className={styles.skillModuleCardTitle}>{mod.title}</h4>
-                              <div className={styles.cardProgressWrapper}>
-                                <div className={styles.cardProgressBar}>
-                                  <div className={styles.cardProgressFill} style={{ width: `${prog}%` }} />
-                                </div>
-                                <span className={styles.cardProgressPercent}>{prog}%</span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Active Detail Workspace Area */}
-                    {selectedModule && (
-                      <div className={styles.activeModuleDetailPanel}>
-                        <div className={styles.activeModuleHeader}>
-                          <span className={styles.activeModuleTypeLabel}>
-                            {selectedModule.type === 'video' ? '📺 VIDEO WORKSPACE' : 
-                             selectedModule.type === 'theory' ? '📚 THEORIE WORKSPACE' : '🛠️ CHALLENGE WORKSPACE'}
-                          </span>
-                          <h3 className={styles.activeModuleTitle}>{selectedModule.title}</h3>
-                        </div>
-
-                        <div className={styles.activeModuleBodyGrid}>
-                          <div className={styles.activeModuleMainContent}>
-                            {/* Module type specific layouts */}
-                            {selectedModule.type === 'video' && (
-                              <div className={styles.videoPlayerContainer}>
-                                <div className={styles.videoPlayerFrameWrapper}>
-                                  <iframe 
-                                    className={styles.videoIframe}
-                                    src={selectedModule.videoUrl} 
-                                    title={selectedModule.title}
-                                    frameBorder="0" 
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                                    allowFullScreen
-                                  />
-                                </div>
-                                <p className={styles.videoSummaryText}>{selectedModule.summary}</p>
-                                <button
-                                  type="button"
-                                  className={`${styles.moduleActionBtn} ${watchedVideos[selectedModule.id] ? styles.moduleActionBtnCompleted : ''}`}
-                                  onClick={() => setWatchedVideos(prev => ({ ...prev, [selectedModule.id]: !prev[selectedModule.id] }))}
-                                >
-                                  {watchedVideos[selectedModule.id] ? 'Lektion wiederholen ↩' : 'Lektion abschließen ✓'}
-                                </button>
-                              </div>
-                            )}
-
-                            {selectedModule.type === 'theory' && (
-                              <div className={styles.theoryReaderContainer}>
-                                <div className={styles.theoryTextContent}>
-                                  {selectedModule.content.split('\n\n').map((para, i) => (
-                                    <p key={i}>{para}</p>
-                                  ))}
-                                </div>
-                                <button
-                                  type="button"
-                                  className={`${styles.moduleActionBtn} ${watchedVideos[selectedModule.id] ? styles.moduleActionBtnCompleted : ''}`}
-                                  onClick={() => setWatchedVideos(prev => ({ ...prev, [selectedModule.id]: !prev[selectedModule.id] }))}
-                                >
-                                  {watchedVideos[selectedModule.id] ? 'Als ungelesen markieren ↩' : 'Als gelesen markieren ✓'}
-                                </button>
-                              </div>
-                            )}
-
-                            {selectedModule.type === 'practice' && (
-                              <div className={styles.practiceContainer}>
-                                <p className={styles.practiceInstructions}>{selectedModule.instructions}</p>
-                                
-                                <div className={styles.practiceStepsChecklist}>
-                                  {(selectedModule.steps || []).map((step, idx) => {
-                                    const currentDone = completedSteps[selectedModule.id] || [];
-                                    const isChecked = currentDone.includes(idx);
-                                    return (
-                                      <label key={idx} className={`${styles.checklistRow} ${isChecked ? styles.checklistRowChecked : ''}`}>
-                                        <input 
-                                          type="checkbox" 
-                                          className={styles.checklistCheckbox}
-                                          checked={isChecked}
-                                          onChange={() => {
-                                            const updated = isChecked 
-                                              ? currentDone.filter(x => x !== idx) 
-                                              : [...currentDone, idx];
-                                            setCompletedSteps(prev => ({ ...prev, [selectedModule.id]: updated }));
-                                          }}
-                                        />
-                                        <span className={styles.checklistText}>{step}</span>
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Notes/Sidebar panel */}
-                          <div className={styles.activeModuleSidebar}>
-                            <div className={styles.notesPanelHeader}>
-                              <span>✍️ PERSÖNLICHE NOTIZEN</span>
-                            </div>
-                            <textarea
-                              className={styles.notesTextArea}
-                              placeholder="Halte hier deine Notizen, Code-Snippets oder Erkenntnisse für diese Lektion fest..."
-                              value={skillNotes[selectedModule.id] || ''}
-                              onChange={(e) => setSkillNotes(prev => ({ ...prev, [selectedModule.id]: e.target.value }))}
-                            />
-                            <div className={styles.notesFooter}>
-                              <span className={styles.notesSaveStatus}>Auto-saved locally</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Progress tracker & Session controls */}
-                    <div className={styles.sessionControlFooter}>
-                      <div className={styles.overallSessionProgress}>
-                        <span className={styles.overallProgressLabel}>GESAMT-FORTSCHRITT DER LAB-SESSION:</span>
-                        <div className={styles.overallProgressRow}>
-                          <div className={styles.overallProgressTrack}>
-                            <div className={styles.overallProgressFill} style={{ width: `${overallProgress}%` }} />
-                          </div>
-                          <span className={styles.overallProgressText}>{overallProgress}% abgeschlossen</span>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                        <button 
-                          className={`${styles.skillCompleteBtn} ${overallProgress < 100 ? styles.skillCompleteBtnDisabled : ''}`} 
-                          onClick={() => {
-                            if (overallProgress === 100) {
-                              completeSkillSession(150);
-                              setSkillContent('');
-                              setActiveModuleId(null);
-                              setSkillNotes({});
-                              setCompletedSteps({});
-                              setWatchedVideos({});
-                            }
-                          }}
-                          disabled={overallProgress < 100}
-                        >
-                          Session abschließen (+150 XP) {overallProgress < 100 ? '🔒' : '✨'}
-                        </button>
-                        <button 
-                          className={`${styles.formBtn} ${styles.formBtnAmber}`}
-                          onClick={handleOpenSkillLab}
-                          style={{ margin: 0, width: 'auto' }}
-                        >
-                          Session verwerfen & Neu generieren 🔄
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className={styles.emptyPracticeState}>
-                    <p>Bereit für eine bio-kognitive Trainingseinheit? Generiere deinen adaptiven Trainingsplan.</p>
-                    <button className={`${styles.formBtn} ${styles.formBtnAmber}`} onClick={handleOpenSkillLab} style={{ maxWidth: '320px', margin: '1rem auto 0' }}>
-                      🔬 LAB SESSION GENERIEREN
-                    </button>
-                  </div>
-                )}
+              <div className={styles.skCard}>
+                <div className={styles.skCardLabel}>Kognitives Level &amp; XP</div>
+                <div className={styles.skXpTop}>
+                  <span className={styles.skXpLevel}>{profile?.skillLevel || 1}</span>
+                  <span className={styles.skXpLabel}>{profile?.xp || 0} / {profile?.nextLevelXp || 500} XP</span>
+                </div>
+                <div className={styles.skXpBar}>
+                  <div className={styles.skXpFill} style={{ width: `${xpPct}%` }} />
+                </div>
               </div>
             </div>
+
+            {/* Workspace */}
+            <section className={styles.skWorkspace}>
+              <div className={styles.skSectionLabel}>Deliberate Practice Workspace</div>
+
+              {isGeneratingSkill ? (
+                <div className={styles.skGenerating}>
+                  <div className={styles.skSpinner} />
+                  <div className={styles.skGenText}>GENERATING_NEURAL_PATHWAYS…</div>
+                  <div className={styles.skGenSub}>Skill: {profile?.skill || 'Programmieren'} (Lvl {profile?.skillLevel || 1})</div>
+                </div>
+              ) : parsedSkillSession ? (
+                <>
+                  <div className={styles.skModuleGrid}>
+                    {parsedSkillSession.modules.map(mod => {
+                      const prog = getModuleProgress(mod);
+                      const isActive = mod.id === activeModuleId;
+                      const meta = SK_TYPE[mod.type] || SK_TYPE.practice;
+                      return (
+                        <button
+                          key={mod.id}
+                          type="button"
+                          className={`${styles.skModCard} ${isActive ? styles.skModCardActive : ''}`}
+                          onClick={() => setActiveModuleId(mod.id)}
+                        >
+                          <div className={styles.skModType}>
+                            <span className={styles.skModTypeIcon}>{meta.icon}</span>
+                            <span className={styles.skModTypeLabel}>{meta.label}</span>
+                          </div>
+                          {skThumb(mod.type)}
+                          <h3 className={styles.skModTitle}>{mod.title}</h3>
+                          <div className={styles.skModProgRow}>
+                            <span className={styles.skModProgLabel}>Fortschritt</span>
+                            <span className={styles.skModProgVal}>{prog}%</span>
+                          </div>
+                          <div className={styles.skModBar}>
+                            <div className={styles.skModBarFill} style={{ width: `${prog}%` }} />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedModule && (
+                    <div className={styles.skDetailGrid}>
+                      <div className={styles.skDetailMain}>
+                        <div className={styles.skDetailHead}>
+                          <h3 className={styles.skDetailTitle}>Aktive Session: {selectedModule.title}</h3>
+                          <span className={styles.skStatus}>
+                            {getModuleProgress(selectedModule) === 100 ? 'Abgeschlossen' : 'In Progress'}
+                          </span>
+                        </div>
+
+                        {selectedModule.type === 'video' && (
+                          <div className={styles.skVideo}>
+                            <div className={styles.skVideoFrame}>
+                              <iframe
+                                className={styles.skVideoIframe}
+                                src={selectedModule.videoUrl}
+                                title={selectedModule.title}
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowFullScreen
+                              />
+                            </div>
+                            <p className={styles.skBodyText}>{selectedModule.summary}</p>
+                            <button
+                              type="button"
+                              className={`${styles.skActionBtn} ${watchedVideos[selectedModule.id] ? styles.skActionBtnDone : ''}`}
+                              onClick={() => setWatchedVideos(prev => ({ ...prev, [selectedModule.id]: !prev[selectedModule.id] }))}
+                            >
+                              {watchedVideos[selectedModule.id] ? 'Lektion wiederholen ↩' : 'Lektion abschließen ✓'}
+                            </button>
+                          </div>
+                        )}
+
+                        {selectedModule.type === 'theory' && (
+                          <div className={styles.skTheory}>
+                            <div className={styles.skBodyText}>
+                              {selectedModule.content.split('\n\n').map((para, i) => (
+                                <p key={i}>{para}</p>
+                              ))}
+                            </div>
+                            <button
+                              type="button"
+                              className={`${styles.skActionBtn} ${watchedVideos[selectedModule.id] ? styles.skActionBtnDone : ''}`}
+                              onClick={() => setWatchedVideos(prev => ({ ...prev, [selectedModule.id]: !prev[selectedModule.id] }))}
+                            >
+                              {watchedVideos[selectedModule.id] ? 'Als ungelesen markieren ↩' : 'Als gelesen markieren ✓'}
+                            </button>
+                          </div>
+                        )}
+
+                        {selectedModule.type === 'practice' && (
+                          <div className={styles.skPractice}>
+                            <p className={styles.skBodyText}>{selectedModule.instructions}</p>
+                            <div className={styles.skChecklistLabel}>Checkliste</div>
+                            <div className={styles.skChecklist}>
+                              {(selectedModule.steps || []).map((step, idx) => {
+                                const currentDone = completedSteps[selectedModule.id] || [];
+                                const isChecked = currentDone.includes(idx);
+                                return (
+                                  <label key={idx} className={`${styles.skCheckRow} ${isChecked ? styles.skCheckRowDone : ''}`}>
+                                    <input
+                                      type="checkbox"
+                                      className={styles.skCheckbox}
+                                      checked={isChecked}
+                                      onChange={() => {
+                                        const updated = isChecked
+                                          ? currentDone.filter(x => x !== idx)
+                                          : [...currentDone, idx];
+                                        setCompletedSteps(prev => ({ ...prev, [selectedModule.id]: updated }));
+                                      }}
+                                    />
+                                    <span className={styles.skCheckText}>{step}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className={styles.skNotes}>
+                        <div className={styles.skCardLabel}>Persönliche Notizen</div>
+                        <textarea
+                          className={styles.skNotesArea}
+                          placeholder="Notiere hier Erkenntnisse, Stolpersteine oder Heuristiken, die du während der Übung entdeckst…"
+                          value={skillNotes[selectedModule.id] || ''}
+                          onChange={(e) => setSkillNotes(prev => ({ ...prev, [selectedModule.id]: e.target.value }))}
+                        />
+                        <span className={styles.skNotesStatus}>Auto-saved locally</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Session footer */}
+                  <div className={styles.skFooter}>
+                    <div className={styles.skFooterProg}>
+                      <div className={styles.skFooterProgTop}>
+                        <span className={styles.skCardLabel}>Gesamt-Fortschritt</span>
+                        <span className={styles.skFooterPct}>{overallProgress}%</span>
+                      </div>
+                      <div className={styles.skFooterBar}>
+                        <div className={styles.skFooterFill} style={{ width: `${overallProgress}%` }} />
+                      </div>
+                    </div>
+                    <div className={styles.skFooterActions}>
+                      <button className={styles.skGhostBtn} onClick={handleOpenSkillLab}>Neu generieren</button>
+                      <button
+                        className={`${styles.skPrimaryBtn} ${overallProgress < 100 ? styles.skPrimaryBtnDisabled : ''}`}
+                        disabled={overallProgress < 100}
+                        onClick={() => {
+                          if (overallProgress === 100) {
+                            completeSkillSession(150);
+                            setSkillContent('');
+                            setActiveModuleId(null);
+                            setSkillNotes({});
+                            setCompletedSteps({});
+                            setWatchedVideos({});
+                          }
+                        }}
+                      >
+                        Session abschließen (+150 XP) {overallProgress < 100 ? '🔒' : '✨'}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className={styles.skEmpty}>
+                  <p>Bereit für eine bio-kognitive Trainingseinheit? Generiere deinen adaptiven Trainingsplan.</p>
+                  <button className={styles.skPrimaryBtn} onClick={handleOpenSkillLab}>Lab Session generieren</button>
+                </div>
+              )}
+            </section>
           </div>
         );
       }
       case 'store':
         return (
-          <div className={styles.singlePanelLayout}>
-            {/* Store Portal Tab Switcher */}
-            <div className={styles.portalTabSwitcher} style={{ marginBottom: '2rem' }}>
-              <button 
-                className={`${styles.portalTabBtn} ${portalTab === 'subscriptions' ? styles.portalTabBtnActive : ''}`}
-                onClick={() => setPortalTab('subscriptions')}
-              >
-                Abonnements (Systemstufen)
-              </button>
-              <button 
-                className={`${styles.portalTabBtn} ${portalTab === 'store' ? styles.portalTabBtnActive : ''}`}
-                onClick={() => setPortalTab('store')}
-              >
-                Ecosystem Store (Produkte)
-              </button>
-            </div>
-
-            {portalTab === 'subscriptions' ? (
-              <div className={styles.pricingGrid}>
-                {TIERS.map(tier => {
-                  const isActive = profile?.subscriptionTier === tier.id;
-                  return (
-                    <div 
-                      key={tier.id} 
-                      className={`${styles.pricingCard} ${tier.featured ? styles.pricingCardFeatured : ''} ${isActive ? styles.pricingCardActive : ''}`}
-                      style={{ '--border-color': tier.accentColor }}
-                    >
-                      {tier.badge && (
-                        <span className={styles.tierBadge} style={{ backgroundColor: tier.accentColor, color: tier.id === 'max' ? '#030408' : '#fff' }}>
-                          {tier.badge}
-                        </span>
-                      )}
-                      
-                      <div className={styles.cardHeader}>
-                        <h3 className={styles.tierName}>{tier.name}</h3>
-                        <p className={styles.tierSubtitle}>{tier.subtitle}</p>
-                        <div className={styles.priceRow}>
-                          <span className={styles.currency}>€</span>
-                          <span className={styles.price}>{tier.price}</span>
-                          <span className={styles.period}>/ {tier.period}</span>
-                        </div>
-                      </div>
-
-                      <p className={styles.tierDesc}>{tier.description}</p>
-
-                      <div className={styles.divider} />
-
-                      <ul className={styles.featureList}>
-                        {tier.features.map((feature, i) => (
-                          <li key={i} className={`${styles.featureItem} ${feature.available ? '' : styles.featureItemDisabled}`}>
-                            <span className={styles.checkIcon}>{feature.available ? '✓' : '×'}</span>
-                            <span>{feature.text}</span>
-                          </li>
-                        ))}
-                      </ul>
-
-                      <button 
-                        type="button"
-                        className={`${styles.ctaBtn} ${tier.featured ? styles.ctaBtnFeatured : ''} ${isActive ? styles.ctaBtnActive : ''}`}
-                        onClick={async () => {
-                          if (authLoading) return;
-                          // Free tier needs no payment — set it directly.
-                          if (tier.price === 0) {
-                            try {
-                              await saveProfile({ subscriptionTier: tier.id });
-                              setAgentMsg(`Abonnement auf ${tier.name} aktualisiert.`);
-                            } catch (e) {
-                              setAgentMsg('Fehler beim Speichern des System-Abos.');
-                            }
-                            return;
-                          }
-                          if (!user) {
-                            setAgentMsg('Bitte zuerst einloggen, um ein Abo abzuschließen.');
-                            return;
-                          }
-                          setAgentMsg(`Leite zur sicheren Stripe-Kasse für ${tier.name}…`);
-                          try {
-                            const idToken = await user.getIdToken();
-                            const res = await fetch('/api/stripe/checkout', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-                              body: JSON.stringify({ tierId: tier.id })
-                            });
-                            const data = await res.json();
-                            if (data.url) {
-                              window.location.href = data.url;
-                            } else {
-                              setAgentMsg(`Checkout nicht verfügbar: ${data.error || 'unbekannter Fehler'}`);
-                            }
-                          } catch (e) {
-                            setAgentMsg(`Checkout-Fehler: ${e.message}`);
-                          }
-                        }}
-                        disabled={isActive}
-                      >
-                        {isActive ? 'Aktiver Plan ✓' : tier.ctaText}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className={styles.storeContent}>
-                {/* 1. APPAREL */}
-                <div className={styles.storeCategoryTitle}>
-                  <span>01 — Functional Apparel (Kleidung)</span>
-                  <span className={styles.storeCategoryTag}>TOXIN-FREE GOTS GEAR</span>
-                </div>
-                <div className={styles.storeGrid}>
-                  {STORE_PRODUCTS.apparel.map(prod => (
-                    <div key={prod.id} className={styles.storeCard}>
-                      <div className={styles.storeCardTop}>
-                        <div className={styles.storeCardHeader}>
-                          <span className={styles.storeCardBadge}>{prod.badge}</span>
-                          <span className={`${styles.storeCardStatus} ${
-                            prod.status === 'AUTO-REFILL' ? styles.statusRefill : 
-                            prod.status === 'BEGRENZT' ? styles.statusLimited : styles.statusAvailable
-                          }`}>{prod.status}</span>
-                        </div>
-                        <h4 className={styles.storeCardName}>{prod.name}</h4>
-                        <p className={styles.storeCardDesc}>{prod.desc}</p>
-                        {prod.tags && (
-                          <div className={styles.storeCardTags}>
-                            {prod.tags.map(tag => (
-                              <span key={tag} className={styles.storeCardTag}>#{tag}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className={styles.storeCardFooter}>
-                        <div className={styles.storeCardPriceInfo}>
-                          <span className={styles.storeCardPriceLabel}>REDEEM COST</span>
-                          <span className={styles.storeCardPrice}>🪙 {prod.price} CR</span>
-                        </div>
-                        <button 
-                          className={styles.storeBuyBtn}
-                          onClick={() => handleOrderProduct(prod)}
-                        >
-                          Bestellen
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* 2. SUPPLEMENTS */}
-                <div className={styles.storeCategoryTitle} style={{ marginTop: '3rem' }}>
-                  <span>02 — Supplements & Refills</span>
-                  <span className={styles.storeCategoryTag}>COA LAB-TESTED MATRIX</span>
-                </div>
-                <div className={styles.storeGrid}>
-                  {STORE_PRODUCTS.supplements.map(prod => (
-                    <div key={prod.id} className={styles.storeCard}>
-                      <div className={styles.storeCardTop}>
-                        <div className={styles.storeCardHeader}>
-                          <span className={styles.storeCardBadge}>{prod.badge}</span>
-                          <span className={`${styles.storeCardStatus} ${
-                            prod.status === 'AUTO-REFILL' ? styles.statusRefill : 
-                            prod.status === 'BEGRENZT' ? styles.statusLimited : styles.statusAvailable
-                          }`}>{prod.status}</span>
-                        </div>
-                        <h4 className={styles.storeCardName}>{prod.name}</h4>
-                        <p className={styles.storeCardDesc}>{prod.desc}</p>
-                        {prod.tags && (
-                          <div className={styles.storeCardTags}>
-                            {prod.tags.map(tag => (
-                              <span key={tag} className={styles.storeCardTag}>#{tag}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className={styles.storeCardFooter}>
-                        <div className={styles.storeCardPriceInfo}>
-                          <span className={styles.storeCardPriceLabel}>REDEEM COST</span>
-                          <span className={styles.storeCardPrice}>🪙 {prod.price} CR</span>
-                        </div>
-                        <button 
-                          className={styles.storeBuyBtn}
-                          onClick={() => handleOrderProduct(prod)}
-                        >
-                          Bestellen
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* 3. FOOD */}
-                <div className={styles.storeCategoryTitle} style={{ marginTop: '3rem' }}>
-                  <span>03 — Bio-Adaptive Fuel (Nahrung)</span>
-                  <span className={styles.storeCategoryTag}>RAW SOIL-TO-TABLE</span>
-                </div>
-                <div className={styles.storeGrid}>
-                  {STORE_PRODUCTS.food.map(prod => (
-                    <div key={prod.id} className={styles.storeCard}>
-                      <div className={styles.storeCardTop}>
-                        <div className={styles.storeCardHeader}>
-                          <span className={styles.storeCardBadge}>{prod.badge}</span>
-                          <span className={`${styles.storeCardStatus} ${
-                            prod.status === 'AUTO-REFILL' ? styles.statusRefill : 
-                            prod.status === 'BEGRENZT' ? styles.statusLimited : styles.statusAvailable
-                          }`}>{prod.status}</span>
-                        </div>
-                        <h4 className={styles.storeCardName}>{prod.name}</h4>
-                        <p className={styles.storeCardDesc}>{prod.desc}</p>
-                        {prod.tags && (
-                          <div className={styles.storeCardTags}>
-                            {prod.tags.map(tag => (
-                              <span key={tag} className={styles.storeCardTag}>#{tag}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className={styles.storeCardFooter}>
-                        <div className={styles.storeCardPriceInfo}>
-                          <span className={styles.storeCardPriceLabel}>REDEEM COST</span>
-                          <span className={styles.storeCardPrice}>🪙 {prod.price} CR</span>
-                        </div>
-                        <button 
-                          className={styles.storeBuyBtn}
-                          onClick={() => handleOrderProduct(prod)}
-                        >
-                          Bestellen
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <StoreTab
+            profile={profile}
+            tiers={TIERS}
+            storeCategory={storeCategory}
+            setStoreCategory={setStoreCategory}
+            cart={cart}
+            portalTab={portalTab}
+            setPortalTab={setPortalTab}
+            storeView={storeView}
+            setStoreView={setStoreView}
+            selectedProduct={selectedProduct}
+            setSelectedProduct={setSelectedProduct}
+            tierCheckoutBusy={tierCheckoutBusy}
+            tierCheckoutMsg={tierCheckoutMsg}
+            handleTierCheckout={handleTierCheckout}
+            handleCartCheckout={handleCartCheckout}
+            cartCheckoutBusy={cartCheckoutBusy}
+            cartCheckoutMsg={cartCheckoutMsg}
+            renderBlueprintsView={renderBlueprintsView}
+            addToCart={addToCart}
+            removeFromCart={removeFromCart}
+            setCartQty={setCartQty}
+          />
         );
       case 'connectors':
         return (
-          <div className={styles.tabContentGrid}>
-            <div className={styles.tabContentMainCol}>
-              <div className={styles.panelHeader}>
-                <h3 className={styles.panelTitle}>🔌 Konnektoren Konfiguration</h3>
-              </div>
-              <div className={styles.panelBody}>
-                <div className={styles.stackedForm}>
-                  <label className={styles.formLabel}>WHOOP Client ID</label>
-                  <input 
-                    type="text" 
-                    className={styles.formInput} 
-                    placeholder="whoop_client_xxxx" 
-                    value={profile?.connectors?.whoopClientId || ''} 
-                    onChange={e => {
-                      const conn = { ...(profile?.connectors || {}), whoopClientId: e.target.value };
-                      saveProfile({ connectors: conn });
-                    }} 
-                  />
-                  <label className={styles.formLabel} style={{ marginTop: '1.25rem', display: 'block' }}>Notion Integration Token</label>
-                  <input
-                    type="password"
-                    className={styles.formInput}
-                    placeholder="secret_notion_xxxx"
-                    value={profile?.connectors?.notionToken || ''}
-                    onChange={e => {
-                      const conn = { ...(profile?.connectors || {}), notionToken: e.target.value };
-                      saveProfile({ connectors: conn });
-                    }}
-                  />
-                  <label className={styles.formLabel} style={{ marginTop: '1.25rem', display: 'block' }}>Notion Database ID (Ziel für Protokoll-Export)</label>
-                  <input
-                    type="text"
-                    className={styles.formInput}
-                    placeholder="z.B. 1a2b3c4d5e6f..."
-                    value={profile?.connectors?.notionDatabaseId || ''}
-                    onChange={e => {
-                      const conn = { ...(profile?.connectors || {}), notionDatabaseId: e.target.value };
-                      saveProfile({ connectors: conn });
-                    }}
-                  />
-                  <label className={styles.formLabel} style={{ marginTop: '1.25rem', display: 'block' }}>Zapier Webhook URL</label>
-                  <input
-                    type="text"
-                    className={styles.formInput}
-                    placeholder="https://hooks.zapier.com/hooks/catch/..."
-                    value={profile?.connectors?.zapierWebhookUrl || ''}
-                    onChange={e => {
-                      const conn = { ...(profile?.connectors || {}), zapierWebhookUrl: e.target.value };
-                      saveProfile({ connectors: conn });
-                    }}
-                  />
-                </div>
-
-                <div className={styles.panelGroup} style={{ marginTop: '2.5rem' }}>
-                  <div className={styles.panelGroupLabel}>System-Kopplung</div>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text2)', lineHeight: 1.5 }}>
-                    Verbinde deine physischen Wearables und externen Wissensdatenbanken direkt mit dem Pronoia Life OS. Die Synchronisation erfolgt im Hintergrund verschlüsselt.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.tabContentSideCol}>
-              <div className={styles.panelHeader}>
-                <h3 className={styles.panelTitle}>⚙️ API Terminal Konsole</h3>
-              </div>
-              <div className={styles.panelBody}>
-                <div className={styles.terminalCard}>
-                  {terminalLogs.map((log, i) => (
-                    <div key={i} className={styles.terminalRow}>{log}</div>
-                  ))}
-                </div>
-                <div className={styles.terminalActions}>
-                  <button 
-                    type="button" 
-                    className={`${styles.terminalBtn} ${styles.terminalBtnGreen}`}
-                    onClick={handleWhoopSync}
-                    disabled={isSyncingWhoop}
-                  >
-                    {isSyncingWhoop ? 'Syncing...' : '🔄 Sync WHOOP'}
-                  </button>
-                  <button 
-                    type="button" 
-                    className={styles.terminalBtn}
-                    onClick={handleNotionExport}
-                    disabled={isExportingNotion}
-                  >
-                    {isExportingNotion ? 'Exporting...' : '📝 Export Notion'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <ConnectorsTab
+            connectorPermissions={connectorPermissions}
+            setConnectorPermissions={setConnectorPermissions}
+            expandedConnectors={expandedConnectors}
+            setExpandedConnectors={setExpandedConnectors}
+            profile={profile}
+            saveProfile={saveProfile}
+            terminalLogs={terminalLogs}
+            handleWhoopSync={handleWhoopSync}
+            isSyncingWhoop={isSyncingWhoop}
+            handleNotionExport={handleNotionExport}
+            isExportingNotion={isExportingNotion}
+          />
         );
+      case 'learn-your-way':
+        return <LearnYourWay />;
+      case 'library':
+        return renderLibraryTabContent();
       case 'vault':
         return (
-          <div className={styles.tabContentGrid}>
-            <div className={styles.tabContentMainCol}>
-              <div className={styles.panelHeader}>
-                <h3 className={styles.panelTitle}>✦ Context Ingestion</h3>
-              </div>
-              <div className={styles.panelBody}>
-                {vaultToast && <div className={styles.vaultToast}>{vaultToast}</div>}
-                <div className={styles.vaultStats} style={{ marginBottom: '1.25rem' }}>
-                  <span>{vaultItems.length} Items im Vault</span>
-                  <span>{new Set(vaultItems.flatMap(i => i.tags || [])).size} Tags registriert</span>
-                </div>
-                <div className={styles.stackedForm}>
-                  <label className={styles.formLabel}>Typ wählen</label>
-                  <select className={styles.formInput} value={vaultForm.type} onChange={e => setVaultForm(f => ({ ...f, type: e.target.value }))}>
-                    <option value="note">Note / Text</option>
-                    <option value="link">Web Link</option>
-                    <option value="youtube">YouTube Video</option>
-                    <option value="file">File Reference</option>
-                  </select>
-                  {vaultForm.type === 'file' && (
-                    <div style={{ marginTop: '1rem' }}>
-                      <label className={styles.formLabel}>Datei hochladen</label>
-                      <input 
-                        type="file" 
-                        onChange={handleVaultFileUpload} 
-                        disabled={uploadingFile}
-                        style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--text)' }} 
-                      />
-                      {uploadingFile && (
-                        <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--theme-accent)' }}>
-                          Upload-Status: {uploadProgress}%
-                          <div style={{ width: '100%', height: '4px', backgroundColor: 'var(--border)', borderRadius: '2px', marginTop: '4px', overflow: 'hidden' }}>
-                            <div style={{ width: `${uploadProgress}%`, height: '100%', backgroundColor: 'var(--theme-accent)', transition: 'width 0.1s ease' }} />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <label className={styles.formLabel} style={{ marginTop: '1rem', display: 'block' }}>Titel</label>
-                  <input type="text" className={styles.formInput} placeholder="Titel…" value={vaultForm.title} onChange={e => setVaultForm(f => ({ ...f, title: e.target.value }))} />
-                  <label className={styles.formLabel} style={{ marginTop: '1rem', display: 'block' }}>Inhalt / URL</label>
-                  <textarea className={styles.formInput} rows={4} style={{ resize: 'none' }} placeholder="Inhalt / URL…" value={vaultForm.content} onChange={e => setVaultForm(f => ({ ...f, content: e.target.value }))} />
-                  <label className={styles.formLabel} style={{ marginTop: '1rem', display: 'block' }}>Tags (kommagetrennt)</label>
-                  <input type="text" className={styles.formInput} placeholder="neuroscience, focus, learning…" value={vaultForm.tags} onChange={e => setVaultForm(f => ({ ...f, tags: e.target.value }))} />
-                  <button className={styles.formBtn} onClick={handleSaveVaultItem} disabled={vaultSaving} style={{ marginTop: '1.5rem' }}>
-                    {vaultSaving ? 'Einspeisen…' : 'INGEST INTO VAULT →'}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.tabContentSideCol}>
-              <div className={styles.panelHeader}>
-                <h3 className={styles.panelTitle}>📂 Saved Items</h3>
-              </div>
-              <div className={styles.panelBody}>
-                <div className={styles.vaultTagsRow}>
-                  {['all', ...new Set(vaultItems.flatMap(i => i.tags || []))].map(tag => (
-                    <button key={tag} className={`${styles.vaultTag} ${vaultFilterTag === tag ? styles.vaultTagActive : ''}`} onClick={() => setVaultFilterTag(tag)}>
-                      #{tag}
-                    </button>
-                  ))}
-                </div>
-                <div style={{ maxHeight: '500px', overflowY: 'auto', paddingRight: '0.25rem' }}>
-                  {vaultLoading ? (
-                    <p className={styles.emptyState}>Lade Vault…</p>
-                  ) : (
-                    (vaultFilterTag === 'all' ? vaultItems : vaultItems.filter(i => (i.tags || []).includes(vaultFilterTag))).map(item => (
-                      <div key={item.id} className={styles.vaultCard}>
-                        <div className={styles.vaultCardTop}>
-                          <span className={styles.vaultType}>{item.type === 'note' ? '✦ note' : item.type === 'link' ? '⌘ link' : item.type === 'youtube' ? '▶ video' : '💾 file'}</span>
-                          <button className={styles.vaultDeleteBtn} onClick={() => handleDeleteVaultItem(item.id)}>✕</button>
-                        </div>
-                        <h4 className={styles.vaultCardTitle}>{item.title}</h4>
-                        <p className={styles.vaultCardContent}>{item.content}</p>
-                        <div className={styles.vaultCardTags}>
-                          {(item.tags || []).map(tag => <span key={tag} className={styles.vaultItemTag} onClick={() => setVaultFilterTag(tag)}>#{tag}</span>)}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+          <VaultTab
+            vaultItems={vaultItems}
+            vaultForm={vaultForm}
+            setVaultForm={setVaultForm}
+            vaultToast={vaultToast}
+            uploadingFile={uploadingFile}
+            uploadProgress={uploadProgress}
+            vaultSaving={vaultSaving}
+            vaultLoading={vaultLoading}
+            handleVaultFileUpload={handleVaultFileUpload}
+            handleSaveVaultItem={handleSaveVaultItem}
+            handleDeleteVaultItem={handleDeleteVaultItem}
+          />
         );
       case 'agents':
         return (
-          <div className={styles.tabContentGrid}>
-            <div className={styles.tabContentMainCol}>
-              <div className={styles.panelHeader}>
-                <h3 className={styles.panelTitle}>🤖 Consensus Hub</h3>
-              </div>
-              <div className={styles.panelBody}>
-                <div className={styles.consensusBox}>
-                  {(() => {
-                    const hasAlert = Object.values(consensusData?.agentStatuses || {}).some(s => s.status === 'ALERT');
-                    return (
-                      <>
-                        <div className={styles.consensusBadge} style={{ borderColor: hasAlert ? 'var(--red)' : 'var(--green)', color: hasAlert ? 'var(--red)' : 'var(--green)' }}>
-                          <span className={styles.consensusDot} style={{ background: hasAlert ? 'var(--red)' : 'var(--green)' }} />
-                          Consensus: {hasAlert ? 'Erhöhter Stress / Reibung' : '6/6 Freigaben'}
-                        </div>
-                        <p className={styles.consensusSummary} style={{ marginTop: '1rem', fontSize: '0.85rem' }}>
-                          <strong>{consensusData?.leader || 'A.06 Orchestrator'}:</strong> {consensusData?.directive || currentBlock.insight || 'Alle Subsysteme synchronisiert.'}
-                        </p>
-                      </>
-                    );
-                  })()}
-                </div>
-
-                <div className={styles.agentsListGrid} style={{ marginTop: '2rem' }}>
-                  {AGENTS.map(agent => {
-                    const info = getAgentStatus(agent.id);
-                    const statusColor = info.status === 'LEADING' ? 'var(--green)' : info.status === 'ACTIVE' ? 'var(--cobalt-bright)' : info.status === 'ALERT' ? 'var(--red)' : 'var(--text3)';
-                    return (
-                      <div key={agent.id} className={styles.agentCard}>
-                        <div className={styles.agentCardTop}>
-                          <div>
-                            <span className={styles.agentId}>{agent.id}</span>
-                            <span className={styles.agentName}>{agent.name}</span>
-                          </div>
-                          <span className={styles.agentBadge} style={{ color: statusColor, borderColor: statusColor }}>
-                            {info.status}
-                          </span>
-                        </div>
-                        <div className={styles.agentRole}>{agent.role}</div>
-                        <p className={styles.agentText}>{info.text}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.tabContentSideCol}>
-              <div className={styles.panelHeader}>
-                <h3 className={styles.panelTitle}>📜 System-Directives</h3>
-              </div>
-              <div className={styles.panelBody}>
-                {directives.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    {directives.map((dir, idx) => (
-                      <div key={idx} className={styles.directiveCard} style={{ margin: 0 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.65rem', color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>
-                          <span>DIREKTIVE #{directives.length - idx}</span>
-                          <span>{dir.timestamp ? new Date(dir.timestamp).toLocaleTimeString('de-DE') : ''}</span>
-                        </div>
-                        <strong>Anweisung:</strong> {dir.text}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className={styles.emptyState}>Keine Direktiven protokolliert.</p>
-                )}
-              </div>
-            </div>
-          </div>
+          <AgentsTab
+            consensusData={consensusData}
+            currentBlock={currentBlock}
+            agents={AGENTS}
+            getAgentStatus={getAgentStatus}
+            directives={directives}
+            refreshConsensus={refreshConsensus}
+            consensusLoading={consensusLoading}
+            lastConsensusAt={lastConsensusAt}
+            acknowledgeDirective={acknowledgeDirective}
+            dismissDirective={dismissDirective}
+            logFriction={logFriction}
+            frictionLogs={frictionLogs}
+          />
         );
       case 'profile':
         return (
-          <div className={styles.tabContentGrid}>
-            <div className={styles.tabContentMainCol}>
-              <div className={styles.panelHeader}>
-                <h3 className={styles.panelTitle}>👤 Bio-Profil Identität</h3>
-              </div>
-              <div className={styles.panelBody}>
-                <div className={styles.profileCard} style={{ marginBottom: '2rem' }}>
-                  <img src={profile?.avatar || AVATAR_PRESETS[0].url} alt="Avatar" className={styles.profileAvatar} style={{ width: '64px', height: '64px' }} />
-                  <div className={styles.profileInfo}>
-                    <div className={styles.profileName} style={{ fontSize: '1.2rem' }}>{profile?.username || 'BioHacker_Alpha'}</div>
-                    <div className={styles.profileRank}>{getStandingRank(profile?.skillLevel || 1)}</div>
-                    <div className={styles.profileId}>SYSID: {profile?.systemId || 'PX-2026-88'}</div>
-                  </div>
-                </div>
-
-                <div className={styles.panelGroup}>
-                  <div className={styles.panelGroupLabel}>Avatar wählen</div>
-                  <div className={styles.avatarGrid} style={{ marginTop: '0.5rem', marginBottom: '2rem' }}>
-                    {AVATAR_PRESETS.map((p, i) => (
-                      <button key={i} className={`${styles.avatarBtn} ${profile?.avatar === p.url ? styles.avatarBtnActive : ''}`} onClick={() => saveProfile({ avatar: p.url })}>
-                        <img src={p.url} alt={p.name} />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className={styles.panelGroup}>
-                  <div className={styles.panelGroupLabel}>Identitäts-Daten bearbeiten</div>
-                  <div className={styles.stackedForm}>
-                    <label className={styles.formLabel}>Identitäts-Name</label>
-                    <input type="text" className={styles.formInput} value={profile?.username || ''} onChange={e => saveProfile({ username: e.target.value })} />
-                    <label className={styles.formLabel} style={{ marginTop: '1rem', display: 'block' }}>Bio-Leitmotiv</label>
-                    <textarea className={styles.formInput} rows={3} style={{ resize: 'none' }} value={profile?.bio || ''} onChange={e => saveProfile({ bio: e.target.value })} />
-                    <label className={styles.formLabel} style={{ marginTop: '1rem', display: 'block' }}>Fokus Systemklasse</label>
-                    <select className={styles.formInput} value={profile?.class || 'Flow Architect'} onChange={e => saveProfile({ class: e.target.value })}>
-                      <option>Flow Architect</option>
-                      <option>Fuel Scheduler</option>
-                      <option>Light & Temperature</option>
-                      <option>Load Balancer</option>
-                      <option>Habit Enforcer</option>
-                      <option>Meta-Agent Orchestrator</option>
-                    </select>
-                    <label className={styles.formLabel} style={{ marginTop: '1rem', display: 'block' }}>Eigene Avatar-URL</label>
-                    <input type="text" className={styles.formInput} placeholder="https://…" value={profile?.avatar || ''} onChange={e => saveProfile({ avatar: e.target.value })} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.tabContentSideCol}>
-              <div className={styles.panelHeader}>
-                <h3 className={styles.panelTitle}>🎛️ System Customizer</h3>
-              </div>
-              <div className={styles.panelBody}>
-                <div className={styles.customizerSection}>
-                  
-                  {/* Accent selection */}
-                  <label className={styles.formLabel}>Accent Farbe</label>
-                  <div className={styles.accentPickerGrid} style={{ marginTop: '0.5rem' }}>
-                    {['blue', 'green', 'tan', 'amber', 'red', 'pink'].map(acc => (
-                      <button
-                        key={acc}
-                        type="button"
-                        className={`${styles.accentPickBtn} ${profile?.customization?.accent === acc ? styles.accentPickActive : ''}`}
-                        onClick={() => {
-                          const newCust = { ...(profile?.customization || {}), accent: acc };
-                          saveProfile({ customization: newCust });
-                        }}
-                        style={{ '--accent-color': acc === 'blue' ? '#1A6AFF' : acc === 'green' ? '#00C48C' : acc === 'tan' ? '#d5b893' : acc === 'amber' ? '#F5A623' : acc === 'red' ? '#FF4D4D' : '#FF33A8' }}
-                      >
-                        <span className={styles.accentColorDot} style={{ '--accent-color': acc === 'blue' ? '#1A6AFF' : acc === 'green' ? '#00C48C' : acc === 'tan' ? '#d5b893' : acc === 'amber' ? '#F5A623' : acc === 'red' ? '#FF4D4D' : '#FF33A8' }} />
-                        <span style={{ textTransform: 'capitalize' }}>{acc}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Mode selection */}
-                  <label className={styles.formLabel} style={{ marginTop: '1.5rem', display: 'block' }}>Interface Theme</label>
-                  <div className={styles.modePickerGrid} style={{ marginTop: '0.5rem' }}>
-                    {[
-                      { id: 'serious', label: 'Matte Dark' },
-                      { id: 'cyber', label: 'Cyber Glow' },
-                      { id: 'mono', label: 'Clinical Slate' },
-                      { id: 'glass', label: 'Glassmorphism' }
-                    ].map(mode => (
-                      <button
-                        key={mode.id}
-                        type="button"
-                        className={`${styles.modePickBtn} ${profile?.customization?.mode === mode.id ? styles.modePickActive : ''}`}
-                        onClick={() => {
-                          const newCust = { ...(profile?.customization || {}), mode: mode.id };
-                          saveProfile({ customization: newCust });
-                        }}
-                      >
-                        {mode.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Widget layout selection */}
-                  <label className={styles.formLabel} style={{ marginTop: '1.5rem', display: 'block' }}>Modular Widgets</label>
-                  <div className={styles.layoutPickerList} style={{ marginTop: '0.5rem' }}>
-                    {[
-                      { key: 'telemetry', label: 'Telemetry Visualizer' },
-                      { key: 'directives', label: 'System Directives' },
-                      { key: 'friction', label: 'Friction Logger' }
-                    ].map(lay => {
-                      const isVisible = profile?.customization?.layout?.[lay.key] ?? true;
-                      return (
-                        <div key={lay.key} className={styles.layoutToggleRow}>
-                          <span>{lay.label}</span>
-                          <button
-                            type="button"
-                            className={`${styles.toggleSwitchBtn} ${isVisible ? styles.toggleActive : ''}`}
-                            onClick={() => {
-                              const newLayout = { ...(profile?.customization?.layout || { telemetry: true, directives: true, friction: true }), [lay.key]: !isVisible };
-                              const newCust = { ...(profile?.customization || {}), layout: newLayout };
-                              saveProfile({ customization: newCust });
-                            }}
-                          >
-                            {isVisible ? 'ON' : 'OFF'}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className={styles.panelGroup} style={{ marginTop: '2.5rem' }}>
-                  <div className={styles.panelGroupLabel}>System-Einweisung</div>
-                  <button className={styles.formBtn} style={{ width: '100%', background: 'rgba(26,106,255,0.1)', borderColor: 'var(--theme-accent, var(--cobalt-bright))', color: 'var(--theme-accent, var(--cobalt-bright))', marginTop: '0.5rem', marginBottom: '1.25rem' }}
-                    onClick={() => { setTutorialStep(1); }}>
-                    🎓 Tour starten
-                  </button>
-
-                  <div className={styles.panelGroupLabel}>Zirkadianer Setup-Planer</div>
-                  <button
-                    className={styles.formBtn}
-                    style={{ width: '100%', background: 'var(--cobalt)', color: '#fff', border: '1px solid var(--cobalt-bright)', marginTop: '0.5rem' }}
-                    onClick={() => saveProfile({ hasCompletedOnboarding: false })}
-                  >
-                    🔄 Wochenprotokoll & Blockaden anpassen
-                  </button>
-                </div>
-
-                <div className={styles.panelGroup} style={{ marginTop: '2rem' }}>
-                  <div className={styles.panelGroupLabel}>Profil-Status & Tier</div>
-                  {[
-                    { label: 'Systemklasse', val: profile?.class || 'Flow Architect' },
-                    { label: 'Erstellt am', val: profile?.joinedDate || 'Mai 2026' },
-                    { label: 'Abo-Plan', val: (profile?.subscriptionTier || 'free').toUpperCase() },
-                    { label: 'Telegram ID', val: profile?.telegramId || 'Nicht verknüpft' },
-                  ].map(r => (
-                    <div key={r.label} className={styles.neuroRow}>
-                      <span>{r.label}</span>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text)' }}>{r.val}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+          <ProfileTab
+            profile={profile}
+            saveProfile={saveProfile}
+            profileToast={profileToast}
+            setProfileToast={setProfileToast}
+            avatarPresets={AVATAR_PRESETS}
+            getStandingRank={getStandingRank}
+            setTutorialStep={setTutorialStep}
+            user={user}
+            resetPassword={resetPassword}
+            logout={logout}
+            exportE2EPrivateKey={exportE2EPrivateKey}
+            importE2EPrivateKey={importE2EPrivateKey}
+            resetE2EKeys={resetE2EKeys}
+            setActiveTab={setActiveTab}
+            calendar={calendar}
+            stack={stack}
+          />
         );
       case 'manager':
         return (
@@ -3078,29 +3251,58 @@ function LifeOSDashboard() {
             setAgentMsg={setAgentMsg}
           />
         );
+      case 'northstar':
+        return (
+          <NorthStarTab
+            nsDraft={nsDraft}
+            setNsDraft={setNsDraft}
+            nsEditedRef={nsEditedRef}
+            profile={profile}
+            nsReexplore={nsReexplore}
+            setNsReexplore={setNsReexplore}
+            nsNudge={nsNudge}
+            nsMessage={nsMessage}
+            nsBusy={nsBusy}
+            nsRecalMsg={nsRecalMsg}
+            nsRecalInput={nsRecalInput}
+            setNsRecalInput={setNsRecalInput}
+            nsRecalBusy={nsRecalBusy}
+            saveFutureSelf={saveFutureSelf}
+            askNorthStar={askNorthStar}
+            recalibrate={recalibrate}
+          />
+        );
+      case 'frequencies':
+        return <FrequencyEngine />;
       default:
         return null;
     }
   };
 
   const isLabFullscreen = activeTab === 'lab';
+  const APP_META = {
+    apps: { name: 'Apps', desc: 'Alle Module' },
+    profile: { name: 'Profil', desc: 'Konto & Anpassung' },
+  };
+  const activeApp = (appsList || defaultApps).find(a => a.id === activeTab)
+    || APP_META[activeTab] || { name: activeTab, desc: '' };
 
   return (
     <div className={`${styles.shell} ${isLabFullscreen ? styles.fullscreenShell : ''}`}>
-      {/* Sleek Native Window Decoration Frame */}
+      {/* ═══ TOP TOOLBAR ═══ */}
       {!isLabFullscreen && (
         <div className={styles.desktopTitleBar}>
-          <div className={styles.titleBarLeft}>
-            <span className={styles.titleBarDot} style={{ background: '#FF5F56' }} />
-            <span className={styles.titleBarDot} style={{ background: '#FFBD2E' }} />
-            <span className={styles.titleBarDot} style={{ background: '#27C93F' }} />
+          <div className={styles.toolbarLeft}>
+            <span className={styles.toolbarEyebrow}>{activeApp.desc || 'Pronoia Life OS'}</span>
+            <span className={styles.toolbarTitle}>{activeApp.name}</span>
           </div>
-          <div className={styles.titleBarCenter}>
-            🔒 SECURE SYSTEM NODE // PRONOIA LIFE OS v3.2.0 [USER: {profile?.username?.toUpperCase()}]
-          </div>
-          <div className={styles.titleBarRight}>
-            <span className={styles.statusGlowDot} />
-            <span>ONLINE SYNC // ACTIVE</span>
+          <div className={styles.toolbarRight}>
+            <span className={styles.toolbarStatus}>
+              <span className={styles.statusGlowDot} />
+              Sync aktiv
+            </span>
+            <CinematicThemeSwitcher />
+            <button className={styles.toolbarLogout} onClick={logout}>Logout</button>
           </div>
         </div>
       )}
@@ -3122,10 +3324,11 @@ function LifeOSDashboard() {
       {/* ═══ SIDEBAR NAVIGATION ═══ */}
       {!isLabFullscreen && (
         <nav className={styles.sidebar}>
-          {/* Logo mark */}
-          <div className={styles.sidebarLogo}>
-            <span>⊕</span>
-          </div>
+          {/* Brand masthead — links back to the main site */}
+          <Link href="/" className={styles.sidebarLogo} aria-label="Zurück zur Hauptseite" title="Zurück zur Hauptseite">
+            <img src="/pronoia-mark.png" alt="" aria-hidden="true" className={styles.sidebarLogoImg} />
+            <img src="/pronoia-wordmark.png" alt="Pronoia" className={styles.sidebarWordmark} />
+          </Link>
 
           {/* Section nav items */}
           <div 
@@ -3205,6 +3408,12 @@ function LifeOSDashboard() {
 
           {/* Profile button at bottom */}
           <div className={styles.sidebarBottom}>
+            <Link href="/" className={styles.sidebarBtn} title="Zurück zur Hauptseite">
+              <span className={styles.sidebarBtnIcon}>
+                <span className="material-symbols-outlined">home</span>
+              </span>
+              <span className={styles.sidebarBtnLabel}>Hauptseite</span>
+            </Link>
             <button
               className={`${styles.sidebarBtn} ${activeTab === 'profile' ? styles.sidebarBtnActive : ''}`}
               onClick={() => setActiveTab('profile')}
@@ -3232,7 +3441,7 @@ function LifeOSDashboard() {
           }
         }}
       >
-        {!isLabFullscreen && (
+        {!isLabFullscreen && activeTab === 'dashboard' && (
           /* ─── SYSTEM STATUS BAR ─── */
           <div className={styles.statusBar}>
             <div className={styles.statusBarLeft}>
@@ -3313,49 +3522,23 @@ function LifeOSDashboard() {
               <h2 className={styles.calTitle}>Zirkadianes Protokoll-Archiv</h2>
               <p className={styles.calSub}>Plane bio-kognitive Tage vorausschauend mit AI Sync.</p>
             </div>
+
             <div className={styles.calLayout}>
-              {/* Calendar grid */}
+              {/* Left Column: Glass Calendar Card */}
               <div className={styles.calMain}>
-                <div className={styles.calNavRow}>
-                  <button className={styles.calNavBtn} onClick={prevMonth}>‹</button>
-                  <span className={styles.calMonthLabel}>
-                    {currentMonth.toLocaleString('de-DE', { month: 'long', year: 'numeric' }).toUpperCase()}
-                  </span>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button className={styles.calAiBtn} onClick={generateMonthAI}>AI Sync</button>
-                    <button className={styles.calNavBtn} onClick={nextMonth}>›</button>
-                  </div>
-                </div>
-                <div className={styles.calWeekdays}>
-                  {WEEKDAYS.map(d => <span key={d}>{d}</span>)}
-                </div>
-                <div className={styles.calGrid}>
-                  {days.map((cell, idx) => {
-                    const s = formatDate(cell.date);
-                    const isToday = s === dateStrToday;
-                    const isActive = s === dateStrSelected;
-                    const hasProto = !!calendar[s]?.blocks?.length;
-                    return (
-                      <div
-                        key={idx}
-                        className={[
-                          styles.calDay,
-                          !cell.isCurrent && styles.calDayOther,
-                          isToday && styles.calDayToday,
-                          isActive && styles.calDayActive,
-                          hasProto && styles.calDayHasProto,
-                        ].filter(Boolean).join(' ')}
-                        onClick={() => selectDate(cell.date)}
-                      >
-                        <span>{cell.day}</span>
-                        {hasProto && <span className={styles.calDayDot} />}
-                      </div>
-                    );
-                  })}
-                </div>
+                <GlassCalendar
+                  selectedDate={selectedDate}
+                  currentMonth={currentMonth}
+                  onDateSelect={selectDate}
+                  onPrevMonth={prevMonth}
+                  onNextMonth={nextMonth}
+                  onNewEvent={handleAddCalendarBlock}
+                  onAddNote={handleAddCalendarNote}
+                  calendar={calendar}
+                />
               </div>
 
-              {/* Day detail */}
+              {/* Right Column: Day Detail Sidebar */}
               <div className={styles.calSidebar}>
                 <div className={styles.calSidebarHeader}>
                   <h3>{selectedDate.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}</h3>
@@ -3386,7 +3569,7 @@ function LifeOSDashboard() {
                           <div className={styles.calBlockTitle}>{isLiab ? `🔒 ${block.title}` : block.title}</div>
                           <div className={styles.calBlockSub}>{block.rec}</div>
                         </div>
-                        <div className={styles.calBlockTime}>{block.startTime || '--:--'}</div>
+                        <div className={block.startTime ? styles.calBlockTime : ''} style={{ fontSize: '0.75rem', opacity: 0.8 }}>{block.startTime || '--:--'}</div>
                         <div className={styles.calBlockBtns} onClick={e => e.stopPropagation()}>
                           <button className={styles.calIconBtn} onClick={isLiab ? () => handleLiabilityClick(block) : () => handleEditCalendarBlock(idx, block.title, block.startTime)}>✎</button>
                           <button className={styles.calIconBtn} style={{ color: 'var(--red)' }} onClick={isLiab ? () => handleDeleteLiabilityFromBlock(block) : () => deleteCalendarBlock(idx)}>✕</button>
@@ -3534,12 +3717,18 @@ function LifeOSDashboard() {
         </div>
       )}
 
+      {isSkillLabOpen && (
+        <SkillLabModal isOpen={isSkillLabOpen} onClose={() => setIsSkillLabOpen(false)} />
+      )}
+
       <FloatingChat />
+      <SpotifyMiniPlayer profile={profile} saveProfile={saveProfile} />
     </div>
   );
 }
 
 export default function LifeOSPage() {
+  useForceDarkTheme();
   return (
     <Suspense fallback={
       <div style={{

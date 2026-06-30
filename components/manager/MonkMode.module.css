@@ -1,0 +1,556 @@
+.container {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  min-height: calc(100vh - 100px);
+  color: #f3f4f6;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Left Focus Panel */
+.focusPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.glassCard {
+  background: rgba(10, 10, 15, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(26, 106, 255, 0.15);
+  border-radius: 16px;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glassCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(26, 106, 255, 0.35), transparent);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 0.75rem;
+}
+
+.cardTitle {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.7) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.badge {
+  background: rgba(26, 106, 255, 0.12);
+  border: 1px solid rgba(26, 106, 255, 0.3);
+  color: #5593ff;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.badgeActive {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.15);
+}
+
+/* Circular Timer Widget */
+.timerContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 0;
+  position: relative;
+}
+
+.circleSvg {
+  transform: rotate(-90deg);
+  width: 250px;
+  height: 250px;
+}
+
+.circleBg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.03);
+  stroke-width: 8px;
+}
+
+.circleProgress {
+  fill: none;
+  stroke: #1a6aff;
+  stroke-width: 8px;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+  filter: drop-shadow(0 0 8px rgba(26, 106, 255, 0.65));
+}
+
+.timerLabelContainer {
+  position: absolute;
+  top: calc(50% - 25px);
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.timerText {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  text-shadow: 0 0 12px rgba(26, 106, 255, 0.4);
+}
+
+.timerSub {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.timerControls {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.btnPrimary {
+  background: linear-gradient(135deg, #1a6aff 0%, #0a4ebd 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  padding: 0.75rem 1.75rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(26, 106, 255, 0.3);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btnPrimary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(26, 106, 255, 0.5);
+  background: linear-gradient(135deg, #2b7cff 0%, #155eca 100%);
+}
+
+.btnSecondary {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  padding: 0.75rem 1.75rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btnSecondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.btnDanger {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  padding: 0.75rem 1.75rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btnDanger:hover {
+  background: rgba(239, 68, 68, 0.2);
+  transform: translateY(-1px);
+}
+
+/* Hermes Insight Styles */
+.hermesConsole {
+  background: rgba(5, 5, 8, 0.75);
+  border-radius: 12px;
+  padding: 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  border-left: 3px solid #1a6aff;
+  font-family: 'Inter', sans-serif;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.consoleHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #1a6aff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+/* Right Details Panel */
+.detailsPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Restricted Protocols List */
+.protocolList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.protocolItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.protocolItem:hover {
+  background: rgba(26, 106, 255, 0.04);
+  border-color: rgba(26, 106, 255, 0.15);
+}
+
+.protocolMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.protocolName {
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.protocolDesc {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 0.1rem;
+}
+
+.statusIndicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+}
+
+.ledBlocked {
+  background: #1a6aff;
+  box-shadow: 0 0 8px #1a6aff, inset 0 0 2px rgba(255, 255, 255, 0.5);
+}
+
+/* Glass Switch (Custom input checkbox toggle replacement) */
+.switchLabel {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 22px;
+}
+
+.switchInput {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: .3s;
+  border-radius: 34px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: rgba(255, 255, 255, 0.6);
+  transition: .3s;
+  border-radius: 50%;
+}
+
+.switchInput:checked + .slider {
+  background-color: rgba(26, 106, 255, 0.2);
+  border-color: rgba(26, 106, 255, 0.5);
+}
+
+.switchInput:checked + .slider:before {
+  transform: translateX(22px);
+  background-color: #ffffff;
+  box-shadow: 0 0 8px rgba(26, 106, 255, 0.8);
+}
+
+/* Chart Container styles */
+.chartWrapper {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  margin-top: 1rem;
+}
+
+.chartLabel {
+  font-size: 0.7rem;
+  fill: rgba(255, 255, 255, 0.45);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.gridLine {
+  stroke: rgba(255, 255, 255, 0.03);
+  stroke-dasharray: 4;
+}
+
+.chartLegend {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.legendColor {
+  width: 10px;
+  height: 3px;
+  border-radius: 1px;
+}
+
+/* Custom Alert Banner */
+.statusBanner {
+  background: linear-gradient(90deg, rgba(26, 106, 255, 0.15) 0%, rgba(26, 106, 255, 0.02) 100%);
+  border: 1px solid rgba(26, 106, 255, 0.25);
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.statusIcon {
+  color: #1a6aff;
+  filter: drop-shadow(0 0 4px rgba(26, 106, 255, 0.5));
+}
+
+.statusText {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.statusText strong {
+  color: #ffffff;
+}
+
+/* Exit Button top positioning inside layout tab */
+.topActions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.backBtn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.backBtn:hover {
+  border-color: rgba(26, 106, 255, 0.3);
+  color: white;
+  background: rgba(26, 106, 255, 0.04);
+}
+
+/* Tooltips */
+.tooltip {
+  position: relative;
+}
+
+/* Responsive configurations */
+@media (max-width: 960px) {
+  .container {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding: 1rem;
+  }
+}
+
+/* Light Mode Overrides */
+:global([data-theme="light"]) .container {
+  color: #1e293b;
+}
+
+:global([data-theme="light"]) .glassCard {
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.03);
+}
+
+:global([data-theme="light"]) .glassCard::before {
+  background: linear-gradient(90deg, transparent, rgba(26, 106, 255, 0.2), transparent);
+}
+
+:global([data-theme="light"]) .cardHeader {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="light"]) .cardTitle {
+  background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+:global([data-theme="light"]) .circleBg {
+  stroke: rgba(0, 0, 0, 0.03);
+}
+
+:global([data-theme="light"]) .timerText {
+  color: #1e293b;
+  text-shadow: 0 0 12px rgba(26, 106, 255, 0.15);
+}
+
+:global([data-theme="light"]) .timerSub {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+:global([data-theme="light"]) .btnSecondary {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.75);
+}
+
+:global([data-theme="light"]) .btnSecondary:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #000;
+}
+
+:global([data-theme="light"]) .hermesConsole {
+  background: rgba(255, 255, 255, 0.95);
+  color: #334155;
+  border-left-color: #1a6aff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+
+:global([data-theme="light"]) .protocolItem {
+  background: rgba(0, 0, 0, 0.01);
+  border-color: rgba(0, 0, 0, 0.04);
+}
+
+:global([data-theme="light"]) .protocolItem:hover {
+  background: rgba(26, 106, 255, 0.04);
+  border-color: rgba(26, 106, 255, 0.15);
+}
+
+:global([data-theme="light"]) .protocolDesc {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+:global([data-theme="light"]) .chartLabel {
+  fill: rgba(0, 0, 0, 0.45);
+}
+
+:global([data-theme="light"]) .gridLine {
+  stroke: rgba(0, 0, 0, 0.03);
+}
+
+:global([data-theme="light"]) .legendItem {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+:global([data-theme="light"]) .statusText strong {
+  color: #0f172a;
+}
+
+:global([data-theme="light"]) .backBtn {
+  border-color: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.6);
+}
+
+:global([data-theme="light"]) .backBtn:hover {
+  border-color: rgba(26, 106, 255, 0.3);
+  color: #1a6aff;
+  background: rgba(26, 106, 255, 0.04);
+}

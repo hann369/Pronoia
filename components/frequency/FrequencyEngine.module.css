@@ -1,0 +1,295 @@
+/* FrequencyEngine — "Aetheric Resonance" immersive sound-meditation room.
+   Atmospheric minimalism + glassmorphism, breathing orb, per-state mood color.
+   Local --fq-accent / --fq-accent-soft are set inline per active state (adjustable). */
+
+.fq {
+  position: relative;
+  min-height: calc(100vh - 9rem);
+  margin: -1.75rem -2.5rem;
+  padding: 3rem 2.5rem 3.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3rem;
+  overflow: hidden;
+  background: #060509;
+  color: #ECE8F2;
+  font-family: var(--font-body);
+}
+@media (max-width: 1024px) {
+  .fq { margin: -1.5rem -1.5rem -80px; padding: 2.5rem 1.5rem 6rem; }
+}
+
+.fqAtmos {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(58% 44% at 50% 34%, var(--fq-accent-soft) 0%, transparent 68%),
+    radial-gradient(40% 40% at 50% 92%, var(--fq-accent-soft) 0%, transparent 72%);
+  transition: background 1.8s ease;
+}
+
+.fqStage,
+.fqControls {
+  position: relative;
+  z-index: 1;
+}
+
+.fqStage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── Breathing orb ── */
+.fqOrb {
+  position: relative;
+  width: 296px;
+  height: 296px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 44%, var(--fq-accent) 0%, transparent 60%);
+  box-shadow:
+    0 0 70px -16px var(--fq-accent),
+    0 0 150px 8px var(--fq-accent-soft);
+  opacity: 0.9;
+  transition: background 1.8s ease, box-shadow 1.8s ease;
+}
+.fqOrbBreathing {
+  animation: fqBreathe 4.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes fqBreathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+.fqOrbCore {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.fqHz {
+  font-size: 3.4rem;
+  font-weight: 200;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: #F6F2FB;
+}
+.fqBand {
+  margin-top: 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(246, 242, 251, 0.62);
+}
+
+.fqTimer {
+  margin-top: 2.6rem;
+  font-size: 3rem;
+  font-weight: 200;
+  letter-spacing: 0.05em;
+  color: #ECE8F2;
+}
+
+.fqPlay {
+  margin-top: 1.9rem;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 1px solid rgba(236, 232, 242, 0.28);
+  background: transparent;
+  color: var(--fq-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.25s ease, transform 0.2s ease, color 0.25s ease;
+}
+.fqPlay:hover:not(:disabled) {
+  border-color: var(--fq-accent);
+  transform: scale(1.04);
+}
+.fqPlay:disabled { opacity: 0.4; cursor: not-allowed; }
+.fqPlay svg { margin-left: 2px; }
+.fqPlay svg rect { margin: 0; }
+
+/* ── Controls ── */
+.fqControls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.7rem;
+}
+
+.fqStates {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+  max-width: 640px;
+}
+.fqPill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.5rem 1.15rem;
+  border-radius: 100px;
+  border: 1px solid rgba(236, 232, 242, 0.14);
+  background: transparent;
+  color: rgba(236, 232, 242, 0.6);
+  cursor: pointer;
+  transition: border-color 0.25s ease, background 0.25s ease, color 0.25s ease;
+}
+.fqPill:hover {
+  border-color: rgba(236, 232, 242, 0.3);
+  color: #ECE8F2;
+}
+.fqPillActive {
+  border-color: transparent;
+  background: var(--fq-accent-soft);
+  color: #fff;
+}
+.fqPillLabel {
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+.fqPillMeta {
+  font-family: var(--font-mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+.fqDur {
+  display: flex;
+  gap: 1.8rem;
+}
+.fqDurItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  color: rgba(236, 232, 242, 0.42);
+  transition: color 0.2s ease;
+}
+.fqDurItem::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(236, 232, 242, 0.2);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+.fqDurItem:hover:not(:disabled) { color: rgba(236, 232, 242, 0.8); }
+.fqDurItem:disabled { cursor: not-allowed; opacity: 0.55; }
+.fqDurActive { color: #ECE8F2; }
+.fqDurActive::before {
+  background: var(--fq-accent);
+  box-shadow: 0 0 8px var(--fq-accent);
+}
+
+.fqVol {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 240px;
+}
+.fqVolIcon {
+  display: flex;
+  color: rgba(236, 232, 242, 0.45);
+}
+.fqVolSlider {
+  flex: 1;
+  accent-color: var(--fq-accent);
+  height: 2px;
+  cursor: pointer;
+}
+
+.fqWarn {
+  color: #ffb4ab;
+  font-size: 0.72rem;
+  text-align: center;
+}
+.fqDisclaimer {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(236, 232, 242, 0.34);
+  text-align: center;
+}
+
+/* ── Session stats (persisted history) ── */
+.fqStats {
+  display: flex;
+  justify-content: center;
+  gap: 2.25rem;
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(236, 232, 242, 0.08);
+}
+.fqStat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+.fqStatVal {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--fq-accent);
+  transition: color 1.2s ease;
+}
+.fqStatLabel {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(236, 232, 242, 0.4);
+}
+.fqRecent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 1.1rem;
+  width: 100%;
+  max-width: 320px;
+}
+.fqRecentItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  font-size: 0.74rem;
+  color: rgba(236, 232, 242, 0.7);
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px;
+  background: rgba(236, 232, 242, 0.03);
+}
+.fqRecentTime {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: rgba(236, 232, 242, 0.4);
+}
+.fqRecentEmpty {
+  margin-top: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  color: rgba(236, 232, 242, 0.3);
+  text-align: center;
+}

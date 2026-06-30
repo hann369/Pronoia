@@ -1185,6 +1185,146 @@
     </div>
   </div>
 
+  <!-- ── SCREEN 5: Manager ── -->
+  <div class="screen" id="s-manager">
+    <div class="scroll-body">
+      <!-- Circadianer Rhythmus -->
+      <div class="glass-card">
+        <div class="card-title">Circadianer Rhythmus</div>
+        <div class="card-subtitle">Hardware Sync: Online</div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" style="font-size: 9px; margin-bottom: 4px;">Wake Window</label>
+            <input type="text" id="managerWake" class="ob-input" value="06:30" onblur="saveManagerCircadian()" style="font-family: 'JetBrains Mono', monospace;" />
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" style="font-size: 9px; margin-bottom: 4px;">Sleep Window</label>
+            <input type="text" id="managerSleep" class="ob-input" value="22:15" onblur="saveManagerCircadian()" style="font-family: 'JetBrains Mono', monospace;" />
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 16px; margin-bottom: 4px;">
+          <div class="form-label" style="font-size: 9px;">
+            <span>Morning Lux Target (10k+)</span>
+            <span class="form-value" style="color: var(--accent);">8.420 LUX</span>
+          </div>
+          <div style="height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; margin-top: 4px;">
+            <div style="height: 100%; width: 84%; background: var(--accent); box-shadow: 0 0 8px var(--accent-glow);"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Link Automation -->
+      <div class="glass-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <div class="card-title" style="margin-bottom: 0;">Link-Automation</div>
+          <button class="btn-outline" style="width: auto; padding: 4px 10px; font-size: 9px; margin-top: 0;" onclick="toggleAddMappingForm()">+ NEU</button>
+        </div>
+        <div class="card-subtitle">Automatisches URL Routing</div>
+
+        <!-- Add Mapping Form -->
+        <div id="addMappingForm" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg3); border-radius: 10px; border: 1px solid var(--border); margin-bottom: 12px;">
+          <div class="form-group">
+            <label class="form-label" style="font-size: 9px; margin-bottom: 4px;">Pattern / Suchbegriff</label>
+            <input type="text" id="mappingPattern" class="ob-input" placeholder="z.B. Deep Work" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-size: 9px; margin-bottom: 4px;">Ziel-URL</label>
+            <input type="text" id="mappingUrl" class="ob-input" placeholder="z.B. notion.so/workspace" />
+          </div>
+          <button class="btn-main" onclick="submitNewMapping()" style="margin-top: 6px; padding: 8px;">Speichern</button>
+        </div>
+
+        <div id="mappingItemsList" style="margin-top: 8px; max-height: 180px; overflow-y: auto;">
+          <!-- Dynamisch geladen -->
+        </div>
+      </div>
+
+      <!-- Outlier Research -->
+      <div class="glass-card">
+        <div class="card-title">Outlier Research</div>
+        <div class="card-subtitle">Wettbewerber Crawler-Engine</div>
+        
+        <div style="display: flex; gap: 8px; margin-top: 12px; margin-bottom: 12px;">
+          <input type="text" id="researchQuery" class="ob-input" placeholder="Youtube Handle oder Nischenbegriff..." style="flex: 1;" />
+          <button class="send-btn" onclick="submitResearchTarget()" style="height: 38px; width: 38px; border-radius: 10px; margin-top: 0;">
+            <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke: #fff; fill: none; stroke-width: 2.5;"><path d="M12 2v20M17 5l-5-5-5 5"/></svg>
+          </button>
+        </div>
+
+        <div id="researchItemsList" style="max-height: 180px; overflow-y: auto; margin-bottom: 8px;">
+          <!-- Dynamisch geladen -->
+        </div>
+
+        <!-- Detailed Results Viewer Container -->
+        <div id="researchDetailsContainer" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg3); border-radius: 10px; border: 1px solid var(--accent); position: relative;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 10px;">
+            <strong id="researchDetailsTitle" style="font-size: 12px; color: var(--text); font-family: 'JetBrains Mono', monospace; text-transform: uppercase;">Analyse-Ergebnisse</strong>
+            <span onclick="closeResearchDetails()" style="cursor: pointer; font-size: 14px; color: var(--text-muted); font-weight: bold; padding: 0 4px;">✕</span>
+          </div>
+          <div id="researchDetailsContent" style="font-size: 11px; line-height: 1.5; color: var(--text-muted); max-height: 250px; overflow-y: auto; white-space: pre-wrap; font-family: inherit;">
+            <!-- Inhalt wird dynamisch befüllt -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Financial Vision Logger -->
+      <div class="glass-card">
+        <div class="card-title">Quick Financial Vision Logger</div>
+        <div class="card-subtitle">Einnahmen &amp; Ausgaben erfassen</div>
+        
+        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 10px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" style="font-size: 9px; margin-bottom: 4px;">Beschreibung / Name</label>
+            <input type="text" id="financeDesc" class="ob-input" placeholder="z.B. Mittagessen" />
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" style="font-size: 9px; margin-bottom: 4px;">Betrag (€)</label>
+              <input type="number" id="financeAmount" class="ob-input" placeholder="z.B. 15.50" step="0.01" style="font-family: 'JetBrains Mono', monospace;" />
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" style="font-size: 9px; margin-bottom: 4px;">Kategorie</label>
+              <select id="financeCategory" class="ob-input" style="background: var(--bg3); padding: 9px 10px; font-size: 12px; color: var(--text); height: 38px;">
+                <option value="Ernährung">Ernährung</option>
+                <option value="Supplementation">Supplementation</option>
+                <option value="Software/Tools">Software/Tools</option>
+                <option value="Bildung/Coaching">Bildung/Coaching</option>
+                <option value="Fitness/Gym">Fitness/Gym</option>
+                <option value="Freizeit">Freizeit</option>
+                <option value="Sonstiges">Sonstiges</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" style="font-size: 9px; margin-bottom: 4px;">Transaktionstyp</label>
+            <div class="chip-row" id="financeTypeSelect" style="margin-top: 4px;">
+              <div class="chip sel" onclick="selectFinanceType('expense', this)">Ausgabe</div>
+              <div class="chip" onclick="selectFinanceType('income', this)">Einnahme</div>
+            </div>
+          </div>
+
+          <button class="btn-main" onclick="submitQuickFinanceTx()" style="margin-top: 6px;">Transaktion loggen</button>
+        </div>
+
+        <!-- MTD / Net Totals -->
+        <div style="margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid var(--border); padding-top: 12px;">
+          <div>
+            <div class="card-subtitle" style="margin-bottom: 2px; font-size: 9px;">Liquidität</div>
+            <div id="managerLiquidity" style="font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; color: var(--text);">€ 0.00</div>
+          </div>
+          <div>
+            <div class="card-subtitle" style="margin-bottom: 2px; font-size: 9px;">Netto MTD</div>
+            <div id="managerMtdNet" style="font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; color: var(--accent);">€ 0.00</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Tabbar ── -->
   <div class="tabbar">
     <div class="tab active" id="tab-profile" onclick="switchTab('profile')">
@@ -1203,6 +1343,10 @@
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
       <span>Stack</span>
     </div>
+    <div class="tab" id="tab-manager" onclick="switchTab('manager')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+      <span>Manager</span>
+    </div>
   </div>
 </div>
 
@@ -1217,11 +1361,11 @@ if (tg) {
 const tgUser = tg?.initDataUnsafe?.user;
 const userName = tgUser?.first_name || "BioHacker";
 const userId = tgUser?.id || null;
-document.getElementById("userName").textContent = userName;
+const userNameEl = document.getElementById("userName"); if (userNameEl) userNameEl.textContent = userName;
 
 // Set dynamic system ID
 const computedId = userId ? `PX-2026-${String(userId).slice(-3)}` : "PX-2026-88";
-document.getElementById("userSystemId").textContent = "SYSTEM ID: " + computedId;
+const userSystemIdEl = document.getElementById("userSystemId"); if (userSystemIdEl) userSystemIdEl.textContent = "SYSTEM ID: " + computedId;
 
 // ── State ────────────────────────────────────────────────────
 let profile = { goals: [], experience: "intermediate", age: null, challenge: "", name: userName, telegramId: userId, metrics: { hrv: 72, sleep: 84 } };
@@ -1253,12 +1397,16 @@ const hrvValueDisplay = document.getElementById("hrvValueDisplay");
 const sleepSlider = document.getElementById("sleepSlider");
 const sleepValueDisplay = document.getElementById("sleepValueDisplay");
 
-hrvSlider.oninput = function() {
-  hrvValueDisplay.textContent = this.value + " ms";
-};
-sleepSlider.oninput = function() {
-  sleepValueDisplay.textContent = this.value + "%";
-};
+if (hrvSlider && hrvValueDisplay) {
+  hrvSlider.oninput = function() {
+    hrvValueDisplay.textContent = this.value + " ms";
+  };
+}
+if (sleepSlider && sleepValueDisplay) {
+  sleepSlider.oninput = function() {
+    sleepValueDisplay.textContent = this.value + "%";
+  };
+}
 
 // ── Chips ──
 function toggleChip(el) { el.classList.toggle("sel"); }
@@ -1272,13 +1420,388 @@ function switchTab(tab) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
   
-  document.getElementById("s-" + tab).classList.add("active");
-  document.getElementById("tab-" + tab).classList.add("active");
+  const activeSTab = document.getElementById("s-" + tab);
+  const activeTTab = document.getElementById("tab-" + tab);
+  if (activeSTab) activeSTab.classList.add("active");
+  if (activeTTab) activeTTab.classList.add("active");
   
   if (tab === "stack") renderStack();
   if (tab === "lifeos") {
     renderCalendar();
   }
+  if (tab === "manager") {
+    renderManager();
+  }
+}
+
+// ── Manager Tab Interactivity ──
+let currentFinanceType = "expense";
+
+function selectFinanceType(type, element) {
+  currentFinanceType = type;
+  document.querySelectorAll("#financeTypeSelect .chip").forEach(c => c.classList.remove("sel"));
+  element.classList.add("sel");
+}
+
+function toggleAddMappingForm() {
+  const form = document.getElementById("addMappingForm");
+  form.style.display = form.style.display === "none" ? "block" : "none";
+}
+
+async function submitNewMapping() {
+  const patternInput = document.getElementById("mappingPattern");
+  const urlInput = document.getElementById("mappingUrl");
+  const pattern = patternInput.value.trim();
+  let url = urlInput.value.trim();
+  
+  if (!pattern || !url) return;
+  if (!/^https?:\/\//i.test(url)) {
+    url = "https://" + url;
+  }
+  
+  if (!profile.managerConfig) profile.managerConfig = {};
+  if (!profile.managerConfig.mappings) profile.managerConfig.mappings = [];
+  
+  const newMapping = {
+    id: "map_" + Date.now(),
+    pattern: pattern,
+    url: url
+  };
+  
+  profile.managerConfig.mappings.push(newMapping);
+  
+  patternInput.value = "";
+  urlInput.value = "";
+  document.getElementById("addMappingForm").style.display = "none";
+  
+  renderManager();
+  await syncManagerConfig();
+}
+
+async function deleteMapping(id) {
+  if (!profile.managerConfig || !profile.managerConfig.mappings) return;
+  profile.managerConfig.mappings = profile.managerConfig.mappings.filter(m => m.id !== id);
+  renderManager();
+  await syncManagerConfig();
+}
+
+async function saveManagerCircadian() {
+  const wakeVal = document.getElementById("managerWake").value.trim();
+  const sleepVal = document.getElementById("managerSleep").value.trim();
+  
+  if (!profile.managerConfig) profile.managerConfig = {};
+  if (!profile.managerConfig.circadian) profile.managerConfig.circadian = {};
+  
+  profile.managerConfig.circadian.wake = wakeVal;
+  profile.managerConfig.circadian.sleep = sleepVal;
+  
+  await syncManagerConfig();
+}
+
+async function submitResearchTarget() {
+  const input = document.getElementById("researchQuery");
+  const query = input.value.trim();
+  if (!query) return;
+  
+  let formattedUrl = "";
+  let title = query;
+  if (/^https?:\/\//i.test(query) || /\./.test(query)) {
+    formattedUrl = /^https?:\/\//i.test(query) ? query : "https://" + query;
+    title = query.replace(/^https?:\/\//i, "").substring(0, 60);
+  }
+  
+  const newItem = {
+    id: "res_" + Date.now(),
+    title: title,
+    category: "YouTube",
+    url: formattedUrl,
+    notes: "",
+    date: new Date().toLocaleDateString("de-DE"),
+    analysisReport: null,
+    analysisData: null
+  };
+  
+  if (!profile.managerConfig) profile.managerConfig = {};
+  if (!profile.managerConfig.research) profile.managerConfig.research = [];
+  
+  profile.managerConfig.research.unshift(newItem);
+  input.value = "";
+  
+  renderManager();
+  await syncManagerConfig();
+  
+  // Trigger analysis immediately
+  runOutlierAnalysis(newItem);
+}
+
+async function deleteResearchTarget(id) {
+  if (!profile.managerConfig || !profile.managerConfig.research) return;
+  profile.managerConfig.research = profile.managerConfig.research.filter(r => r.id !== id);
+  
+  const detailsContainer = document.getElementById("researchDetailsContainer");
+  if (detailsContainer.style.display !== "none") {
+    detailsContainer.style.display = "none";
+  }
+  
+  renderManager();
+  await syncManagerConfig();
+}
+
+function openResearchDetails(item) {
+  const container = document.getElementById("researchDetailsContainer");
+  const title = document.getElementById("researchDetailsTitle");
+  const content = document.getElementById("researchDetailsContent");
+  
+  title.textContent = "Analyse: " + item.title;
+  
+  if (item.analysisReport) {
+    content.textContent = item.analysisReport;
+  } else {
+    content.innerHTML = `
+      <div style="text-align: center; padding: 12px; color: var(--text-dim);">
+        Keine Analyse vorhanden.<br/><br/>
+        <button class="btn-outline" style="width: auto; padding: 6px 12px; font-size: 10px;" onclick="runOutlierAnalysisById('${item.id}')">Jetzt analysieren</button>
+      </div>
+    `;
+  }
+  
+  container.style.display = "block";
+  container.scrollIntoView({ behavior: 'smooth' });
+}
+
+function closeResearchDetails() {
+  document.getElementById("researchDetailsContainer").style.display = "none";
+}
+
+async function runOutlierAnalysisById(id) {
+  const item = profile.managerConfig.research.find(r => r.id === id);
+  if (item) {
+    runOutlierAnalysis(item);
+  }
+}
+
+async function runOutlierAnalysis(item, targetChannelId = null) {
+  const container = document.getElementById("researchDetailsContainer");
+  const title = document.getElementById("researchDetailsTitle");
+  const content = document.getElementById("researchDetailsContent");
+  
+  title.textContent = "Analyse: " + item.title;
+  content.innerHTML = '<div style="color: var(--accent); font-family: \'JetBrains Mono\', monospace; animation: pulse 1.8s infinite;">Initialisiere Outlier-Crawler-Engine...</div>';
+  container.style.display = "block";
+  container.scrollIntoView({ behavior: 'smooth' });
+  
+  const steps = [
+    "Analysiere historische Durchschnittswerte & Benchmarks...",
+    "Scanne YouTube-Videos & Content-Katalog...",
+    "Analysiere Titel-Hooks, CTR-Treiber und Thumbnail-Konzepte...",
+    "Synthetisiere strategische Erkenntnisse..."
+  ];
+  
+  let stepIdx = 0;
+  const stepTimer = setInterval(() => {
+    if (stepIdx < steps.length) {
+      content.innerHTML = `<div style="color: var(--accent); font-family: 'JetBrains Mono', monospace; animation: pulse 1.8s infinite;">${steps[stepIdx]}</div>`;
+      stepIdx++;
+    } else {
+      clearInterval(stepTimer);
+    }
+  }, 1000);
+  
+  try {
+    let queryUrl = `/api/youtube-search?q=${encodeURIComponent(item.title)}`;
+    if (targetChannelId) {
+      queryUrl = `/api/youtube-search?channelId=${targetChannelId}`;
+    } else if (item.url) {
+      const handleMatch = item.url.match(/youtube\.com\/(@[a-zA-Z0-9_-]+)/);
+      const idMatch = item.url.match(/youtube\.com\/channel\/([a-zA-Z0-9_-]+)/);
+      if (idMatch) {
+        queryUrl = `/api/youtube-search?channelId=${idMatch[1]}`;
+      } else if (handleMatch) {
+        queryUrl = `/api/youtube-search?q=${encodeURIComponent(handleMatch[1])}`;
+      }
+    }
+    
+    const res = await fetch(queryUrl);
+    if (!res.ok) throw new Error("Crawl-API Fehler");
+    
+    const searchData = await res.json();
+    clearInterval(stepTimer);
+    
+    if (searchData.error) throw new Error(searchData.error);
+    
+    let report = "";
+    if (searchData.mode === "channel") {
+      const chan = searchData.channel || { title: item.title, subscribersText: "N/A" };
+      const videoListText = (searchData.videos || []).map((v, idx) => 
+        `${idx + 1}. ${v.title} (${v.viewsText || "N/A"} views, ${v.publishedText || "N/A"})`
+      ).join("\n");
+      
+      report = `### 🚀 OUTLIER ANALYSE: KANAL PERFORMANCE "${chan.title}"\n` +
+        `Abonnenten: ${chan.subscribersText || "N/A"}\n` +
+        `Kanal-URL: https://youtube.com/${chan.handle || ""}\n\n` +
+        `Top-Videos:\n${videoListText}\n\n` +
+        `Erkenntnisse: Kanäle in dieser Nische skalieren stark durch konsistente Branding-Muster und klickstarke Hooks.`;
+    } else {
+      const videoListText = (searchData.videos || []).slice(0, 5).map((v, idx) => 
+        `${idx + 1}. ${v.title} (${v.viewsText || "N/A"} views)`
+      ).join("\n");
+      
+      report = `### 🔍 OUTLIER THEMEN-ANALYSE "${item.title}"\n\n` +
+        `Relevante Videos:\n${videoListText}\n\n` +
+        `Erkenntnisse: Suchbegriffe wie "${item.title}" weisen hohes organisches Suchvolumen auf. Optimale Platzierung von Keywords erhöht die CTR.`;
+    }
+    
+    item.analysisReport = report;
+    item.analysisData = searchData;
+    
+    profile.managerConfig.research = profile.managerConfig.research.map(r => r.id === item.id ? item : r);
+    renderManager();
+    await syncManagerConfig();
+    
+    content.textContent = report;
+    
+  } catch (err) {
+    clearInterval(stepTimer);
+    const errReport = `### ❌ FEHLER BEI DER ANALYSE\n\nDetails: ${err.message || "Netzwerkfehler oder API-Rate-Limit."}`;
+    item.analysisReport = errReport;
+    
+    profile.managerConfig.research = profile.managerConfig.research.map(r => r.id === item.id ? item : r);
+    renderManager();
+    await syncManagerConfig();
+    
+    content.textContent = errReport;
+  }
+}
+
+function openResearchDetailsById(id) {
+  const item = profile.managerConfig.research.find(r => r.id === id);
+  if (item) {
+    openResearchDetails(item);
+  }
+}
+
+async function submitQuickFinanceTx() {
+  const descInput = document.getElementById("financeDesc");
+  const amountInput = document.getElementById("financeAmount");
+  const catSelect = document.getElementById("financeCategory");
+  
+  const description = descInput.value.trim();
+  const amount = parseFloat(amountInput.value);
+  const category = catSelect.value;
+  
+  if (!description || isNaN(amount) || amount <= 0) {
+    alert("Bitte gib eine gültige Beschreibung und einen Betrag ein.");
+    return;
+  }
+  
+  const newTx = {
+    id: "tx_" + Date.now(),
+    date: new Date().toISOString().substring(0, 10),
+    description: description,
+    category: category,
+    amount: amount,
+    type: currentFinanceType
+  };
+  
+  if (!profile.managerConfig) profile.managerConfig = {};
+  if (!profile.managerConfig.finance) profile.managerConfig.finance = {};
+  if (!profile.managerConfig.finance.transactions) profile.managerConfig.finance.transactions = [];
+  
+  profile.managerConfig.finance.transactions.push(newTx);
+  
+  descInput.value = "";
+  amountInput.value = "";
+  
+  renderManager();
+  await syncManagerConfig();
+}
+
+function renderManager() {
+  const config = profile.managerConfig || {};
+  
+  // 1. Circadian windows
+  const wakeVal = config.circadian?.wake || "06:30";
+  const sleepVal = config.circadian?.sleep || "22:15";
+  
+  const wakeInput = document.getElementById("managerWake");
+  const sleepInput = document.getElementById("managerSleep");
+  if (wakeInput && document.activeElement !== wakeInput) wakeInput.value = wakeVal;
+  if (sleepInput && document.activeElement !== sleepInput) sleepInput.value = sleepVal;
+  
+  // 2. Mappings list
+  const mappingsList = document.getElementById("mappingItemsList");
+  if (mappingsList) {
+    const mappings = config.mappings || [];
+    if (mappings.length === 0) {
+      mappingsList.innerHTML = '<div class="empty-state">Keine Link-Zuordnungen definiert.</div>';
+    } else {
+      mappingsList.innerHTML = mappings.map(m => `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; gap: 8px;">
+          <div style="min-width: 0; flex: 1;">
+            <div style="font-size: 12px; font-weight: 500; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${m.pattern}</div>
+            <div style="font-size: 9px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${m.url}</div>
+          </div>
+          <div style="display: flex; gap: 8px; flex-shrink: 0;">
+            <button class="qa-btn" style="padding: 4px 8px; font-size: 9px; margin-top: 0;" onclick="window.open('${m.url}', '_blank')">↗</button>
+            <button class="qa-btn" style="padding: 4px 8px; font-size: 9px; margin-top: 0; color: #ff5555; border-color: rgba(255,85,85,0.2);" onclick="deleteMapping('${m.id}')">✕</button>
+          </div>
+        </div>
+      `).join("");
+    }
+  }
+  
+  // 3. Research list
+  const researchList = document.getElementById("researchItemsList");
+  if (researchList) {
+    const research = config.research || [];
+    if (research.length === 0) {
+      researchList.innerHTML = '<div class="empty-state">Keine Outlier-Forschungsziele definiert.</div>';
+    } else {
+      researchList.innerHTML = research.map(r => `
+        <div onclick="openResearchDetailsById('${r.id}')" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; cursor: pointer; gap: 8px;">
+          <div style="min-width: 0; flex: 1;">
+            <div style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${r.title}</div>
+            <div style="font-size: 9px; color: ${r.analysisReport ? 'var(--green)' : 'var(--text-dim)'}; font-family: 'JetBrains Mono', monospace;">
+              ${r.analysisReport ? '✓ CRAWL BEREIT' : '⌛ KEYWORD READY'}
+            </div>
+          </div>
+          <button class="qa-btn" style="padding: 4px 8px; font-size: 9px; margin-top: 0; color: #ff5555; border-color: rgba(255,85,85,0.2); flex-shrink: 0;" onclick="event.stopPropagation(); deleteResearchTarget('${r.id}')">✕</button>
+        </div>
+      `).join("");
+    }
+  }
+  
+  // 4. Financial totals
+  const finance = config.finance || {};
+  const transactions = finance.transactions || [];
+  
+  const totalIncome = transactions.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = transactions.filter(t => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
+  const netBalance = totalIncome - totalExpense;
+  
+  const currentMonthStr = new Date().toISOString().substring(0, 7);
+  const mtdNet = transactions
+    .filter(t => (t.date || "").startsWith(currentMonthStr))
+    .reduce((sum, t) => sum + (t.type === "income" ? t.amount : -t.amount), 0);
+    
+  const liquidityEl = document.getElementById("managerLiquidity");
+  const mtdNetEl = document.getElementById("managerMtdNet");
+  
+  if (liquidityEl) {
+    liquidityEl.textContent = `€ ${netBalance.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  if (mtdNetEl) {
+    mtdNetEl.textContent = `${mtdNet >= 0 ? '+' : ''}€ ${mtdNet.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    mtdNetEl.style.color = mtdNet >= 0 ? "var(--green)" : "#ff5555";
+  }
+}
+
+async function syncManagerConfig() {
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("light");
+  await sendToWebsite({
+    event: "manager_config_sync",
+    managerConfig: profile.managerConfig
+  });
 }
 
 function submitOnboarding() {
@@ -1297,20 +1820,23 @@ function submitOnboarding() {
   profile = { ...profile, goals, experience: exp, age, challenge };
 
   const intro = `Hey ${userName}. Ich hab dein Profil initialisiert. ${goals.length > 0 ? `Ziele: ${goals.join(", ")}. ` : ""}${challenge ? `Challenge: "${challenge}". ` : ""}Ich habe deinen optimalen Bio-Stack im System hinterlegt. Lass uns mit dem kognitiven Feintuning beginnen!`;
-  document.getElementById("firstMsg").textContent = intro;
+  const firstMsgEl = document.getElementById("firstMsg"); if (firstMsgEl) firstMsgEl.textContent = intro;
   chatHistory = [{ role: "assistant", content: intro }];
 
   sendToWebsite({ event: "onboarding_complete", profile });
   
   // Hide onboarding form and show success state
-  document.getElementById("onboardForm").innerHTML = `
-    <div class="card-title">System initialisiert</div>
-    <div class="card-subtitle">Bio-Performance Status</div>
-    <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 0.5rem;">
-      Dein Profil wurde erfolgreich mit der Pronoia Datenbank abgeglichen. Alle KI-Module sind scharf geschaltet.
-    </p>
-    <div class="pillar-badge focus" style="margin-top: 8px;">CONNECTED</div>
-  `;
+  const onboardFormEl = document.getElementById("onboardForm");
+  if (onboardFormEl) {
+    onboardFormEl.innerHTML = `
+      <div class="card-title">System initialisiert</div>
+      <div class="card-subtitle">Bio-Performance Status</div>
+      <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 0.5rem;">
+        Dein Profil wurde erfolgreich mit der Pronoia Datenbank abgeglichen. Alle KI-Module sind scharf geschaltet.
+      </p>
+      <div class="pillar-badge focus" style="margin-top: 8px;">CONNECTED</div>
+    `;
+  }
   
   switchTab("chat");
 }
@@ -1321,8 +1847,10 @@ async function syncBiometrics() {
   const sleep = parseInt(sleepSlider.value);
   
   const btn = document.getElementById("biometricsSyncBtn");
-  btn.textContent = "SYNCING...";
-  btn.disabled = true;
+  if (btn) {
+    btn.textContent = "SYNCING...";
+    btn.disabled = true;
+  }
   
   profile.metrics.hrv = hrv;
   profile.metrics.sleep = sleep;
@@ -1337,17 +1865,21 @@ async function syncBiometrics() {
     updateCompanionState(data.status, data.debug);
   }
 
-  btn.textContent = "✓ SYNCHRONISIERT";
-  btn.style.borderColor = varColorString("--green");
-  btn.style.color = varColorString("--green");
+  if (btn) {
+    btn.textContent = "✓ SYNCHRONISIERT";
+    btn.style.borderColor = varColorString("--green");
+    btn.style.color = varColorString("--green");
+  }
 
   if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
 
   setTimeout(() => {
-    btn.textContent = "AN LIFE OS SENDEN";
-    btn.style.borderColor = "";
-    btn.style.color = "";
-    btn.disabled = false;
+    if (btn) {
+      btn.textContent = "AN LIFE OS SENDEN";
+      btn.style.borderColor = "";
+      btn.style.color = "";
+      btn.disabled = false;
+    }
   }, 2000);
 }
 
@@ -1359,7 +1891,7 @@ function varColorString(varName) {
 // ── Chat ──
 function handleKey(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
 function autoResize(el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 100) + "px"; }
-function sendQuick(text) { document.getElementById("chatInput").value = text; sendMessage(); }
+function sendQuick(text) { const ci = document.getElementById("chatInput"); if (ci) ci.value = text; sendMessage(); }
 
 async function sendMessage() {
   const input = document.getElementById("chatInput");
@@ -1369,7 +1901,7 @@ async function sendMessage() {
   input.style.height = "auto";
 
   appendMsg(text, "user");
-  document.getElementById("quickActions").style.display = "none";
+  const qaEl = document.getElementById("quickActions"); if (qaEl) qaEl.style.display = "none";
 
   if (text.toLowerCase() === "/link") {
     const siteUrl = "https://pronoia-3g6y.vercel.app";
@@ -1643,8 +2175,10 @@ function setWebappPeek(idx) {
   if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("light");
   
   // Show/Hide Live button
-  document.getElementById("restoreLiveBlockBtn").style.display = "block";
-  document.getElementById("chronoStatus").textContent = "PEEK (TEMP)";
+  const rBtnShow = document.getElementById("restoreLiveBlockBtn");
+  if (rBtnShow) rBtnShow.style.display = "block";
+  const cStatusPeek = document.getElementById("chronoStatus");
+  if (cStatusPeek) cStatusPeek.textContent = "PEEK (TEMP)";
   
   // Reset existing timer
   if (webappPeekTimer) clearTimeout(webappPeekTimer);
@@ -1661,8 +2195,10 @@ function resetWebappPeek(e) {
   if (e) e.stopPropagation();
   webappPeekIdx = null;
   if (webappPeekTimer) clearTimeout(webappPeekTimer);
-  document.getElementById("restoreLiveBlockBtn").style.display = "none";
-  document.getElementById("chronoStatus").textContent = "ZIRKADIAN";
+  const rBtnHide = document.getElementById("restoreLiveBlockBtn");
+  if (rBtnHide) rBtnHide.style.display = "none";
+  const cStatusCirc = document.getElementById("chronoStatus");
+  if (cStatusCirc) cStatusCirc.textContent = "ZIRKADIAN";
   
   // Trigger update
   const liveIdx = findLiveBlockIdx();
@@ -1809,7 +2345,7 @@ async function submitFrictionLog(status) {
 function updateCompanionState(status, debug = null) {
   // Handle debug console display
   const debugEl = document.getElementById("debugConsole");
-  if (debug) {
+  if (debug && debugEl) {
     debugEl.style.display = "block";
     debugEl.innerHTML = `
       <strong>DIAGNOSE-KONSOLE:</strong><br/>
@@ -1827,7 +2363,7 @@ function updateCompanionState(status, debug = null) {
       debugEl.style.background = "rgba(255, 85, 85, 0.05)";
       debugEl.style.borderColor = "rgba(255, 85, 85, 0.25)";
     }
-  } else {
+  } else if (debugEl) {
     debugEl.style.display = "none";
   }
 
@@ -1850,8 +2386,10 @@ function updateCompanionState(status, debug = null) {
       }
       
       // Update meta strip index
-      document.getElementById("metaBlockIdx").textContent = `${(status.blockIdx || 0) + 1} / ${userBlocks.length || 1}`;
-      document.getElementById("metaBlockPillar").textContent = status.activeBlock.pillar.toUpperCase();
+      const mbIdx = document.getElementById("metaBlockIdx");
+      if (mbIdx) mbIdx.textContent = `${(status.blockIdx || 0) + 1} / ${userBlocks.length || 1}`;
+      const mbPillar = document.getElementById("metaBlockPillar");
+      if (mbPillar) mbPillar.textContent = status.activeBlock.pillar.toUpperCase();
     } else {
       // In circadian mode, if we are NOT peeking, update display to correct live block
       if (webappPeekIdx === null) {
@@ -1866,18 +2404,18 @@ function updateCompanionState(status, debug = null) {
     isCircadianMode = status.circadianMode;
     const label = document.getElementById("circadianLabel");
     const dot = document.getElementById("circadianDot");
-    if (status.circadianMode) {
-      label.textContent = "Zirkadianer Sync: Aktiv";
-      dot.style.background = varColorString("--green");
-      dot.style.boxShadow = `0 0 6px ${varColorString("--green")}`;
-      document.getElementById("playPauseBtn").style.opacity = 0.5;
-      document.getElementById("playPauseBtn").style.pointerEvents = "none";
-    } else {
-      label.textContent = "Zirkadianer Sync: Manuell";
-      dot.style.background = varColorString("--amber");
-      dot.style.boxShadow = `0 0 6px ${varColorString("--amber")}`;
-      document.getElementById("playPauseBtn").style.opacity = 1;
-      document.getElementById("playPauseBtn").style.pointerEvents = "auto";
+    const ppBtn = document.getElementById("playPauseBtn");
+    if (label) {
+      label.textContent = status.circadianMode ? "Zirkadianer Sync: Aktiv" : "Zirkadianer Sync: Manuell";
+    }
+    if (dot) {
+      const colorName = status.circadianMode ? "--green" : "--amber";
+      dot.style.background = varColorString(colorName);
+      dot.style.boxShadow = `0 0 6px ${varColorString(colorName)}`;
+    }
+    if (ppBtn) {
+      ppBtn.style.opacity = status.circadianMode ? 0.5 : 1;
+      ppBtn.style.pointerEvents = status.circadianMode ? "none" : "auto";
     }
   }
 
@@ -1885,17 +2423,26 @@ function updateCompanionState(status, debug = null) {
     applyCustomization(status.customization);
   }
 
+  if (status.managerConfig) {
+    profile.managerConfig = status.managerConfig;
+    if (document.getElementById("s-manager").classList.contains("active")) {
+      renderManager();
+    }
+  }
+
   if (status.hrv) {
-    hrvSlider.value = status.hrv;
-    hrvValueDisplay.textContent = status.hrv + " ms";
+    if (hrvSlider) hrvSlider.value = status.hrv;
+    if (hrvValueDisplay) hrvValueDisplay.textContent = status.hrv + " ms";
     profile.metrics.hrv = status.hrv;
-    document.getElementById("metaHRV").textContent = status.hrv + "ms";
+    const mHrv = document.getElementById("metaHRV");
+    if (mHrv) mHrv.textContent = status.hrv + "ms";
   }
   if (status.sleep) {
-    sleepSlider.value = status.sleep;
-    sleepValueDisplay.textContent = status.sleep + "%";
+    if (sleepSlider) sleepSlider.value = status.sleep;
+    if (sleepValueDisplay) sleepValueDisplay.textContent = status.sleep + "%";
     profile.metrics.sleep = status.sleep;
-    document.getElementById("metaSleep").textContent = status.sleep + "%";
+    const mSleep = document.getElementById("metaSleep");
+    if (mSleep) mSleep.textContent = status.sleep + "%";
   }
   if (status.calendar) {
     userCalendar = status.calendar;
@@ -1905,10 +2452,9 @@ function updateCompanionState(status, debug = null) {
     userStack = status.stack;
     renderStack();
   }
-  if (status.email) {
-    document.getElementById("userEmail").textContent = "EMAIL: " + status.email;
-  } else {
-    document.getElementById("userEmail").textContent = "EMAIL: NICHT VERKNÜPFT";
+  const uEmail = document.getElementById("userEmail");
+  if (uEmail) {
+    uEmail.textContent = status.email ? "EMAIL: " + status.email : "EMAIL: NICHT VERKNÜPFT";
   }
 
   // Update System Directives Panel

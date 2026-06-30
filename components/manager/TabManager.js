@@ -1,16 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
-import styles from './TabManager.module.css';
-import {
-  detectRecurring,
-  budgetStatus,
-  monthTrend,
-  detectAnomalies,
-  autoCategorize,
-  detectPatterns,
-  calculatePrognosis,
-  calculateSavingsPotential
-} from '@/lib/financeIntelligence';
+'use client';
 
+/*
+ * Manager tab — "Die Steuerzentrale deiner Routine."
+ * The control center for routine: circadian + environment routine, focus sessions,
+ * link automation, outlier research and the finance tracker (full Financial Vision
+ * opens from the Finanz-Tracker panel).
+ *
+ * All state is persisted via useTabData (Firestore users/{uid}.tabs.*),
+ * with an automatic fallback migration from legacy profile.managerConfig.
+ * Fully responsive and supports light/dark dynamic themes.
+ */
+
+import { useState, useEffect } from 'react';
+import FinancialTracker from './FinancialTracker';
+import { useTabData } from '@/hooks/useTabData';
+import { db, auth } from '@/lib/firebase';
+import styles from './TabManager.module.css';
 
 // ═══════════════════════════════════════════════════════════════════
 // CUSTOM INTERACTIVE SVG CHARTS FOR FINANCE TRACKER (No libraries)
@@ -83,8 +88,8 @@ function LineChart({ transactions }) {
       <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
         <defs>
           <linearGradient id="lineAreaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--theme-accent, #1a6aff)" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="var(--theme-accent, #1a6aff)" stopOpacity="0.0" />
+            <stop offset="0%" stopColor="#1A6AFF" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#1A6AFF" stopOpacity="0.0" />
           </linearGradient>
         </defs>
 
@@ -94,8 +99,8 @@ function LineChart({ transactions }) {
           const y = getY(val);
           return (
             <g key={r}>
-              <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="var(--border)" strokeDasharray="3 4" strokeWidth="1" />
-              <text x={paddingLeft - 10} y={y + 3} fill="var(--text3)" fontSize="8" fontFamily="var(--font-mono)" textAnchor="end">
+              <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="var(--chart-grid)" className="stroke-slate-200 dark:stroke-white/5" strokeDasharray="3 4" strokeWidth="1" />
+              <text x={paddingLeft - 10} y={y + 3} fill="var(--chart-text)" className="fill-slate-400 dark:fill-white/40" fontSize="8" fontFamily="monospace" textAnchor="end">
                 {Math.round(val)} €
               </text>
             </g>
@@ -104,7 +109,7 @@ function LineChart({ transactions }) {
 
         {/* Areas & Path */}
         <path d={areaD} fill="url(#lineAreaGrad)" />
-        <path d={pathD} fill="none" stroke="var(--theme-accent, #1a6aff)" strokeWidth="2.5" />
+        <path d={pathD} fill="none" stroke="#1A6AFF" strokeWidth="2.5" />
 
         {/* Interactive Circles */}
         {points.map((p, idx) => {
@@ -117,8 +122,9 @@ function LineChart({ transactions }) {
               cx={x}
               cy={y}
               r={isH ? 7 : 4}
-              fill={isH ? "var(--theme-accent, #1a6aff)" : "var(--bg-card)"}
-              stroke="var(--theme-accent, #1a6aff)"
+              fill={isH ? "#1A6AFF" : "var(--chart-dot-bg)"}
+              className="fill-slate-50 dark:fill-[#060509]"
+              stroke="#1A6AFF"
               strokeWidth="2.5"
               style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
               onMouseEnter={() => setHoveredIdx(idx)}
@@ -145,7 +151,7 @@ function LineChart({ transactions }) {
           <div className={styles.tooltipBalance}>
             Saldo: <strong>{points[hoveredIdx].balance.toFixed(1)} €</strong>
           </div>
-          <div className={styles.tooltipTx} style={{ color: points[hoveredIdx].type === 'income' ? '#00c48c' : '#ff4d4d' }}>
+          <div className={styles.tooltipTx} style={{ color: points[hoveredIdx].type === 'income' ? '#22c55e' : '#ff4d4d' }}>
             {points[hoveredIdx].type === 'income' ? '+' : '-'}{points[hoveredIdx].amount} € ({points[hoveredIdx].category})
           </div>
         </div>
@@ -154,209 +160,105 @@ function LineChart({ transactions }) {
   );
 }
 
-// 2. Bar Chart: Category totals
-function BarChart({ data, total }) {
-  const [hoveredIdx, setHoveredIdx] = useState(null);
-
-  if (data.length === 0) {
-    return (
-      <div className={styles.emptyChartState}>
-        <p>Keine Transaktionen für diese Auswertung gefunden.</p>
-      </div>
-    );
+// ═══════════════════════════════════════════════════════════════════
+// FOCUS WEEKLY SVG BAR CHART
+// ═══════════════════════════════════════════════════════════════════
+const getLast7DaysData = (sessions) => {
+  const data = [];
+  const today = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(today.getDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const daySessions = (sessions || []).filter(s => (s.ts || '').slice(0, 10) === dateStr);
+    const mins = daySessions.reduce((sum, s) => sum + (s.durationMin || 0), 0);
+    const label = d.toLocaleDateString('de-DE', { weekday: 'short' }).slice(0, 2); // e.g. "Mo", "Di"
+    data.push({ dateStr, mins, label });
   }
+  return data;
+};
 
-  const width = 500;
-  const height = 180;
-  const paddingLeft = 50;
-  const paddingRight = 20;
-  const paddingTop = 20;
-  const paddingBottom = 30;
+function FocusWeeklyChart({ sessions, labelStyle }) {
+  const data = getLast7DaysData(sessions);
+  const maxMins = Math.max(...data.map(d => d.mins), 60); // minimum scale is 60m
 
+  const width = 280;
+  const height = 90;
+  const paddingLeft = 25;
+  const paddingRight = 10;
+  const paddingTop = 10;
+  const paddingBottom = 15;
   const chartW = width - paddingLeft - paddingRight;
   const chartH = height - paddingTop - paddingBottom;
 
-  const maxVal = Math.max(...data.map(d => d.value), 50);
-
-  const getX = (idx) => {
-    const space = chartW / data.length;
-    return paddingLeft + idx * space + space / 2;
-  };
-
-  const colors = ['#1a6aff', '#00c48c', '#f5a623', '#ff4d4d', '#6c5ce7', '#e17055', '#00cec9', '#fd79a8'];
-
   return (
-    <div style={{ position: 'relative', width: '100%' }}>
+    <div className="space-y-2 mt-4 pt-4 border-t border-slate-200 dark:border-white/5">
+      <div className={`${labelStyle} text-[10px] text-slate-500 dark:text-[rgba(236,232,242,0.6)]`}>Wochen-Fokus (Minuten)</div>
       <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
-        {/* Grid lines */}
-        {[0, 0.25, 0.5, 0.75, 1].map((r) => {
-          const val = r * maxVal;
+        {[0, 0.5, 1].map((r) => {
+          const val = r * maxMins;
           const y = paddingTop + chartH - r * chartH;
           return (
             <g key={r}>
-              <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="var(--border)" strokeDasharray="3 4" strokeWidth="1" />
-              <text x={paddingLeft - 10} y={y + 3} fill="var(--text3)" fontSize="8" fontFamily="var(--font-mono)" textAnchor="end">
-                {Math.round(val)} €
+              <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="currentColor" className="text-slate-200 dark:text-white/5" strokeDasharray="2 2" />
+              <text x={paddingLeft - 5} y={y + 2.5} fill="currentColor" className="text-slate-400 dark:text-white/40" fontSize="7" fontFamily="monospace" textAnchor="end">
+                {Math.round(val)}m
               </text>
             </g>
           );
         })}
-
-        {/* Bars */}
-        {data.map((item, idx) => {
-          const x = getX(idx);
-          const barW = Math.min(26, chartW / data.length - 12);
-          const barH = (item.value / maxVal) * chartH;
+        {data.map((d, idx) => {
+          const barW = Math.min(16, chartW / 7 - 6);
+          const gap = (chartW - 7 * barW) / 6;
+          const x = paddingLeft + idx * (barW + gap);
+          const barH = (d.mins / maxMins) * chartH;
           const y = paddingTop + chartH - barH;
-          const isH = hoveredIdx === idx;
-          const color = colors[idx % colors.length];
 
           return (
-            <g key={item.category}>
+            <g key={d.dateStr} className="group">
               <rect
-                x={x - barW / 2}
+                x={x}
                 y={y}
                 width={barW}
-                height={Math.max(0, barH)}
-                rx="4"
-                fill={color}
-                opacity={hoveredIdx === null || isH ? 0.85 : 0.5}
-                style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
-                onMouseEnter={() => setHoveredIdx(idx)}
-                onMouseLeave={() => setHoveredIdx(null)}
+                height={Math.max(barH, 2)}
+                rx="2"
+                fill={d.mins > 0 ? '#1A6AFF' : 'currentColor'}
+                className={`${d.mins > 0 ? 'text-[#1A6AFF]' : 'text-slate-200 dark:text-white/10'} hover:fill-[#3b82f6] transition-all duration-300`}
+                style={{ cursor: 'pointer' }}
               />
-              <text x={x} y={paddingTop + chartH + 13} fill="var(--text2)" fontSize="8" fontFamily="var(--font-mono)" textAnchor="middle">
-                {item.category.substring(0, 6)}
+              <text
+                x={x + barW / 2}
+                y={height - 2}
+                fill="currentColor"
+                className={d.mins > 0 ? 'text-slate-800 dark:text-[#ECE8F2]' : 'text-slate-400 dark:text-white/40'}
+                fontSize="8"
+                fontFamily="monospace"
+                textAnchor="middle"
+              >
+                {d.label}
               </text>
+              <title>{`${d.dateStr}: ${d.mins} Min`}</title>
             </g>
           );
         })}
       </svg>
-
-      {/* Tooltip */}
-      {hoveredIdx !== null && data[hoveredIdx] && (
-        <div
-          className={styles.chartTooltip}
-          style={{
-            position: 'absolute',
-            left: `${(getX(hoveredIdx) / width) * 100}%`,
-            top: `${paddingTop + chartH - (data[hoveredIdx].value / maxVal) * chartH - 45}px`,
-            transform: 'translateX(-50%)',
-            zIndex: 10,
-            pointerEvents: 'none'
-          }}
-        >
-          <div className={styles.tooltipDate}>{data[hoveredIdx].category}</div>
-          <div className={styles.tooltipBalance}>
-            Gesamt: <strong>{data[hoveredIdx].value.toFixed(1)} €</strong>
-          </div>
-          <div className={styles.tooltipTx}>
-            {((data[hoveredIdx].value / (total || 1)) * 100).toFixed(1)}% des Gesamtbetrags
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-// 3. Doughnut Chart: Split circular percentages
-function DoughnutChart({ data, total }) {
-  const [hoveredIdx, setHoveredIdx] = useState(null);
+const ACCENT = '#1A6AFF';
+const glass = 'bg-white/70 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] backdrop-blur-md shadow-sm dark:shadow-none text-slate-800 dark:text-[#ECE8F2]';
+const label = 'font-mono text-[0.6rem] uppercase tracking-[0.18em]';
 
-  if (data.length === 0) {
-    return (
-      <div className={styles.emptyChartState}>
-        <p>Keine Transaktionen für diese Auswertung gefunden.</p>
-      </div>
-    );
-  }
+// Daily circadian-environment routine — things the user actually controls.
+const ENV_ITEMS = [
+  { key: 'morningLight', label: 'Morgenlicht 10k+ Lux', icon: 'wb_sunny' },
+  { key: 'redLight',     label: 'Abend-Rotlicht',       icon: 'nightlight' },
+  { key: 'hepa',         label: 'HEPA-Luftfilter',       icon: 'air' },
+  { key: 'aleppoSoap',   label: 'Aleppo-Seife',          icon: 'spa' },
+  { key: 'linen',        label: 'Leinen-Bettwäsche',     icon: 'bed' },
+];
 
-  const radius = 50;
-  const circ = 2 * Math.PI * radius; // ~314.16
-  const centerX = 80;
-  const centerY = 80;
-  let accumulatedPercent = 0;
-
-  const colors = ['#1a6aff', '#00c48c', '#f5a623', '#ff4d4d', '#6c5ce7', '#e17055', '#00cec9', '#fd79a8'];
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2rem', flexWrap: 'wrap' }}>
-      <svg width="160" height="160" viewBox="0 0 160 160" style={{ overflow: 'visible' }}>
-        <g transform="rotate(-90 80 80)">
-          {data.map((item, idx) => {
-            const percent = total > 0 ? item.value / total : 0;
-            const strokeL = percent * circ;
-            const rotation = accumulatedPercent * 360;
-            accumulatedPercent += percent;
-            const color = colors[idx % colors.length];
-            const isH = hoveredIdx === idx;
-
-            return (
-              <circle
-                key={item.category}
-                cx={centerX}
-                cy={centerY}
-                r={radius}
-                fill="transparent"
-                stroke={color}
-                strokeWidth={isH ? 16 : 12}
-                strokeDasharray={`${strokeL} ${circ}`}
-                strokeDashoffset={0}
-                transform={`rotate(${rotation} ${centerX} ${centerY})`}
-                style={{
-                  transition: 'stroke-width 0.2s ease, filter 0.2s ease',
-                  cursor: 'pointer',
-                  filter: isH ? `drop-shadow(0 0 5px ${color})` : 'none'
-                }}
-                onMouseEnter={() => setHoveredIdx(idx)}
-                onMouseLeave={() => setHoveredIdx(null)}
-              />
-            );
-          })}
-          {/* Central hole for glassmorphism */}
-          <circle cx={centerX} cy={centerY} r={38} fill="var(--bg-card)" style={{ backdropFilter: 'blur(10px)' }} />
-        </g>
-      </svg>
-
-      {/* Legend */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', minWidth: '180px' }}>
-        {data.map((item, idx) => {
-          const color = colors[idx % colors.length];
-          const percent = total > 0 ? ((item.value / total) * 100).toFixed(1) : 0;
-          const isH = hoveredIdx === idx;
-
-          return (
-            <div
-              key={item.category}
-              onMouseEnter={() => setHoveredIdx(idx)}
-              onMouseLeave={() => setHoveredIdx(null)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                cursor: 'pointer',
-                opacity: hoveredIdx === null || isH ? 1 : 0.5,
-                transition: 'opacity 0.2s ease',
-                fontSize: '0.75rem',
-                fontFamily: 'var(--font-mono)'
-              }}
-            >
-              <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: color, display: 'inline-block' }} />
-              <span style={{ color: 'var(--text)' }}>{item.category}:</span>
-              <strong style={{ marginLeft: 'auto', color: 'var(--text2)' }}>
-                {item.value.toFixed(1)} € ({percent}%)
-              </strong>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// MAIN TAB MANAGER COMPONENT
-// ═══════════════════════════════════════════════════════════════════
 export default function TabManager({
   profile,
   saveProfile,
@@ -368,120 +270,242 @@ export default function TabManager({
   setManagerHistory,
   setAgentMsg
 }) {
-  const [activeSubTab, setActiveSubTab] = useState('command'); // 'command' | 'links' | 'research' | 'focus' | 'notes' | 'finance'
+  const [view, setView] = useState('dashboard'); // 'dashboard' | 'financial'
+  const [research, setResearch] = useState('');
 
-  // Settings & Mappings state
+  // Link Automation states
   const [pattern, setPattern] = useState('');
   const [url, setUrl] = useState('');
+  const [showAddMapping, setShowAddMapping] = useState(false);
 
-  // Outlier Research state
-  const [researchTitle, setResearchTitle] = useState('');
-  const [researchCategory, setResearchCategory] = useState('YouTube'); // 'YouTube' | 'Skill' | 'Competitor' | 'Other'
-  const [researchUrl, setResearchUrl] = useState('');
-  const [researchNotes, setResearchNotes] = useState('');
+  // Outlier Research states
   const [selectedResearch, setSelectedResearch] = useState(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisStep, setAnalysisStep] = useState(0);
-  const [filterCategory, setFilterCategory] = useState('ALL');
   const [playingVideoId, setPlayingVideoId] = useState(null);
 
-  // Finance state
-  const [finAmount, setFinAmount] = useState('');
-  const [finType, setFinType] = useState('expense'); // 'income' | 'expense'
-  const [finCategory, setFinCategory] = useState('Food');
-  const [finDate, setFinDate] = useState(new Date().toISOString().substring(0, 10));
-  const [finDesc, setFinDesc] = useState('');
-  const [selectedChartType, setSelectedChartType] = useState('line'); // 'line' | 'bar' | 'doughnut'
-  const [doughnutFocusType, setDoughnutFocusType] = useState('expense');
-  const [financeSearch, setFinanceSearch] = useState('');
-  const [selectedDrillDownCategory, setSelectedDrillDownCategory] = useState(null);
-  const [buyUrl, setBuyUrl] = useState('');
-  const [buyTitle, setBuyTitle] = useState('');
-  const [buyPrice, setBuyPrice] = useState('');
-  const [buyNotes, setBuyNotes] = useState('');
-  const [financeActiveSection, setFinanceActiveSection] = useState('transactions'); // 'transactions' | 'buy_interest'
-  const [linkLoading, setLinkLoading] = useState(false);
+  // Outlier Custom Notes & Tags state
+  const [researchNotes, setResearchNotes] = useState('');
+  const [researchTags, setResearchTags] = useState('');
 
-  // Focus Mode state
-  const [focusTimeLeft, setFocusTimeLeft] = useState(1500); // 25 min in seconds
-  const [focusDuration, setFocusDuration] = useState(1500);
-  const [focusRunning, setFocusRunning] = useState(false);
-  const [focusPreset, setFocusPreset] = useState(25); // 25 | 45 | 60 | 'custom'
+  // Client Telemetry states
+  const [isOnline, setIsOnline] = useState(true);
+  const [latency, setLatency] = useState(14);
 
-  // Quick Notes state
-  const [newNote, setNewNote] = useState('');
+  // ── Unified tab persistence hook ──
+  const { data: managerConfig, save: saveManagerConfig } = useTabData('managerConfig', {
+    mappings: [],
+    finance: { transactions: [], customAssets: [], customLiabilities: [], customGoals: [], buyInterest: [], recurringTemplates: [], customBudgets: [] },
+    research: [],
+    circadian: { wake: '06:30', sleep: '22:15' },
+    autoOpenEnabled: false
+  });
+
+  const [wake, setWake] = useState('06:30');
+  const [sleep, setSleep] = useState('22:15');
+
+  // Sync wake/sleep states from migrated managerConfig
+  useEffect(() => {
+    if (managerConfig?.circadian?.wake) setWake(managerConfig.circadian.wake);
+    if (managerConfig?.circadian?.sleep) setSleep(managerConfig.circadian.sleep);
+  }, [managerConfig]);
+
+  // Monitor online status
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setIsOnline(window.navigator.onLine);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Measure server latency
+  useEffect(() => {
+    const measureLatency = async () => {
+      try {
+        const t0 = performance.now();
+        const res = await fetch('/api/ping');
+        if (res.ok) {
+          const t1 = performance.now();
+          setLatency(Math.round(t1 - t0));
+        }
+      } catch (err) {
+        console.warn("Failed to check latency:", err);
+      }
+    };
+
+    measureLatency();
+    const interval = setInterval(measureLatency, 30000); // check every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   // Reset video player when active research target changes
   useEffect(() => {
     setPlayingVideoId(null);
+    if (selectedResearch) {
+      setResearchNotes(selectedResearch.notes || '');
+      setResearchTags((selectedResearch.tags || []).join(', '));
+    }
   }, [selectedResearch]);
 
-  // Extract config with fallbacks
-  const config = profile?.managerConfig || {
-    autoOpenEnabled: true,
-    mappings: [],
-    research: [],
-    notes: [],
-    completedSessions: 0,
-    finance: { transactions: [] }
+  // Focus sessions — persisted + wall-clock based (survive reload), with history.
+  const { data: focusData, save: saveFocus } = useTabData('managerFocus', { sessions: [], active: null, lastPreset: 60 });
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  const focusSessions = focusData.sessions || [];
+  const focusPreset = focusData.lastPreset || 60;
+  const focusActive = focusData.active;
+  const focusTimeLeft = !focusActive
+    ? focusPreset * 60
+    : focusActive.status === 'paused'
+      ? focusActive.remainingSec
+      : Math.max(0, Math.round((focusActive.endsAt - nowTs) / 1000));
+  const focusRunning = !!focusActive && focusActive.status === 'running' && focusTimeLeft > 0;
+
+  // Environment routine — daily checklist + lux target, persisted; resets each day.
+  const { data: envData, save: saveEnv } = useTabData('managerEnv', { luxTarget: 10000, day: '', checks: {}, history: {} });
+  const envTodayKey = new Date().toISOString().slice(0, 10);
+  const envChecks = (envData.day === envTodayKey ? envData.checks : {}) || {};
+  const envDoneCount = ENV_ITEMS.filter((i) => envChecks[i.key]).length;
+  const envProgress = Math.round((envDoneCount / ENV_ITEMS.length) * 100);
+
+  // Monk Mode Blocker Integration
+  const { data: monkModeConfig } = useTabData('monkModeConfig', {
+    initialTime: 5400,
+    blockedProtocols: { youtube: true, social: true, gaming: false, caffeine: false, junkfood: true }
+  });
+  const isMonkModeActive = !!(monkModeConfig && monkModeConfig.active && monkModeConfig.active.status === 'running');
+  const monkBlockedProtocols = monkModeConfig?.blockedProtocols || {};
+
+  const isUrlBlockedByMonkMode = (url) => {
+    if (!isMonkModeActive) return false;
+    const lowerUrl = (url || '').toLowerCase();
+    if (monkBlockedProtocols.youtube && (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be') || lowerUrl.includes('netflix.com') || lowerUrl.includes('twitch.tv'))) return 'Video Streaming';
+    if (monkBlockedProtocols.social && (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com') || lowerUrl.includes('instagram.com') || lowerUrl.includes('tiktok.com') || lowerUrl.includes('facebook.com'))) return 'Social Networks';
+    if (monkBlockedProtocols.gaming && (lowerUrl.includes('steampowered.com') || lowerUrl.includes('epicgames.com') || lowerUrl.includes('roblox.com'))) return 'Steam & Gaming';
+    if (monkBlockedProtocols.caffeine && (lowerUrl.includes('starbucks.com') || lowerUrl.includes('redbull.com') || lowerUrl.includes('nespresso.com'))) return 'Koffein Tracker';
+    if (monkBlockedProtocols.junkfood && (lowerUrl.includes('lieferando.de') || lowerUrl.includes('ubereats.com') || lowerUrl.includes('dominos.de') || lowerUrl.includes('pizza.de'))) return 'Fast-Food Portale';
+    return false;
   };
+
+  const toggleEnv = (key) => {
+    saveEnv((prev) => {
+      const day = new Date().toISOString().slice(0, 10);
+      const checks = prev.day === day ? { ...(prev.checks || {}) } : {};
+      checks[key] = !checks[key];
+
+      const doneCount = ENV_ITEMS.filter((i) => checks[i.key]).length;
+      const isFull = doneCount === ENV_ITEMS.length;
+
+      let history = prev.history || {};
+      history[day] = {
+        checks,
+        doneCount,
+        total: ENV_ITEMS.length,
+        completed: isFull
+      };
+
+      // Keep last 30 days
+      const keys = Object.keys(history).sort();
+      if (keys.length > 30) {
+        const nextHistory = {};
+        keys.slice(-30).forEach(k => { nextHistory[k] = history[k]; });
+        history = nextHistory;
+      }
+
+      return { ...prev, day, checks, history };
+    });
+  };
+
+  // Circadian Routine Streak calculation
+  const circadianStreak = (() => {
+    const history = envData.history || {};
+    let streak = 0;
+    const d = new Date();
+    const todayStr = d.toISOString().slice(0, 10);
+    if (!history[todayStr]?.completed) {
+      d.setDate(d.getDate() - 1);
+    }
+    while (streak < 100) {
+      const curStr = d.toISOString().slice(0, 10);
+      if (history[curStr]?.completed) {
+        streak++;
+        d.setDate(d.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    return streak;
+  })();
+
+  // Last 7 days environmental dot status calculation
+  const getLast7DaysEnvDots = (history) => {
+    const dots = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(today.getDate() - i);
+      const dayStr = d.toISOString().slice(0, 10);
+      const dayData = (history || {})[dayStr];
+      dots.push({
+        dayStr,
+        label: d.toLocaleDateString('de-DE', { weekday: 'narrow' }),
+        completed: !!dayData?.completed,
+        partial: !!dayData && !dayData.completed && dayData.doneCount > 0,
+        doneCount: dayData?.doneCount || 0
+      });
+    }
+    return dots;
+  };
+  const envDots = getLast7DaysEnvDots(envData.history || {});
+
+  const config = managerConfig || {};
   const mappings = config.mappings || [];
-  const autoOpenEnabled = config.autoOpenEnabled ?? true;
-  const researchList = config.research || [];
-  const notesList = config.notes || [];
-  const completedSessions = config.completedSessions || 0;
-  const financeConfig = config.finance || { transactions: [] };
-  const transactions = financeConfig.transactions || [];
-  const buyInterestList = financeConfig.buyInterest || [];
+  const finance = config.finance || {};
+  const transactions = finance.transactions || [];
 
+  const totalIncome = transactions.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const totalExpense = transactions.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const netBalance = totalIncome - totalExpense;
 
-  // Active Block details
-  const activeBlock = blocks[blockIdx] || { title: 'Kein aktiver Block', start: '00:00', end: '00:00' };
-  const blockProg = totalTime > 0 ? Math.min(100, Math.max(0, (1 - timeLeft / totalTime) * 100)) : 0;
+  const currentMonthStr = new Date().toISOString().substring(0, 7);
+  const mtdNet = transactions
+    .filter((t) => (t.date || '').startsWith(currentMonthStr))
+    .reduce((acc, t) => acc + (t.type === 'income' ? t.amount : -t.amount), 0);
 
-  // Timer formatted
+  const cockpitExpenseCats = (() => {
+    const map = {};
+    transactions.filter((t) => t.type === 'expense').forEach((t) => {
+      map[t.category] = (map[t.category] || 0) + t.amount;
+    });
+    const rows = Object.keys(map).map((c) => ({ category: c, value: map[c] })).sort((a, b) => b.value - a.value);
+    const max = rows.length ? rows[0].value : 1;
+    return rows.slice(0, 3).map((r, i) => ({ ...r, pct: Math.round((r.value / max) * 100) }));
+  })();
+
+  const recentTransactions = [...transactions]
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 3);
+
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Adjust categories automatically when type changes
-  const expenseCategories = ['Food', 'Living', 'Health/Bio', 'Tech', 'Travel', 'Shopping', 'Business Tools', 'Abonnements', 'Other'];
-  const incomeCategories = ['Freelance', 'Salary', 'Investments', 'Other'];
-
-
-  const handleTypeChange = (type) => {
-    setFinType(type);
-    if (type === 'income') {
-      setFinCategory(incomeCategories[0]);
-    } else {
-      setFinCategory(expenseCategories[0]);
-    }
-  };
-  
-  const handleDescChange = (val) => {
-    setFinDesc(val);
-    const suggested = autoCategorize(val, finType);
-    if (suggested && suggested !== 'Other') {
-      setFinCategory(suggested);
-    }
+  const saveCircadian = () => {
+    saveManagerConfig(prev => ({
+      ...prev,
+      circadian: { wake, sleep }
+    }));
   };
 
-
-  // Auto-Open toggler
-  const handleToggleAutoOpen = () => {
-    const updated = {
-      ...config,
-      autoOpenEnabled: !autoOpenEnabled
-    };
-    saveProfile({ managerConfig: updated });
-    setAgentMsg(`Automatisches Öffnen von Tabs ${!autoOpenEnabled ? 'aktiviert' : 'deaktiviert'}.`);
-  };
-
-  // Add Link Mapping
   const handleAddMapping = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!pattern.trim() || !url.trim()) return;
 
     let formattedUrl = url.trim();
@@ -495,82 +519,135 @@ export default function TabManager({
       url: formattedUrl
     };
 
-    const updated = {
-      ...config,
-      mappings: [...mappings, newMapping]
-    };
-
-    saveProfile({ managerConfig: updated });
+    saveManagerConfig(prev => ({
+      ...prev,
+      mappings: [...(prev.mappings || []), newMapping]
+    }));
     setPattern('');
     setUrl('');
-    setAgentMsg(`Link-Zuordnung für "${pattern.trim()}" hinzugefügt.`);
+    setShowAddMapping(false);
+    if (typeof setAgentMsg === 'function') {
+      setAgentMsg(`Link-Zuordnung für "${pattern.trim()}" hinzugefügt.`);
+    }
   };
 
   const handleDeleteMapping = (id) => {
-    const updated = {
-      ...config,
-      mappings: mappings.filter((m) => m.id !== id)
-    };
-    saveProfile({ managerConfig: updated });
-    setAgentMsg('Link-Zuordnung entfernt.');
-  };
-
-  const handleTestMapping = (mapping) => {
-    try {
-      window.open(mapping.url, '_blank');
-      setAgentMsg(`Test-Öffnen von ${mapping.url} initiiert.`);
-    } catch (e) {
-      setAgentMsg(`Browser blockiert Popup: ${e.message}`);
+    saveManagerConfig(prev => ({
+      ...prev,
+      mappings: (prev.mappings || []).filter((m) => m.id !== id)
+    }));
+    if (typeof setAgentMsg === 'function') {
+      setAgentMsg('Link-Zuordnung entfernt.');
     }
   };
 
-  // --- Outlier Research Log ---
-  const handleAddResearch = (e) => {
-    e.preventDefault();
-    if (!researchTitle.trim()) return;
-
-    let formattedUrl = researchUrl.trim();
-    if (formattedUrl && !/^https?:\/\//i.test(formattedUrl)) {
-      formattedUrl = 'https://' + formattedUrl;
+  // Fire-and-forget notification — only if the user already opted in. We never
+  // prompt for permission mid-session (that belongs to an explicit opt-in click).
+  const notifyFocus = (body) => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (Notification.permission === 'granted') {
+      new Notification('Pronoia Fokus-Modus', { body, icon: '/favicon.ico' });
     }
-
-    const newItem = {
-      id: `res_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      title: researchTitle.trim(),
-      category: researchCategory,
-      url: formattedUrl,
-      notes: researchNotes.trim(),
-      date: new Date().toLocaleDateString('de-DE'),
-      analysisReport: null,
-      analysisData: null
-    };
-
-    const updated = {
-      ...config,
-      research: [newItem, ...researchList]
-    };
-
-    saveProfile({ managerConfig: updated });
-    setResearchTitle('');
-    setResearchUrl('');
-    setResearchNotes('');
-    setAgentMsg(`Forschungsziel "${newItem.title}" erfolgreich hinzugefügt.`);
+  };
+  const focusNotifDefault = typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default';
+  const enableFocusNotifications = () => {
+    if (focusNotifDefault) Notification.requestPermission().then(() => setNowTs(Date.now()));
   };
 
-  const handleDeleteResearch = (id, e) => {
-    e?.stopPropagation();
-    const updated = {
-      ...config,
-      research: researchList.filter((r) => r.id !== id)
-    };
-    if (selectedResearch?.id === id) {
-      setSelectedResearch(null);
-    }
-    saveProfile({ managerConfig: updated });
-    setAgentMsg('Forschungsziel gelöscht.');
+  // Log a finished session to history and clear the active timer. Idempotent:
+  // a no-longer-active timer is ignored, so it can't double-count.
+  const completeFocusSession = () => {
+    saveFocus((prev) => {
+      const a = prev.active;
+      if (!a) return prev;
+      const durationMin = Math.round((a.durationSec || (prev.lastPreset || 60) * 60) / 60);
+      const session = {
+        ts: new Date().toISOString(),
+        durationMin,
+        preset: a.preset || prev.lastPreset || 60,
+        pillar: a.pillar || null,
+        blockTitle: a.blockTitle || null,
+      };
+      return { ...prev, active: null, sessions: [session, ...(prev.sessions || [])].slice(0, 100) };
+    });
+    if (typeof setAgentMsg === 'function') setAgentMsg('Focus-Session abgeschlossen — in der Historie geloggt. ☕');
+    notifyFocus('Deine Focus-Session ist abgeschlossen! Zeit für eine Pause.');
   };
 
-  // Outlier analysis loading sequence steps
+  // Tick while running so the wall-clock countdown re-renders.
+  useEffect(() => {
+    if (!focusActive || focusActive.status !== 'running') return;
+    const id = setInterval(() => setNowTs(Date.now()), 250);
+    return () => clearInterval(id);
+  }, [focusActive]);
+
+  // Fire completion when the clock runs out — also catches sessions that
+  // finished while the tab was closed/backgrounded (checked on mount).
+  useEffect(() => {
+    if (focusActive?.status === 'running' && focusActive.endsAt - nowTs <= 0) {
+      completeFocusSession();
+    }
+  }, [focusActive, nowTs]);
+
+  const activeBlock = blocks[blockIdx];
+  const activeBlockTitle = activeBlock?.title && activeBlock.title !== 'Kein aktiver Block' ? activeBlock.title : '';
+
+  // Link automation matching
+  const matchingMappings = activeBlockTitle
+    ? mappings.filter(m => m.pattern && activeBlockTitle.toLowerCase().includes(m.pattern.toLowerCase()))
+    : [];
+
+  const handleStartPauseFocus = () => {
+    setNowTs(Date.now());
+    if (focusRunning) {
+      // pause: freeze remaining time
+      saveFocus((prev) => {
+        const a = prev.active;
+        if (a?.status !== 'running') return prev;
+        const remainingSec = Math.max(0, Math.round((a.endsAt - Date.now()) / 1000));
+        return { ...prev, active: { status: 'paused', remainingSec, durationSec: a.durationSec, preset: a.preset } };
+      });
+    } else {
+      // start fresh or resume from pause
+      saveFocus((prev) => {
+        const a = prev.active;
+        if (a?.status === 'paused') {
+          return { ...prev, active: { status: 'running', endsAt: Date.now() + a.remainingSec * 1000, durationSec: a.durationSec, preset: a.preset } };
+        }
+        const preset = prev.lastPreset || 60;
+        const durationSec = preset * 60;
+        const cur = blocks[blockIdx] || {};
+        return { ...prev, active: { status: 'running', endsAt: Date.now() + durationSec * 1000, durationSec, preset, pillar: cur.pillar || cur.type || null, blockTitle: cur.title || null } };
+      });
+    }
+  };
+
+  const handleResetFocus = () => {
+    setNowTs(Date.now());
+    saveFocus((prev) => ({ ...prev, active: null }));
+  };
+
+  const handlePresetSelect = (minutes) => {
+    setNowTs(Date.now());
+    saveFocus((prev) => ({ ...prev, lastPreset: minutes, active: null }));
+  };
+
+  // --- Focus history stats ---
+  const focusTodayKey = new Date().toISOString().slice(0, 10);
+  const focusTodaySessions = focusSessions.filter((s) => (s.ts || '').slice(0, 10) === focusTodayKey);
+  const focusTodayMinutes = focusTodaySessions.reduce((sum, s) => sum + (s.durationMin || 0), 0);
+  const focusStreak = (() => {
+    const days = new Set(focusSessions.map((s) => (s.ts || '').slice(0, 10)));
+    let streak = 0;
+    const d = new Date();
+    while (days.has(d.toISOString().slice(0, 10)) && streak < 100) {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    }
+    return streak;
+  })();
+
+  // --- Outlier Research analysis steps ---
   const analysisSteps = [
     'Initialisiere Outlier-Crawler-Engine...',
     'Analysiere historische Durchschnittswerte & Benchmarks...',
@@ -584,7 +661,6 @@ export default function TabManager({
     if (!item) return;
     setAnalysisLoading(true);
     setAnalysisStep(0);
-    setAgentMsg(`Starte Outlier-Recherche für "${item.title}"...`);
 
     try {
       setAnalysisStep(1);
@@ -592,7 +668,7 @@ export default function TabManager({
       setAnalysisStep(2);
       await new Promise(r => setTimeout(r, 600));
       setAnalysisStep(3);
-      
+
       let queryUrl = `/api/youtube-search?q=${encodeURIComponent(item.title)}`;
       if (targetChannelId) {
         queryUrl = `/api/youtube-search?channelId=${targetChannelId}`;
@@ -610,7 +686,7 @@ export default function TabManager({
       if (!res.ok) {
         throw new Error(`YouTube API returned HTTP status ${res.status}`);
       }
-      
+
       const searchData = await res.json();
       setAnalysisStep(4);
       await new Promise(r => setTimeout(r, 400));
@@ -622,10 +698,10 @@ export default function TabManager({
       let report = '';
       if (searchData.mode === 'channel') {
         const chan = searchData.channel || { title: item.title, subscribersText: 'N/A' };
-        const videoListText = searchData.videos.map((v, idx) => 
+        const videoListText = searchData.videos.map((v, idx) =>
           `${idx + 1}. **${v.title}**\n   - Aufrufe: ${v.viewsText || 'N/A'} | Veröffentlicht: ${v.publishedText || 'N/A'}\n   - Link: ${v.watchUrl}`
         ).join('\n');
-        
+
         report = `### 🚀 OUTLIER ANALYSE: KANAL PERFORMANCE FÜR "${chan.title}"
 **Abonnenten:** ${chan.subscribersText || 'N/A'} ${chan.verified ? '✓ (Verifiziert)' : ''}
 **Kanal-URL:** https://youtube.com/${chan.handle || ''}
@@ -638,12 +714,12 @@ ${videoListText}
 - Kanäle wie "${chan.title}" skalieren durch konsistente Branding-Muster und starke visuelle CTR-Driver.
 - Die neuesten Uploads zeigen die aktuelle Themen-Ausrichtung des Creators. Analysiere Titel-Formate und Upload-Zyklen.`;
       } else if (searchData.mode === 'keyword' || searchData.mode === 'uncertain') {
-        const videoListText = searchData.videos.slice(0, 5).map((v, idx) => 
+        const videoListText = searchData.videos.slice(0, 5).map((v, idx) =>
           `${idx + 1}. **${v.title}**\n   - Aufrufe: ${v.viewsText || 'N/A'} | Veröffentlicht: ${v.publishedText || 'N/A'}\n   - Link: ${v.watchUrl}`
         ).join('\n');
 
         report = `### 🔍 OUTLIER THEMEN-ANALYSE FÜR "${item.title}"
-**Kategorie:** ${item.category}
+**Kategorie:** ${item.category || 'YouTube'}
 **Analyse-Datum:** ${new Date().toLocaleDateString('de-DE')}
 
 #### Relevante Top-Videos in dieser Nische:
@@ -657,23 +733,17 @@ ${videoListText}
 Bitte wähle den gewünschten Kanal in der Auswahlliste aus, um die detaillierte Outlier-Analyse zu starten.`;
       }
 
-      const updatedResearch = researchList.map((r) => {
+      const updatedResearch = (config.research || []).map((r) => {
         if (r.id === item.id) {
           return { ...r, analysisReport: report, analysisData: searchData };
         }
         return r;
       });
 
-      const updated = {
-        ...config,
-        research: updatedResearch
-      };
-
-      saveProfile({ managerConfig: updated });
+      saveManagerConfig(prev => ({ ...prev, research: updatedResearch }));
       const updatedItem = { ...item, analysisReport: report, analysisData: searchData };
       setSelectedResearch(updatedItem);
       setAnalysisLoading(false);
-      setAgentMsg(`Outlier Analyse für "${item.title}" erfolgreich abgeschlossen.`);
 
     } catch (err) {
       console.error("[YouTube Search] Analysis failed:", err);
@@ -684,1626 +754,928 @@ Es ist ein Fehler bei der Kontaktaufnahme mit den YouTube/Web-Diensten aufgetret
 
 Bitte versuche es in wenigen Minuten erneut.`;
 
-      const updatedResearch = researchList.map((r) => {
+      const updatedResearch = (config.research || []).map((r) => {
         if (r.id === item.id) {
           return { ...r, analysisReport: errorReport, analysisData: { mode: 'error', error: err.message } };
         }
         return r;
       });
 
-      const updated = {
-        ...config,
-        research: updatedResearch
-      };
-
-      saveProfile({ managerConfig: updated });
+      saveManagerConfig(prev => ({ ...prev, research: updatedResearch }));
       setSelectedResearch({ ...item, analysisReport: errorReport, analysisData: { mode: 'error', error: err.message } });
       setAnalysisLoading(false);
-      setAgentMsg(`Fehler bei der Outlier Analyse: ${err.message}`);
     }
   };
 
-  // --- Focus Mode Timer ---
-  useEffect(() => {
-    let timerId = null;
-    if (focusRunning && focusTimeLeft > 0) {
-      timerId = setInterval(() => {
-        setFocusTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (focusTimeLeft === 0 && focusRunning) {
-      setFocusRunning(false);
-      setAgentMsg('Focus-Session erfolgreich beendet! Nimm dir eine kurze Pause. ☕');
-      
-      const updated = {
-        ...config,
-        completedSessions: completedSessions + 1
-      };
-      saveProfile({ managerConfig: updated });
-
-      if (typeof window !== 'undefined' && 'Notification' in window) {
-        if (Notification.permission === 'granted') {
-          new Notification('Pronoia Focus Mode', {
-            body: 'Deine Focus-Session ist abgeschlossen! Zeit für eine Pause.',
-            icon: '/favicon.ico'
-          });
-        } else if (Notification.permission !== 'denied') {
-          Notification.requestPermission();
-        }
-      }
+  const handleCockpitResearch = (e) => {
+    if (e) e.preventDefault();
+    const val = research.trim();
+    if (!val) return;
+    let formattedUrl = '';
+    let title = val;
+    if (/^https?:\/\//i.test(val) || /\./.test(val)) {
+      formattedUrl = /^https?:\/\//i.test(val) ? val : 'https://' + val;
+      title = val.replace(/^https?:\/\//i, '').slice(0, 60);
     }
-    return () => {
-      if (timerId) clearInterval(timerId);
-    };
-  }, [focusRunning, focusTimeLeft]);
-
-  const handleStartPauseFocus = () => {
-    setFocusRunning(!focusRunning);
-  };
-
-  const handleResetFocus = () => {
-    setFocusRunning(false);
-    setFocusTimeLeft(focusDuration);
-  };
-
-  const handlePresetSelect = (minutes) => {
-    setFocusPreset(minutes);
-    setFocusDuration(minutes * 60);
-    setFocusTimeLeft(minutes * 60);
-    setFocusRunning(false);
-  };
-
-  const strokeDashoffset = focusDuration > 0
-    ? 502 - (502 * (focusDuration - focusTimeLeft)) / focusDuration
-    : 502;
-
-  // --- Quick Notes ---
-  const handleAddNote = (e) => {
-    e.preventDefault();
-    if (!newNote.trim()) return;
-
-    const noteItem = {
-      id: `note_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      blockTitle: activeBlock.title,
-      text: newNote.trim(),
-      time: new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
-    };
-
-    const updated = {
-      ...config,
-      notes: [noteItem, ...notesList]
-    };
-
-    saveProfile({ managerConfig: updated });
-    setNewNote('');
-    setAgentMsg('Notiz zum aktiven Block hinzugefügt.');
-  };
-
-  const handleDeleteNote = (id) => {
-    const updated = {
-      ...config,
-      notes: notesList.filter((n) => n.id !== id)
-    };
-    saveProfile({ managerConfig: updated });
-    setAgentMsg('Notiz entfernt.');
-  };
-
-  // --- Finance Log Handlers ---
-  const handleAddTransaction = (e) => {
-    e.preventDefault();
-    if (!finAmount || isNaN(parseFloat(finAmount)) || parseFloat(finAmount) <= 0) return;
-
-    const newTx = {
-      id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      amount: parseFloat(finAmount),
-      type: finType,
-      category: finCategory,
-      date: finDate || new Date().toISOString().substring(0, 10),
-      description: finDesc.trim()
-    };
-
-    const updated = {
-      ...config,
-      finance: {
-        ...financeConfig,
-        transactions: [newTx, ...transactions]
-      }
-    };
-
-    saveProfile({ managerConfig: updated });
-    setFinAmount('');
-    setFinDesc('');
-    setAgentMsg(`Transaktion über ${newTx.amount.toFixed(2)} € hinzugefügt.`);
-  };
-
-  const handleDeleteTransaction = (id) => {
-    const updated = {
-      ...config,
-      finance: {
-        ...financeConfig,
-        transactions: transactions.filter(tx => tx.id !== id)
-      }
-    };
-    saveProfile({ managerConfig: updated });
-    setAgentMsg('Transaktion gelöscht.');
-  };
-
-  const handleScanLink = async () => {
-    if (!buyUrl || !/^https?:\/\//i.test(buyUrl)) {
-      setAgentMsg('Bitte gib eine gültige URL ein.');
-      return;
-    }
-    setLinkLoading(true);
-    setAgentMsg('Lese Link-Metadaten aus...');
-    try {
-      const res = await fetch('/api/read-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: buyUrl })
-      });
-      const data = await res.json();
-      if (data.success && data.metadata) {
-        setBuyTitle(data.metadata.title || '');
-        if (data.metadata.price) {
-          setBuyPrice(data.metadata.price.toString());
-        } else {
-          setBuyPrice('');
-        }
-        setBuyNotes(data.metadata.description || '');
-        setAgentMsg('Link erfolgreich ausgelesen.');
-      } else {
-        setAgentMsg(`Auslesen unvollständig: ${data.error || 'Keine Metadaten'}`);
-      }
-    } catch (err) {
-      setAgentMsg(`Fehler: ${err.message}`);
-    } finally {
-      setLinkLoading(false);
-    }
-  };
-
-  const handleSaveBuyInterest = (e) => {
-    e.preventDefault();
-    if (!buyTitle) return;
     const newItem = {
-      id: `buy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      title: buyTitle.trim(),
-      price: parseFloat(buyPrice) || 0,
-      url: buyUrl.trim(),
-      notes: buyNotes.trim(),
-      date: new Date().toISOString().substring(0, 10)
+      id: `res_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      title,
+      category: 'YouTube',
+      url: formattedUrl,
+      notes: '',
+      date: new Date().toLocaleDateString('de-DE'),
+      analysisReport: null,
+      analysisData: null,
+      tags: []
     };
-    const updated = {
-      ...config,
-      finance: {
-        ...financeConfig,
-        buyInterest: [newItem, ...buyInterestList]
-      }
-    };
-    saveProfile({ managerConfig: updated });
-    setBuyUrl('');
-    setBuyTitle('');
-    setBuyPrice('');
-    setBuyNotes('');
-    setAgentMsg(`Kaufinteresse für "${newItem.title}" hinzugefügt.`);
+    saveManagerConfig(prev => ({ ...prev, research: [newItem, ...(prev.research || [])] }));
+    setResearch('');
+    // Automatically trigger analysis
+    runOutlierAnalysis(newItem);
   };
 
-  const handleDeleteBuyInterest = (id) => {
-    const updated = {
-      ...config,
-      finance: {
-        ...financeConfig,
-        buyInterest: buyInterestList.filter(item => item.id !== id)
+  const handleSaveResearchNotes = (notesText, tagsText) => {
+    if (!selectedResearch) return;
+    const tagsArr = tagsText.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+    const updated = (config.research || []).map(r => {
+      if (r.id === selectedResearch.id) {
+        return { ...r, notes: notesText, tags: tagsArr };
       }
-    };
-    saveProfile({ managerConfig: updated });
-    setAgentMsg('Kaufinteresse gelöscht.');
-  };
-
-  const handleConvertBuyInterestToExpense = (item) => {
-    const newTx = {
-      id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      amount: item.price,
-      type: 'expense',
-      category: 'Shopping',
-      date: new Date().toISOString().substring(0, 10),
-      description: item.title
-    };
-    const updated = {
-      ...config,
-      finance: {
-        ...financeConfig,
-        transactions: [newTx, ...transactions],
-        buyInterest: buyInterestList.filter(i => i.id !== item.id)
-      }
-    };
-    saveProfile({ managerConfig: updated });
-    setAgentMsg(`Kauf von "${item.title}" als Ausgabe erfasst.`);
-  };
-
-
-  // Grouped metrics for finance panel
-  const totalIncome = transactions.filter(t => t.type === 'income').reduce((acc, c) => acc + c.amount, 0);
-  const totalExpense = transactions.filter(t => t.type === 'expense').reduce((acc, c) => acc + c.amount, 0);
-  const netBalance = totalIncome - totalExpense;
-
-  // --- Finance Intelligence (local heuristics, see lib/financeIntelligence) ---
-  const budgets = financeConfig.budgets || {};
-  const nowDate = new Date();
-  const currentMonthStr = nowDate.toISOString().substring(0, 7);
-  const prevMonthDate = new Date(nowDate.getFullYear(), nowDate.getMonth() - 1, 15);
-  const prevMonthStr = prevMonthDate.toISOString().substring(0, 7);
-
-  const recurringItems = detectRecurring(transactions).filter(r => r.type === 'expense');
-  const recurringMonthlySum = recurringItems.reduce((s, r) => s + r.monthlyCost, 0);
-  const budgetRows = budgetStatus(transactions, budgets, currentMonthStr);
-  const expenseTrend = monthTrend(transactions, currentMonthStr, prevMonthStr);
-  const anomalies = detectAnomalies(transactions).slice(0, 3);
-
-  // New Upgraded Features Calculations
-  const savingsPotential = calculateSavingsPotential(transactions);
-  const prognosis = calculatePrognosis(transactions, netBalance);
-  const patterns = detectPatterns(transactions);
-  const savingsRate = totalIncome > 0 ? Math.round(((totalIncome - totalExpense) / totalIncome) * 100) : 0;
-
-  // Intelligent Search filter and stats
-  const searchedTransactions = transactions.filter(t => {
-    const q = financeSearch.toLowerCase().trim();
-    if (!q) return true;
-    return (t.description || '').toLowerCase().includes(q) || (t.category || '').toLowerCase().includes(q);
-  });
-  const searchTotal = searchedTransactions.reduce((s, t) => s + t.amount, 0);
-  const searchAvg = searchedTransactions.length > 0 ? searchTotal / searchedTransactions.length : 0;
-
-  // Financial Goals
-  const defaultGoals = [
-    { id: 'goal_emergency', name: 'Notgroschen', target: 10000, current: Math.max(0, Math.round(netBalance * 0.4 * 100) / 100) },
-    { id: 'goal_vacation', name: 'Urlaubskasse', target: 3000, current: Math.max(0, Math.round(netBalance * 0.1 * 100) / 100) },
-    { id: 'goal_etf', name: 'ETF Sparziel', target: 50000, current: Math.max(0, Math.round(netBalance * 0.3 * 100) / 100) }
-  ];
-  const goals = financeConfig.goals || defaultGoals;
-
-  const handleUpdateGoal = (id, currentVal) => {
-    const num = parseFloat(currentVal);
-    if (isNaN(num)) return;
-    const updatedGoals = goals.map(g => g.id === id ? { ...g, current: num } : g);
-    saveProfile({
-      managerConfig: {
-        ...config,
-        finance: { ...financeConfig, goals: updatedGoals }
-      }
+      return r;
     });
-  };
-
-  const handleSetBudget = (category, value) => {
-    const num = parseFloat(value);
-    const updatedBudgets = { ...budgets };
-    if (!value || isNaN(num) || num <= 0) {
-      delete updatedBudgets[category];
-    } else {
-      updatedBudgets[category] = num;
+    saveManagerConfig(prev => ({ ...prev, research: updated }));
+    setSelectedResearch(prev => ({ ...prev, notes: notesText, tags: tagsArr }));
+    if (typeof setAgentMsg === 'function') {
+      setAgentMsg('Recherche-Notizen & Tags gespeichert. 💾');
     }
-    saveProfile({
-      managerConfig: {
-        ...config,
-        finance: { ...financeConfig, budgets: updatedBudgets }
-      }
-    });
   };
 
+  const exportToVault = async (item) => {
+    if (!item) return;
+    const tags = ['research', 'outlier', ...(item.tags || [])];
+    const payload = {
+      user_id: auth.currentUser?.uid || 'local',
+      type: item.url ? 'link' : 'note',
+      title: `Outlier: ${item.title}`,
+      content: `Ziel-URL: ${item.url || 'Keine'}\n\nNotizen: ${item.notes || ''}\n\nBericht:\n${item.analysisReport || ''}`,
+      tags: tags.map(t => t.trim().toLowerCase()).filter(Boolean),
+      created_at: new Date().toISOString(),
+    };
 
-  // Aggregate category values for selected type (income/expense)
-  const categoryTotalsMap = {};
-  transactions
-    .filter(t => t.type === doughnutFocusType)
-    .forEach(t => {
-      categoryTotalsMap[t.category] = (categoryTotalsMap[t.category] || 0) + t.amount;
-    });
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  const chartCategoryData = Object.keys(categoryTotalsMap).map(cat => ({
-    category: cat,
-    value: categoryTotalsMap[cat]
-  })).sort((a, b) => b.value - a.value);
+    let saved = false;
+    if (supabaseUrl && supabaseAnonKey) {
+      try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/vault_items`, {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) saved = true;
+      } catch (err) {
+        console.warn("Failed to export research to Supabase Vault:", err);
+      }
+    }
 
-  const doughnutTotal = chartCategoryData.reduce((acc, c) => acc + c.value, 0);
+    if (!saved) {
+      try {
+        const local = JSON.parse(localStorage.getItem('px_vault') || '[]');
+        localStorage.setItem('px_vault', JSON.stringify([{ id: new Date().getTime().toString(), ...payload }, ...local]));
+      } catch (e) {
+        console.error("Local storage vault save failed:", e);
+      }
+    }
 
-  // Filter research targets
-  const filteredResearchList = researchList.filter((r) => {
-    if (filterCategory === 'ALL') return true;
-    return r.category.toUpperCase() === filterCategory.toUpperCase();
-  });
+    if (typeof setAgentMsg === 'function') {
+      setAgentMsg(`"${item.title}" erfolgreich in den Vault exportiert! 💾`);
+    }
+  };
+
+  // Dynamic Bio-Sync percentage calculation
+  const bioSync = (() => {
+    let score = 70;
+    score += envDoneCount * 4; // max 20%
+    if (wake && sleep) score += 10;
+    return Math.min(100, score);
+  })();
+
+  // Full Financial Tracker takes over the whole canvas — reached only from here.
+  if (view === 'financial') {
+    return (
+      <FinancialTracker
+        onBack={() => setView('dashboard')}
+        profile={profile}
+        managerConfig={managerConfig}
+        saveManagerConfig={saveManagerConfig}
+      />
+    );
+  }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.bgMesh} />
+    <div className="relative w-full text-slate-800 dark:text-[#ECE8F2] text-left pt-12 md:pt-20">
 
-      {/* Premium Header */}
-      <div className={styles.header}>
-        <div className={styles.headerTop}>
-          <div className={styles.headerLeft}>
-            <div className={styles.headerIcon}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                <path d="M2 17l10 5 10-5" />
-                <path d="M2 12l10 5 10-5" />
-              </svg>
-            </div>
+      {/* Atmospheric glow (scoped to this panel, no global bleed) */}
+      <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute -top-32 -left-32 w-[40%] h-[40%] rounded-full" style={{ background: 'rgba(26,106,255,0.06)', filter: 'blur(120px)' }} />
+        <div className="absolute -bottom-20 -right-20 w-[35%] h-[35%] rounded-full" style={{ background: 'rgba(26,106,255,0.04)', filter: 'blur(100px)' }} />
+      </div>
+
+      {/* ── Editorial Header ── */}
+      <header className="max-w-3xl mb-14">
+        <span className={`${label} block mb-5`} style={{ color: ACCENT, letterSpacing: '0.35em' }}>
+          Manager · Systemkonfiguration &amp; Automatisierung
+        </span>
+        <h2 className="font-serif text-4xl md:text-5xl font-light tracking-tight mb-6 text-slate-900 dark:text-white">
+          Die Steuerzentrale deiner Routine.
+        </h2>
+        <p className="text-slate-600 dark:text-[rgba(236,232,242,0.6)] text-lg leading-relaxed font-light">
+          Präzise Abstimmung deiner biologischen Rhythmen und Umgebungsvariablen. Wir kalibrieren
+          deine physische Existenz für maximale kognitive Kapazität.
+        </p>
+      </header>
+
+      {/* ── Bento Grid ── */}
+      <div className="grid grid-cols-12 gap-x-6 gap-y-8">
+
+        {/* Circadian & Environment */}
+        <section className={`${glass} col-span-12 lg:col-span-8 p-10 xl:p-12 rounded-xl space-y-10 min-h-[460px] flex flex-col justify-between`}>
+          <div className="flex justify-between items-start">
             <div>
-              <h2 className={styles.title}>System App Command Center</h2>
-              <div className={styles.subtitle}>Manager Node v3.5 // Live telemetry active</div>
+              <h3 className="font-serif text-2xl mb-1 text-slate-900 dark:text-white">Circadianer Rhythmus</h3>
+              <p className={`${label} text-slate-500 dark:text-[rgba(236,232,242,0.6)]`}>Rhythmus &amp; Umgebung</p>
+            </div>
+            <span className="material-symbols-outlined" style={{ color: ACCENT }}>light_mode</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <label className={`${label} text-slate-500 dark:text-[rgba(236,232,242,0.6)] block`}>Aufwach-Fenster</label>
+              <div className="flex items-end gap-2">
+                <input
+                  type="text"
+                  value={wake}
+                  onChange={(e) => setWake(e.target.value)}
+                  onBlur={saveCircadian}
+                  className="bg-transparent border-b border-slate-300 dark:border-white/20 focus:border-[#1A6AFF] transition-colors text-3xl font-serif w-24 p-0 outline-none text-slate-800 dark:text-white"
+                />
+                <span className={`${label} text-slate-500 dark:text-[rgba(236,232,242,0.6)] mb-2`}>AM</span>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <label className={`${label} text-slate-500 dark:text-[rgba(236,232,242,0.6)] block`}>Einschlaf-Fenster</label>
+              <div className="flex items-end gap-2">
+                <input
+                  type="text"
+                  value={sleep}
+                  onChange={(e) => setSleep(e.target.value)}
+                  onBlur={saveCircadian}
+                  className="bg-transparent border-b border-slate-300 dark:border-white/20 focus:border-[#1A6AFF] transition-colors text-3xl font-serif w-24 p-0 outline-none text-slate-800 dark:text-white"
+                />
+                <span className={`${label} text-slate-500 dark:text-[rgba(236,232,242,0.6)] mb-2`}>PM</span>
+              </div>
             </div>
           </div>
 
-          {/* Current block indicator */}
-          <div className={styles.liveTicker}>
-            <span className={styles.liveIndicator} />
-            <span className={styles.tickerText} title={activeBlock.title}>
-              AKTIV: {activeBlock.title}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Sub Navigation */}
-      <div className={styles.subNav}>
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('command')}
-          className={`${styles.subNavTab} ${activeSubTab === 'command' ? styles.subNavTabActive : ''}`}
-        >
-          Cockpit
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('links')}
-          className={`${styles.subNavTab} ${activeSubTab === 'links' ? styles.subNavTabActive : ''}`}
-        >
-          Block Links
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('research')}
-          className={`${styles.subNavTab} ${activeSubTab === 'research' ? styles.subNavTabActive : ''}`}
-        >
-          Outlier Research
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('finance')}
-          className={`${styles.subNavTab} ${activeSubTab === 'finance' ? styles.subNavTabActive : ''}`}
-        >
-          Finanzen
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('focus')}
-          className={`${styles.subNavTab} ${activeSubTab === 'focus' ? styles.subNavTabActive : ''}`}
-        >
-          Focus Mode
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('notes')}
-          className={`${styles.subNavTab} ${activeSubTab === 'notes' ? styles.subNavTabActive : ''}`}
-        >
-          Notizen
-        </button>
-      </div>
-
-
-      {/* Main Tab Panels */}
-      <div className={styles.content}>
-        {activeSubTab === 'command' && (
-          <div className={styles.commandGrid}>
-            {/* Active Block Card */}
-            <div className={styles.activeBlockHero}>
-              <div className={styles.blockTimerRing}>
-                <div className={styles.blockTimerInner}>
-                  <span className={styles.blockTimerValue}>
-                    {timeLeft > 0 ? Math.ceil(timeLeft / 60) : 0}
-                  </span>
-                  <span className={styles.blockTimerLabel}>Min</span>
-                </div>
+          {/* Daily environment routine */}
+          <div className="space-y-4 pt-4">
+            <div className="space-y-3">
+              <div className={`flex justify-between items-center ${label} text-slate-600 dark:text-[rgba(236,232,242,0.6)]`}>
+                <span>Umgebungs-Routine heute</span>
+                <span style={{ color: ACCENT }}>{envDoneCount}/{ENV_ITEMS.length}</span>
               </div>
-              <div className={styles.blockDetails}>
-                <div className={styles.blockLabel}>Aktueller Zeitblock</div>
-                <h3 className={styles.blockName}>{activeBlock.title}</h3>
-                <div className={styles.blockTimeRange}>
-                  Zeit: {activeBlock.start} - {activeBlock.end}
-                </div>
-
-                <div className={styles.blockProgressBar}>
-                  <div className={styles.blockProgressFill} style={{ width: `${blockProg}%` }} />
-                </div>
+              <div className="h-1 bg-slate-200 dark:bg-white/5 rounded-full overflow-hidden">
+                <div
+                  className="h-full transition-all duration-500"
+                  style={{ width: `${envProgress}%`, background: ACCENT, boxShadow: '0 0 30px rgba(26,106,255,0.15)' }}
+                />
               </div>
             </div>
 
-            {/* Metrics cards */}
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>Verknüpfte Auto-Links</span>
-              <span className={styles.statValue}>{mappings.length}</span>
-              <span className={styles.statSub}>Aktive Trigger-Muster</span>
+            {/* Streak & dot history indicator */}
+            <div className="flex justify-between items-center pt-2">
+              <div className="flex gap-1.5">
+                {envDots.map((dot) => {
+                  let tooltip = `${dot.dayStr}: ${dot.doneCount}/5 erledigt`;
+                  let colorClass = "bg-slate-200 dark:bg-white/10 border-slate-300/30 dark:border-white/5";
+                  if (dot.completed) colorClass = "bg-[#1A6AFF] border-[#1A6AFF]/50 shadow-[0_0_10px_rgba(26,106,255,0.4)] text-white";
+                  else if (dot.partial) colorClass = "bg-[#1A6AFF]/40 dark:bg-[#1A6AFF]/45 border-[#1A6AFF]/20 dark:border-[#1A6AFF]/30 text-white";
+
+                  return (
+                    <div
+                      key={dot.dayStr}
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center text-[7px] font-bold ${colorClass}`}
+                      title={tooltip}
+                    >
+                      <span className="text-[6.5px] opacity-70">{dot.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="text-right">
+                <span className="font-serif text-lg text-slate-900 dark:text-white" style={circadianStreak > 0 ? { color: ACCENT } : undefined}>{circadianStreak}</span>
+                <span className={`${label} text-[8px] text-slate-500 dark:text-[rgba(236,232,242,0.6)] ml-1`}>Routine-Streak</span>
+              </div>
             </div>
 
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>Autom. Geöffnete Links</span>
-              <span className={styles.statValue}>{managerHistory.length}</span>
-              <span className={styles.statSub}>In dieser Web-Session</span>
-            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
+              {ENV_ITEMS.map((item) => {
+                const on = !!envChecks[item.key];
+                return (
+                  <button
+                    type="button"
+                    key={item.key}
+                    onClick={() => toggleEnv(item.key)}
+                    aria-pressed={on}
+                    className={`p-3 rounded-lg border flex items-center gap-2 text-left transition-all duration-300 hover:border-slate-300 dark:hover:border-white/20 ${
+                      on 
+                        ? 'border-[#1A6AFF]/40 bg-[#1A6AFF]/10 text-slate-900 dark:text-white' 
+                        : 'border-slate-200 dark:border-white/5 bg-slate-100/30 dark:bg-white/[0.02] text-slate-600 dark:text-white/60'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-base shrink-0 animate-none" style={{ color: on ? ACCENT : undefined }}>
+                      {on ? 'check_circle' : item.icon}
+                    </span>
+                    <span className="text-[0.7rem] leading-tight font-medium">
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
 
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>Forschungsziele</span>
-              <span className={styles.statValue}>{researchList.length}</span>
-              <span className={styles.statSub}>Outlier-Analysen gespeichert</span>
-            </div>
-
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>Focus Sessions</span>
-              <span className={styles.statValue}>{completedSessions}</span>
-              <span className={styles.statSub}>Erfolgreich absolviert</span>
+              {/* Lux target — editable, persisted */}
+              <div className="p-3 rounded-lg border border-slate-200 dark:border-white/[0.06] bg-slate-100/20 dark:bg-white/[0.02] flex flex-col justify-center gap-1">
+                <span className={`${label} text-[0.5rem] text-slate-500 dark:text-[rgba(236,232,242,0.6)]`}>Morgenlicht-Ziel</span>
+                <div className="flex items-baseline gap-1">
+                  <input
+                    type="number"
+                    min="0"
+                    step="500"
+                    value={envData.luxTarget ?? 10000}
+                    onChange={(e) => saveEnv((prev) => ({ ...prev, luxTarget: Number(e.target.value) }))}
+                    className="bg-transparent border-b border-slate-300 dark:border-white/15 focus:border-[#1A6AFF] transition-colors text-base font-serif w-16 p-0 outline-none text-slate-800 dark:text-white"
+                  />
+                  <span className={`${label} text-[0.5rem] text-slate-500 dark:text-[rgba(236,232,242,0.6)]`}>Lux</span>
+                </div>
+              </div>
             </div>
           </div>
-        )}
+        </section>
 
-        {activeSubTab === 'links' && (
-          <div className={styles.linksLayout}>
-            {/* Left side: config & add form */}
-            <div className={styles.card}>
-              <h3 className={styles.cardTitle}>Auto-Open Einstellungen</h3>
+        {/* Focus Intervals */}
+        <section className={`${glass} col-span-12 lg:col-span-4 p-10 xl:p-12 rounded-xl flex flex-col justify-between min-h-[460px]`}>
+          <div>
+            <h3 className="font-serif text-2xl mb-1 text-slate-900 dark:text-white">Fokus-Intervalle</h3>
+            <p className={`${label} text-slate-500 dark:text-[rgba(236,232,242,0.6)] mb-4`}>Neuro-Sync Presets</p>
+          </div>
 
+          {/* Coupled block display */}
+          <div className="p-3 bg-slate-100/50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 rounded-lg text-center space-y-1 my-1">
+            <span className={`${label} text-[9px] text-slate-500 dark:text-[rgba(236,232,242,0.5)]`}>Gekoppelter Block</span>
+            {focusRunning ? (
+              <div className="text-xs font-serif italic text-slate-800 dark:text-white">
+                {focusActive?.blockTitle || 'Deep Work'} ({focusActive?.pillar || 'Fokus'})
+              </div>
+            ) : (
+              <div className="text-xs font-serif text-slate-600 dark:text-[rgba(236,232,242,0.55)]">
+                {activeBlockTitle ? `${activeBlockTitle} (${activeBlock?.pillar || activeBlock?.type || 'Routine'})` : 'Kein aktiver Block'}
+              </div>
+            )}
+          </div>
 
-              <div className={styles.controlRow}>
-                <div className={styles.controlInfo}>
-                  <span className={styles.controlLabel}>Auto-Open aktivieren</span>
-                  <span className={styles.controlDesc}>Tabs automatisch im Hintergrund öffnen</span>
-                </div>
+          <div className="flex flex-col items-center justify-center py-2 space-y-4">
+            <div className="text-5xl font-mono tracking-wider font-light text-slate-900 dark:text-[#ECE8F2]" style={focusRunning ? { color: ACCENT } : undefined}>
+              {formatTime(focusTimeLeft)}
+            </div>
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={handleStartPauseFocus}
+                className="px-4 py-2 rounded-lg text-xs font-mono tracking-widest uppercase transition-all duration-300 border border-slate-200 dark:border-white/10 hover:bg-[#1A6AFF] hover:border-[#1A6AFF] hover:text-white text-slate-800 dark:text-white"
+                style={focusRunning ? { borderColor: 'rgba(26,106,255,0.4)', background: 'rgba(26,106,255,0.1)' } : {}}
+              >
+                {focusRunning ? 'Pause' : 'Start'}
+              </button>
+              <button
+                type="button"
+                onClick={handleResetFocus}
+                className="px-4 py-2 rounded-lg text-xs font-mono tracking-widest uppercase border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-800 dark:text-white transition-all duration-300"
+              >
+                Reset
+              </button>
+            </div>
+            {/* Notification Permission Opt-in */}
+            {focusNotifDefault && (
+              <button
+                type="button"
+                onClick={enableFocusNotifications}
+                className="text-[9px] font-mono hover:underline flex items-center justify-center gap-1"
+                style={{ color: ACCENT }}
+              >
+                <span className="material-symbols-outlined text-xs">notifications_active</span>
+                Mitteilungen erlauben
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-2 mt-2">
+            {[
+              { min: 25, labelStr: '25m', name: 'Deep Work Sprint' },
+              { min: 45, labelStr: '45m', name: 'Extended Flow' },
+              { min: 60, labelStr: '60m', name: 'Master Protocol' },
+            ].map((p) => {
+              const active = focusPreset === p.min;
+              return (
                 <button
+                  key={p.min}
                   type="button"
-                  className={`${styles.toggleBtn} ${autoOpenEnabled ? styles.toggleActive : ''}`}
-                  onClick={handleToggleAutoOpen}
+                  onClick={() => handlePresetSelect(p.min)}
+                  className={`w-full group p-3 border rounded-xl flex items-center justify-between transition-all duration-300 hover:bg-[#1A6AFF] hover:border-[#1A6AFF] hover:text-white ${
+                    active 
+                      ? 'border-[#1A6AFF]/40 bg-[#1A6AFF]/10 text-slate-800 dark:text-white' 
+                      : 'border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.02] text-slate-600 dark:text-white/60'
+                  }`}
                 >
-                  {autoOpenEnabled ? 'AKTIVIERT' : 'DEAKTIVIERT'}
+                  <span className="font-serif italic text-xl group-hover:text-white">{p.labelStr}</span>
+                  <span className={`${label} text-[0.55rem] group-hover:text-white/80`}>{p.name}</span>
                 </button>
-              </div>
+              );
+            })}
+          </div>
 
-              <form onSubmit={handleAddMapping} className={styles.mappingForm}>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Wenn Blocktitel enthält (z.B. "Französisch")</label>
+          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-white/5 space-y-4">
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <div className="font-serif text-xl text-slate-900 dark:text-white">{focusTodayMinutes}</div>
+                <div className={`${label} text-[8px] text-slate-500 dark:text-[rgba(236,232,242,0.6)]`}>Min heute</div>
+              </div>
+              <div>
+                <div className="font-serif text-xl text-slate-900 dark:text-white">{focusTodaySessions.length}</div>
+                <div className={`${label} text-[8px] text-slate-500 dark:text-[rgba(236,232,242,0.6)]`}>Sessions</div>
+              </div>
+              <div>
+                <div className="font-serif text-xl" style={focusStreak > 0 ? { color: ACCENT } : undefined}>{focusStreak}</div>
+                <div className={`${label} text-[8px] text-slate-500 dark:text-[rgba(236,232,242,0.6)]`}>Tages-Streak</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Simple SVG Focus Weekly Chart */}
+          <FocusWeeklyChart sessions={focusSessions} labelStyle={label} />
+        </section>
+
+        {/* Link Automation */}
+        <section className={`${glass} col-span-12 lg:col-span-6 p-10 xl:p-12 rounded-xl min-h-[320px] flex flex-col justify-between`}>
+          <div className="w-full">
+            <div className="flex justify-between items-start mb-6">
+              <h3 className="font-serif text-2xl text-slate-900 dark:text-white">Link-Automatisierung</h3>
+              <button
+                type="button"
+                onClick={() => setShowAddMapping(!showAddMapping)}
+                className="px-3 py-1.5 rounded-lg text-xs font-mono tracking-widest uppercase border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-800 dark:text-white transition-all duration-300"
+              >
+                {showAddMapping ? 'Abbrechen' : 'Neu'}
+              </button>
+            </div>
+
+            {/* Toggle Switch for Auto-Opening Matched Links */}
+            <div className="flex items-center gap-2 mb-4 p-3 bg-slate-100/30 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 rounded-lg justify-between">
+              <span className="text-xs text-slate-600 dark:text-[rgba(236,232,242,0.65)] font-mono font-medium">Automatisches Öffnen aktiver Blöcke</span>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!config.autoOpenEnabled}
+                  onChange={(e) => saveManagerConfig(prev => ({ ...prev, autoOpenEnabled: e.target.checked }))}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-slate-300 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#1A6AFF]"></div>
+              </label>
+            </div>
+
+            {/* Matching Mappings Widget */}
+            {matchingMappings.length > 0 && (
+              <div className="mb-6 p-4 bg-[#1A6AFF]/10 border border-[#1A6AFF]/20 rounded-xl space-y-3">
+                <div className="flex items-center gap-2 text-xs font-mono" style={{ color: ACCENT }}>
+                  <span className="material-symbols-outlined text-sm">auto_awesome</span>
+                  <span>Passende Link-Zuordnung gefunden</span>
+                </div>
+                <p className="text-xs text-slate-700 dark:text-[rgba(236,232,242,0.7)]">
+                  Aktueller Block: <strong>{activeBlockTitle}</strong>
+                </p>
+                <div className="space-y-2">
+                  {matchingMappings.map(m => (
+                    <div key={m.id} className="flex justify-between items-center bg-slate-100 dark:bg-black/20 p-2.5 rounded-lg border border-slate-200 dark:border-white/5">
+                      <span className="text-[11px] font-mono text-slate-800 dark:text-white truncate max-w-[180px]">{m.pattern}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const blockReason = isUrlBlockedByMonkMode(m.url);
+                          if (blockReason) {
+                            alert(`🛡️ Monk Mode Block\n\nDieser Link ist aktuell blockiert: ${blockReason}`);
+                          } else {
+                            window.open(m.url, '_blank');
+                          }
+                        }}
+                        className="px-3 py-1 rounded text-[10px] font-mono bg-[#1A6AFF] hover:bg-[#3b82f6] text-white transition-colors flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-xs">open_in_new</span>
+                        Öffnen
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {showAddMapping ? (
+              <form onSubmit={handleAddMapping} className="space-y-4 mb-6">
+                <div>
+                  <label className={`${label} text-slate-500 dark:text-[rgba(236,232,242,0.6)] block mb-1`}>Suchbegriff / Pattern</label>
                   <input
                     type="text"
-                    placeholder="z.B. Französisch"
-                    className={styles.input}
                     value={pattern}
                     onChange={(e) => setPattern(e.target.value)}
+                    placeholder="z.B. Deep Work"
+                    className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-4 py-2.5 text-xs font-mono placeholder:text-slate-400 dark:placeholder:text-white/20 text-slate-800 dark:text-[#ECE8F2] focus:ring-1 focus:ring-[#1A6AFF] focus:border-[#1A6AFF] transition-all outline-none"
                     required
                   />
                 </div>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Diesen Link im Browser öffnen</label>
+                <div>
+                  <label className={`${label} text-slate-500 dark:text-[rgba(236,232,242,0.6)] block mb-1`}>Ziel-URL</label>
                   <input
                     type="text"
-                    placeholder="z.B. https://duolingo.com"
-                    className={styles.input}
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
+                    placeholder="z.B. notion.so/workspace"
+                    className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-4 py-2.5 text-xs font-mono placeholder:text-slate-400 dark:placeholder:text-white/20 text-slate-800 dark:text-[#ECE8F2] focus:ring-1 focus:ring-[#1A6AFF] focus:border-[#1A6AFF] transition-all outline-none"
                     required
                   />
                 </div>
-                <button type="submit" className={styles.submitBtn}>
-                  Zuordnung Hinzufügen ✦
+                <button
+                  type="submit"
+                  className="w-full py-2.5 rounded-lg text-xs font-mono tracking-widest uppercase text-white transition-all active:scale-95 hover:brightness-110"
+                  style={{ background: ACCENT }}
+                >
+                  Speichern
                 </button>
               </form>
-
-              <div className={styles.infoAlert}>
-                <div className={styles.alertContent}>
-                  <strong>Popup-Blocker Hinweis:</strong> Stelle sicher, dass du in deiner Browser-Adressleiste Popups für diese App zugelassen hast.
+            ) : (
+              <div>
+                <div className={`grid grid-cols-12 ${label} text-[0.65rem] text-slate-500 dark:text-[rgba(236,232,242,0.6)] pb-4 mb-2 border-b border-slate-200 dark:border-white/5`}>
+                  <span className="col-span-5">Suchmuster</span>
+                  <span className="col-span-5 text-right">Ziel-URL</span>
+                  <span className="col-span-2 text-right">Aktion</span>
                 </div>
-              </div>
-
-            </div>
-
-            {/* Right side: Mappings & History */}
-            <div className={styles.rightColumn}>
-              <div className={styles.card}>
-                <h3 className={styles.cardTitle}>Aktive Zuordnungen ({mappings.length})</h3>
-
-                <div className={styles.mappingsList}>
+                <div className="divide-y divide-slate-100 dark:divide-white/[0.04] max-h-[180px] overflow-y-auto">
                   {mappings.map((m) => (
-                    <div key={m.id} className={styles.mappingRow}>
-                      <div className={styles.mappingInfo}>
-                        <span className={styles.mappingPattern}>{m.pattern}</span>
-                        <span className={styles.mappingUrl} title={m.url}>{m.url}</span>
-                      </div>
-                      <div className={styles.mappingActions}>
+                    <div key={m.id} className="grid grid-cols-12 items-center gap-2 py-3 hover:bg-slate-100 dark:hover:bg-white/[0.015] -mx-2 px-2 rounded-md transition-colors">
+                      <span className="col-span-5 font-medium text-sm truncate text-slate-900 dark:text-white" style={{ color: ACCENT }}>{m.pattern}</span>
+                      <span className="col-span-5 font-mono text-xs text-slate-500 dark:text-[rgba(236,232,242,0.6)] truncate text-right" title={m.url}>{m.url}</span>
+                      <div className="col-span-2 flex justify-end gap-2">
                         <button
                           type="button"
-                          className={styles.testBtn}
-                          onClick={() => handleTestMapping(m)}
-                          title="Link testen"
+                          onClick={() => {
+                            const blockReason = isUrlBlockedByMonkMode(m.url);
+                            if (blockReason) {
+                              alert(`🛡️ Monk Mode Block\n\nDieser Link ist aktuell blockiert: ${blockReason}`);
+                            } else {
+                              window.open(m.url, '_blank');
+                            }
+                          }}
+                          className="hover:text-[#1A6AFF] dark:hover:text-white/80 transition-colors text-slate-400 dark:text-white/40 flex items-center justify-center animate-none"
+                          title="Öffnen"
                         >
-                          ↗
+                          <span className="material-symbols-outlined text-base">open_in_new</span>
                         </button>
                         <button
                           type="button"
-                          className={styles.deleteBtn}
                           onClick={() => handleDeleteMapping(m.id)}
+                          className="hover:text-red-500 transition-colors text-slate-400 dark:text-white/40 flex items-center justify-center animate-none"
                           title="Löschen"
                         >
-                          ✕
+                          <span className="material-symbols-outlined text-base">delete</span>
                         </button>
                       </div>
                     </div>
                   ))}
                   {mappings.length === 0 && (
-                    <div className={styles.emptyState}>
-                      <p className={styles.emptyText}>Keine Zuordnungen hinterlegt. Erstelle links eine neue Verknüpfung.</p>
+                    <div className="py-6 text-center text-xs text-slate-400 dark:text-white/40">
+                      Keine Zuordnungen definiert. Klicken Sie auf 'Neu', um ein Mapping hinzuzufügen.
                     </div>
                   )}
                 </div>
-              </div>
-
-              <div className={styles.card}>
-                <h3 className={styles.cardTitle}>Verlauf (Aktuelle Session)</h3>
-                <div className={styles.historyList}>
-                  {managerHistory.map((h) => (
-                    <div key={h.id} className={styles.historyRow}>
-                      <span className={styles.historyTime}>{h.time}</span>
-                      <div className={styles.historyContent}>
-                        <span>Block <strong>{h.blockTitle}</strong> aktiv</span>
-                        <a href={h.url} target="_blank" rel="noopener noreferrer" className={styles.historyUrl}>
-                          Geöffnet: {h.url}
-                        </a>
-                      </div>
-                    </div>
-                  ))}
-                  {managerHistory.length === 0 && (
-                    <div className={styles.emptyState}>
-                      <p className={styles.emptyText}>Noch keine Tabs automatisch geöffnet.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeSubTab === 'research' && (
-          <div className={styles.researchLayout}>
-            {/* Outlier search form */}
-            <div className={styles.card}>
-              <h3 className={styles.cardTitle}>Outlier Research Hub & Explorer</h3>
-
-              <p className={styles.desc} style={{ marginTop: '-0.5rem', marginBottom: '0.5rem' }}>
-                Finde "Outlier" (extrem überdurchschnittlich erfolgreiche Ansätze, Videos oder Techniken) für bestimmte Nischen oder Skills.
-              </p>
-
-              <form onSubmit={handleAddResearch} className={styles.mappingForm}>
-                <div className={styles.researchTopBar}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Forschungs-Thema / Nische / Kanal</label>
-                    <input
-                      type="text"
-                      placeholder="z.B. @MrBeast, Rust Web Assembly, Figma Tricks..."
-                      className={styles.input}
-                      value={researchTitle}
-                      onChange={(e) => setResearchTitle(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className={styles.formGroup} style={{ maxWidth: '180px' }}>
-                    <label className={styles.formLabel}>Kategorie</label>
-                    <select
-                      className={styles.input}
-                      value={researchCategory}
-                      onChange={(e) => setResearchCategory(e.target.value)}
-                    >
-                      <option value="YouTube">YouTube</option>
-                      <option value="Skill">Skill / Lernen</option>
-                      <option value="Competitor">Mitbewerber</option>
-                      <option value="Other">Sonstiges</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Referenz-URL (Optional)</label>
-                  <input
-                    type="text"
-                    placeholder="https://youtube.com/c/..."
-                    className={styles.input}
-                    value={researchUrl}
-                    onChange={(e) => setResearchUrl(e.target.value)}
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Notizen / Beobachtungen</label>
-                  <textarea
-                    placeholder="Spezifische Fragen oder erste Hypothesen hinterlegen..."
-                    className={styles.textarea}
-                    value={researchNotes}
-                    onChange={(e) => setResearchNotes(e.target.value)}
-                  />
-                </div>
-
-                <button type="submit" className={styles.submitBtn}>
-                  Forschungsziel Hinzufügen ✦
-                </button>
-              </form>
-            </div>
-
-            {/* List and report section */}
-            <div className={styles.card}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <h3 className={styles.cardTitle}>Gespeicherte Forschungsziele ({filteredResearchList.length})</h3>
-
-                <div className={styles.categoryTabs}>
-                  {['ALL', 'YOUTUBE', 'SKILL', 'COMPETITOR', 'OTHER'].map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      className={`${styles.categoryTab} ${filterCategory === cat ? styles.categoryTabActive : ''}`}
-                      onClick={() => setFilterCategory(cat)}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className={styles.researchGrid}>
-                {filteredResearchList.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`${styles.researchCard} ${selectedResearch?.id === item.id ? styles.researchCardSelected : ''}`}
-                    onClick={() => setSelectedResearch(item)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div className={styles.researchCardHeader}>
-                      <span className={styles.researchCardTitle}>{item.title}</span>
-                      <span className={styles.researchCardCategory}>{item.category}</span>
-                    </div>
-                    {item.notes && <p className={styles.researchCardBody}>{item.notes}</p>}
-                    <div className={styles.researchCardFooter}>
-                      <span className={styles.researchDate}>Erstellt: {item.date}</span>
-                      <div className={styles.researchCardActions}>
-                        <button
-                          type="button"
-                          className={styles.researchActionBtn}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            runOutlierAnalysis(item);
-                          }}
-                          disabled={analysisLoading}
-                        >
-                          {item.analysisReport ? 'Re-Analyse ↻' : 'Analyse Starten ✦'}
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.researchActionBtn}
-                          style={{ borderColor: 'rgba(255, 77, 77, 0.3)', color: 'var(--red)' }}
-                          onClick={(e) => handleDeleteResearch(item.id, e)}
-                        >
-                          Löschen
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {filteredResearchList.length === 0 && (
-                  <div className={styles.emptyState} style={{ gridColumn: '1 / -1' }}>
-                    <p className={styles.emptyText}>Keine Forschungsziele in dieser Kategorie gefunden.</p>
-                    <p className={styles.emptyText} style={{ opacity: 0.65, fontSize: '0.85em', marginTop: '0.35rem' }}>
-                      Lege oben ein Ziel an (YouTube-Kanal, Skill oder Competitor) und starte die Analyse.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* UPGRADED Analysis report viewer with rich data dashboards & selector */}
-            {selectedResearch && (
-              <div className={styles.card} style={{ borderLeft: '4px solid var(--theme-accent, #1a6aff)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 className={styles.cardTitle}>Analyse: {selectedResearch.title}</h3>
-
-                  <button
-                    type="button"
-                    className={styles.deleteBtn}
-                    onClick={() => setSelectedResearch(null)}
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {analysisLoading ? (
-                  <div style={{ padding: '2rem 0', textSelf: 'center', textAlign: 'center' }}>
-                    <div className={styles.spinner} />
-                    <p style={{ marginTop: '1rem', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--theme-accent, #1a6aff)' }}>
-                      {analysisSteps[analysisStep]}
-                    </p>
-                  </div>
-                ) : selectedResearch.analysisData ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                    
-                    {/* Inline video player */}
-                    {playingVideoId && (
-                      <div className={styles.videoPlayerContainer}>
-                        <iframe
-                          src={`https://www.youtube.com/embed/${playingVideoId}?autoplay=1`}
-                          title="YouTube video player"
-                          frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          allowFullScreen
-                          className={styles.videoPlayerIframe}
-                        />
-                        <button className={styles.videoPlayerClose} onClick={() => setPlayingVideoId(null)}>✕</button>
-                      </div>
-                    )}
-
-                    {/* Mode 2: Multi-channels found */}
-                    {selectedResearch.analysisData.mode === 'multiple_channels' && (
-                      <div className={styles.pickerContainer}>
-                        <h4 className={styles.pickerTitle}>Mehrere Kanäle gefunden. Welchen meintest du?</h4>
-                        <div className={styles.pickerGrid}>
-                          {selectedResearch.analysisData.channels.map(chan => (
-                            <div key={chan.channelId} className={styles.pickerCard}>
-                              <img src={chan.thumbnail || '/avatar-placeholder.png'} className={styles.pickerAvatar} alt={chan.title} />
-                              <div className={styles.pickerInfo}>
-                                <div className={styles.pickerName}>
-                                  {chan.title} {chan.verified && <span className={styles.verifiedCheck}>✓</span>}
-                                </div>
-                                <div className={styles.pickerMeta}>{chan.subscribersText || 'Keine Angabe'}</div>
-                              </div>
-                              <button
-                                className={styles.pickerSelectBtn}
-                                onClick={() => runOutlierAnalysis(selectedResearch, chan.channelId)}
-                              >
-                                Auswählen
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Mode 2: Single Channel Dashboard */}
-                    {selectedResearch.analysisData.mode === 'channel' && (
-                      <div className={styles.channelDashboard}>
-                        <div className={styles.channelHeaderCard}>
-                          {selectedResearch.analysisData.channel && (
-                            <>
-                              <img src={selectedResearch.analysisData.channel.thumbnail || '/avatar-placeholder.png'} className={styles.channelAvatar} alt="" />
-                              <div className={styles.channelInfo}>
-                                <h4 className={styles.channelName}>
-                                  {selectedResearch.analysisData.channel.title}
-                                  {selectedResearch.analysisData.channel.verified && <span className={styles.verifiedBadge} title="Verifiziert">✓</span>}
-                                </h4>
-                                <div className={styles.channelSubscribers}>{selectedResearch.analysisData.channel.subscribersText}</div>
-                                <a href={`https://youtube.com/${selectedResearch.analysisData.channel.handle}`} target="_blank" rel="noopener noreferrer" className={styles.channelLink}>
-                                  Kanal ansehen ↗
-                                </a>
-                              </div>
-                            </>
-                          )}
-                        </div>
-
-                        <h4 className={styles.sectionHeader}>Die 5 neuesten Videos des Kanals:</h4>
-                        <div className={styles.videoGrid}>
-                          {selectedResearch.analysisData.videos && selectedResearch.analysisData.videos.map(vid => (
-                            <div key={vid.videoId} className={styles.videoCard} onClick={() => setPlayingVideoId(vid.videoId)}>
-                              <div className={styles.videoThumbContainer}>
-                                <img src={vid.thumbnail} alt="" className={styles.videoThumb} />
-                                <div className={styles.playIconOverlay}>
-                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M8 5v14l11-7z" />
-                                  </svg>
-                                </div>
-                              </div>
-                              <div className={styles.videoTitle} title={vid.title}>{vid.title}</div>
-                              <div className={styles.videoMeta}>
-                                <span>{vid.viewsText}</span>
-                                <span>•</span>
-                                <span>{vid.publishedText}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Mode 1: Keyword dashboard & Uncertain Fallback */}
-                    {(selectedResearch.analysisData.mode === 'keyword' || selectedResearch.analysisData.mode === 'uncertain') && (
-                      <div className={styles.keywordDashboard}>
-                        <h4 className={styles.sectionHeader}>Suchergebnisse für Nische:</h4>
-                        <div className={styles.videoList}>
-                          {selectedResearch.analysisData.videos && selectedResearch.analysisData.videos.map(vid => (
-                            <div key={vid.videoId} className={styles.videoListRow} onClick={() => setPlayingVideoId(vid.videoId)}>
-                              <img src={vid.thumbnail} className={styles.videoRowThumb} alt="" />
-                              <div className={styles.videoRowInfo}>
-                                <div className={styles.videoRowTitle}>{vid.title}</div>
-                                <div className={styles.videoRowMeta}>{vid.viewsText} • {vid.publishedText}</div>
-                              </div>
-                              <button className={styles.videoRowPlayBtn}>Abspielen</button>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Suggestions for uncertain channel matching */}
-                        {selectedResearch.analysisData.mode === 'uncertain' && selectedResearch.analysisData.suggestedChannels && (
-                          <div className={styles.pickerContainer} style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
-                            <h4 className={styles.pickerTitle} style={{ fontSize: '0.8rem' }}>Meintest du einen dieser Kanäle?</h4>
-                            <div className={styles.pickerGrid}>
-                              {selectedResearch.analysisData.suggestedChannels.map(chan => (
-                                <div key={chan.channelId} className={styles.pickerCard} style={{ padding: '0.5rem 0.75rem' }}>
-                                  <img src={chan.thumbnail || '/avatar-placeholder.png'} className={styles.pickerAvatar} style={{ width: '30px', height: '30px' }} alt="" />
-                                  <div className={styles.pickerInfo}>
-                                    <div className={styles.pickerName} style={{ fontSize: '0.75rem' }}>{chan.title}</div>
-                                    <div className={styles.pickerMeta} style={{ fontSize: '0.65rem' }}>{chan.subscribersText}</div>
-                                  </div>
-                                  <button
-                                    className={styles.pickerSelectBtn}
-                                    style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem' }}
-                                    onClick={() => runOutlierAnalysis(selectedResearch, chan.channelId)}
-                                  >
-                                    Analysieren
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Markdown Report viewer */}
-                    <div className={styles.reportViewer}>
-                      <h4 className={styles.sectionHeader} style={{ marginBottom: '0.5rem' }}>Strategische Auswertung:</h4>
-                      <div className={styles.reportContent}>{selectedResearch.analysisReport}</div>
-                    </div>
-
-                  </div>
-                ) : (
-                  <div className={styles.emptyState}>
-                    <p className={styles.emptyText}>Noch keine Outlier-Analyse für dieses Ziel durchgeführt.</p>
-                    <button
-                      type="button"
-                      className={styles.submitBtn}
-                      style={{ marginTop: '0.5rem' }}
-                      onClick={() => runOutlierAnalysis(selectedResearch)}
-                    >
-                      Outlier Analyse starten
-                    </button>
-                  </div>
-                )}
               </div>
             )}
           </div>
-        )}
+          {!showAddMapping && (
+            <button
+              type="button"
+              onClick={() => setShowAddMapping(true)}
+              className={`pt-6 ${label} text-[0.65rem] flex items-center gap-2 hover:translate-x-1 transition-transform`}
+              style={{ color: ACCENT }}
+            >
+              Mapping hinzufügen <span className="material-symbols-outlined text-sm">arrow_forward</span>
+            </button>
+          )}
+        </section>
 
-        {activeSubTab === 'finance' && (
-
-          <div className={styles.financeLayout}>
-            {/* Tab categories switcher */}
-            <div className={styles.categoryTabs} style={{ alignSelf: 'flex-start', marginBottom: '0.5rem' }}>
-              <button
-                type="button"
-                className={`${styles.categoryTab} ${financeActiveSection === 'transactions' ? styles.categoryTabActive : ''}`}
-                onClick={() => setFinanceActiveSection('transactions')}
-              >
-                Umsatz & Analyse
+        {/* Outlier Research */}
+        <section className={`${glass} col-span-12 lg:col-span-6 p-10 xl:p-12 rounded-xl space-y-6 min-h-[320px] flex flex-col justify-between`}>
+          <div className="space-y-6 w-full">
+            <h3 className="font-serif text-2xl text-slate-900 dark:text-white">Outlier-Recherche</h3>
+            <form onSubmit={handleCockpitResearch} className="relative">
+              <input
+                type="text"
+                value={research}
+                onChange={(e) => setResearch(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-4 py-3 text-xs font-mono tracking-widest uppercase placeholder:text-slate-400 dark:placeholder:text-white/20 text-slate-800 dark:text-white focus:ring-1 focus:ring-[#1A6AFF] focus:border-[#1A6AFF] transition-all outline-none"
+                placeholder="Youtube Context Ingestion URL oder Begriff..."
+              />
+              <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:scale-110 transition-transform" style={{ color: ACCENT }}>
+                <span className="material-symbols-outlined">bolt</span>
               </button>
-              <button
-                type="button"
-                className={`${styles.categoryTab} ${financeActiveSection === 'buy_interest' ? styles.categoryTabActive : ''}`}
-                onClick={() => setFinanceActiveSection('buy_interest')}
-              >
-                Kaufinteresse
-              </button>
-            </div>
-
-            {financeActiveSection === 'transactions' && (
-              <>
-                {/* Top Dashboard Metrics */}
-
-            <div className={styles.financeSummary}>
-              <div className={styles.finStatCard}>
-                <span className={styles.finStatLabel}>Einnahmen</span>
-                <span className={styles.finStatValue} style={{ color: '#00c48c' }}>{totalIncome.toFixed(2)} €</span>
-              </div>
-              <div className={styles.finStatCard}>
-                <span className={styles.finStatLabel}>Ausgaben</span>
-                <span className={styles.finStatValue} style={{ color: '#ff4d4d' }}>{totalExpense.toFixed(2)} €</span>
-              </div>
-              <div className={styles.finStatCard}>
-                <span className={styles.finStatLabel}>Saldo</span>
-                <span className={styles.finStatValue} style={{ color: netBalance >= 0 ? '#007aff' : '#ff4d4d' }}>
-                  {netBalance >= 0 ? '+' : ''}{netBalance.toFixed(2)} €
-                </span>
-              </div>
-              <div className={styles.finStatCard}>
-                <span className={styles.finStatLabel}>Sparquote</span>
-                <span className={styles.finStatValue}>{savingsRate}%</span>
-              </div>
-              <div className={styles.finStatCard}>
-                <span className={styles.finStatLabel}>Prognose Monatsende</span>
-                <span className={styles.finStatValue} style={{ color: prognosis.status === 'critical' ? '#ff4d4d' : prognosis.status === 'warning' ? '#f5a623' : '#00c48c' }}>
-                  {prognosis.projectedRemaining.toFixed(2)} €
-                </span>
-              </div>
-            </div>
-
-            {/* AI Insights & Alerts Area (No emojis) */}
-            <div className={styles.insightsSection}>
-              <div className={styles.card}>
-                <h3 className={styles.cardTitle}>Finanzielle Erkenntnisse</h3>
-                <div className={styles.insightsGrid}>
-                  {patterns.map((pat, i) => (
-                    <div key={i} className={`${styles.insightCard} ${pat.type === 'warning' ? styles.insightWarning : styles.insightInfo}`}>
-                      <div className={styles.insightHeader}>
-                        <span className={styles.insightBadge}>{pat.type === 'warning' ? 'Hinweis' : 'Info'}</span>
-                        <h4 className={styles.insightTitle}>{pat.title}</h4>
-                      </div>
-                      <p className={styles.insightText}>{pat.message}</p>
-                    </div>
-                  ))}
-                  
-                  {savingsPotential.deliverySpend > 0 && (
-                    <div className={`${styles.insightCard} ${styles.insightSavings}`}>
-                      <div className={styles.insightHeader}>
-                        <span className={styles.insightBadge}>Sparpotenzial</span>
-                        <h4 className={styles.insightTitle}>Optimierung Lieferdienste</h4>
-                      </div>
-                      <p className={styles.insightText}>
-                        Du hast in den letzten 90 Tagen {savingsPotential.deliverySpend.toFixed(2)} € für Restaurants und Lieferdienste ausgegeben. 
-                        Eine Reduktion um 25% spart jährlich ca. {savingsPotential.annualSavings.toFixed(2)} € ein.
-                      </p>
-                    </div>
-                  )}
-
-                  {patterns.length === 0 && savingsPotential.deliverySpend === 0 && (
-                    <p className={styles.emptyText} style={{ fontSize: '0.75rem', opacity: 0.65 }}>
-                      Derzeit liegen keine auffälligen Ausgabenmuster oder Anomalien vor.
-                    </p>
-                  )}
+            </form>
+            <div className="space-y-3 max-h-[180px] overflow-y-auto pr-1">
+              {(config.research || []).map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => setSelectedResearch(item)}
+                  className="p-3 bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 rounded-lg flex items-center justify-between cursor-pointer hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-all duration-200"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="material-symbols-outlined text-slate-500 dark:text-[rgba(236,232,242,0.6)] text-sm animate-none">
+                      {item.category === 'YouTube' ? 'smart_display' : 'article'}
+                    </span>
+                    <span className="text-xs truncate max-w-[200px] text-slate-800 dark:text-[#ECE8F2]" title={item.title}>{item.title}</span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {item.tags && item.tags.length > 0 && (
+                      <span className="bg-slate-200 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-[8px] font-mono px-1.5 py-0.5 rounded text-slate-600 dark:text-white/50">
+                        #{item.tags[0]}
+                      </span>
+                    )}
+                    <span className={`${label} text-[0.55rem]`} style={{ color: item.analysisReport ? ACCENT : undefined }}>
+                      {item.analysisReport ? 'Bereit' : 'Keine Analyse'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const updatedResearch = (config.research || []).filter((r) => r.id !== item.id);
+                        saveManagerConfig(prev => ({ ...prev, research: updatedResearch }));
+                        if (selectedResearch?.id === item.id) {
+                          setSelectedResearch(null);
+                        }
+                      }}
+                      className="hover:text-red-500 transition-colors text-slate-400 dark:text-white/40 flex items-center justify-center animate-none"
+                      title="Löschen"
+                    >
+                      <span className="material-symbols-outlined text-sm">delete</span>
+                    </button>
+                  </div>
                 </div>
+              ))}
+              {(config.research || []).length === 0 && (
+                <div className="py-6 text-center text-xs text-slate-400 dark:text-white/40">
+                  Keine Forschungsziele hinterlegt. Fügen Sie oben ein URL- oder Suchziel hinzu.
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Finanz-Tracker card → opens full Financial Tracker */}
+        <section className={`${glass} col-span-12 p-10 xl:p-12 rounded-xl space-y-8`}>
+          <div className="flex flex-col md:flex-row justify-between md:items-end gap-6">
+            <div className="space-y-2">
+              <span className={`${label} block`} style={{ color: ACCENT, letterSpacing: '0.3em' }}>Cash Flow Analysis</span>
+              <h3 className="font-serif text-3xl text-slate-900 dark:text-white">Finanz-Tracker</h3>
+            </div>
+            <div className="flex items-end gap-8 flex-wrap">
+              <div className="text-right">
+                <p className={`${label} text-[0.55rem] text-slate-500 dark:text-[rgba(236,232,242,0.6)] mb-1`}>Liquidität</p>
+                <p className="font-serif text-2xl text-slate-900 dark:text-white">
+                  € {netBalance.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
               </div>
+              <div className="text-right border-l border-slate-200 dark:border-white/10 pl-6">
+                <p className={`${label} text-[0.55rem] text-slate-500 dark:text-[rgba(236,232,242,0.6)] mb-1`}>Netto MTD</p>
+                <p className="font-serif text-2xl" style={{ color: mtdNet >= 0 ? ACCENT : '#ff4d4d' }}>
+                  {mtdNet >= 0 ? '+' : ''}€ {mtdNet.toLocaleString('de-DE', { maximumFractionDigits: 0 })}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setView('financial')}
+                className="self-center flex items-center gap-2 px-5 py-3 rounded-lg text-xs font-medium tracking-widest uppercase text-white transition-all active:scale-95 hover:brightness-110"
+                style={{ background: ACCENT }}
+              >
+                Financial Tracker <span className="material-symbols-outlined text-sm">arrow_forward</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-12 gap-8 lg:gap-12">
+            {/* Cumulative balance (dynamic LineChart) */}
+            <div className="col-span-12 lg:col-span-4 space-y-6">
+              <div className="flex justify-between items-center">
+                <p className={`${label} text-slate-500 dark:text-[rgba(236,232,242,0.6)]`}>Kumulativer Saldo</p>
+              </div>
+              <LineChart transactions={transactions} />
             </div>
 
-            {/* Financial Goals & Subscriptions Panel */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
-              {/* Recurring Subscriptions (No emojis) */}
-              <div className={styles.card}>
-                <h3 className={styles.cardTitle}>Wiederkehrende Abonnements</h3>
-                {recurringItems.length === 0 ? (
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text3, #6a7890)', margin: 0 }}>
-                    Keine wiederkehrenden Abonnements automatisch erkannt.
-                  </p>
-                ) : (
-                  <>
-                    <div className={styles.subscriptionList}>
-                      {recurringItems.map((r, i) => (
-                        <div key={i} className={styles.subscriptionRow}>
-                          <span className={styles.subscriptionName}>
-                            {r.description}
-                            <span className={styles.subscriptionCadence}>
-                              {r.cadence === 'weekly' ? 'wöchentlich' : 'monatlich'}
-                            </span>
-                          </span>
-                          <span className={styles.subscriptionCost}>
-                            −{r.monthlyCost.toFixed(2)} €/M
-                          </span>
-                        </div>
-                      ))}
+            {/* Category overview */}
+            <div className="col-span-12 lg:col-span-4 space-y-6">
+              <p className={`${label} text-slate-500 dark:text-[rgba(236,232,242,0.6)]`}>Kategorie-Übersicht</p>
+              <div className="space-y-5">
+                {cockpitExpenseCats.map((c, i) => (
+                  <div key={c.category} className="space-y-2">
+                    <div className="flex justify-between text-[0.65rem] font-mono">
+                      <span className="text-slate-800 dark:text-[#ECE8F2]">{c.category}</span>
+                      <span className="text-slate-500 dark:text-[rgba(236,232,242,0.6)]">
+                        € {c.value.toLocaleString('de-DE', { maximumFractionDigits: 0 })}
+                      </span>
                     </div>
-                    <div className={styles.subscriptionTotal}>
-                      <span>Fixkosten gesamt</span>
-                      <span>−{recurringMonthlySum.toFixed(2)} €/Monat</span>
+                    <div className="h-1 bg-slate-200 dark:bg-white/5 w-full rounded-full overflow-hidden">
+                      <div className="h-full" style={{ width: `${c.pct}%`, background: ACCENT, opacity: 1 - i * 0.3 }} />
                     </div>
-                  </>
+                  </div>
+                ))}
+                {cockpitExpenseCats.length === 0 && (
+                  <p className="text-xs text-slate-400 dark:text-[rgba(236,232,242,0.4)]">Noch keine Ausgaben erfasst.</p>
                 )}
               </div>
-
-              {/* Financial Goals (No emojis) */}
-              <div className={styles.card}>
-                <h3 className={styles.cardTitle}>Finanzielle Ziele</h3>
-                <div className={styles.goalsList}>
-                  {goals.map((g) => {
-                    const ratio = g.target > 0 ? g.current / g.target : 0;
-                    const pct = Math.round(ratio * 100);
-                    return (
-                      <div key={g.id} className={styles.goalRow}>
-                        <div className={styles.goalMeta}>
-                          <span className={styles.goalName}>{g.name}</span>
-                          <span className={styles.goalValues}>
-                            {g.current.toFixed(0)} € / {g.target.toFixed(0)} €
-                          </span>
-                        </div>
-                        <div className={styles.progressBar}>
-                          <div className={styles.progressFill} style={{ width: `${Math.min(100, pct)}%` }} />
-                        </div>
-                        <div className={styles.goalPercent}>
-                          <span>Fortschritt: {pct}%</span>
-                          <input
-                            type="number"
-                            placeholder="Anpassen"
-                            className={styles.goalInput}
-                            defaultValue={g.current}
-                            onBlur={(e) => handleUpdateGoal(g.id, e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
             </div>
 
-            {/* Input Form & Visualization Column Split */}
-            <div className={styles.financeGrid}>
-              {/* Form to log transaction */}
-              <div className={styles.card}>
-                <h3 className={styles.cardTitle}>Transaktion protokollieren</h3>
-                <form onSubmit={handleAddTransaction} className={styles.mappingForm}>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                      type="button"
-                      className={`${styles.typeToggleBtn} ${finType === 'expense' ? styles.typeToggleActiveRed : ''}`}
-                      onClick={() => handleTypeChange('expense')}
-                      style={{ flex: 1 }}
-                    >
-                      Ausgabe
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.typeToggleBtn} ${finType === 'income' ? styles.typeToggleActiveGreen : ''}`}
-                      onClick={() => handleTypeChange('income')}
-                      style={{ flex: 1 }}
-                    >
-                      Einnahme
-                    </button>
+            {/* Transaction log */}
+            <div className="col-span-12 lg:col-span-4 space-y-6">
+              <p className={`${label} text-slate-500 dark:text-[rgba(236,232,242,0.6)]`}>Transaktions-Log</p>
+              <div className="space-y-3">
+                {recentTransactions.map((t) => (
+                  <div key={t.id} className="p-3 bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="material-symbols-outlined text-sm shrink-0 animate-none" style={{ color: ACCENT }}>
+                        {t.type === 'income' ? 'trending_up' : 'sync'}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-slate-900 dark:text-[#ECE8F2] truncate">{t.description || t.category}</p>
+                        <p className={`${label} text-[0.55rem] text-slate-500 dark:text-[rgba(236,232,242,0.6)]`}>
+                          {t.category} • {t.date}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[0.6rem] font-mono shrink-0 ml-2" style={{ color: t.type === 'income' ? '#22c55e' : undefined }}>
+                      {t.type === 'income' ? '+' : '-'}€ {t.amount.toLocaleString('de-DE', { maximumFractionDigits: 0 })}
+                    </span>
                   </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Betrag (€)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      className={styles.input}
-                      value={finAmount}
-                      onChange={(e) => setFinAmount(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Kategorie</label>
-                    <select
-                      className={styles.input}
-                      value={finCategory}
-                      onChange={(e) => setFinCategory(e.target.value)}
-                    >
-                      {finType === 'expense'
-                        ? expenseCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)
-                        : incomeCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)
-                      }
-                    </select>
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Datum</label>
-                    <input
-                      type="date"
-                      className={styles.input}
-                      value={finDate}
-                      onChange={(e) => setFinDate(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Beschreibung</label>
-                    <input
-                      type="text"
-                      placeholder="z.B. Amazon Einkauf, OpenAI Abo, Gehalt..."
-                      className={styles.input}
-                      value={finDesc}
-                      onChange={(e) => handleDescChange(e.target.value)}
-                    />
-                  </div>
-
-                  <button type="submit" className={styles.submitBtn}>
-                    Hinzufügen
-                  </button>
-                </form>
+                ))}
+                {recentTransactions.length === 0 && (
+                  <p className="text-xs text-slate-400 dark:text-[rgba(236,232,242,0.4)]">Noch keine Transaktionen.</p>
+                )}
               </div>
+            </div>
+          </div>
+        </section>
+      </div>
 
-              {/* Chart Visualizer */}
-              <div className={styles.card}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <h3 className={styles.cardTitle}>Visualisierung</h3>
-                  <div className={styles.categoryTabs}>
-                    {['line', 'bar', 'doughnut'].map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        className={`${styles.categoryTab} ${selectedChartType === t ? styles.categoryTabActive : ''}`}
-                        onClick={() => setSelectedChartType(t)}
-                        style={{ textTransform: 'capitalize' }}
-                      >
-                        {t === 'line' ? 'Verlauf' : t === 'bar' ? 'Kategorien' : 'Verteilung'}
-                      </button>
+      {/* Strategic Analysis Details Drawer */}
+      {selectedResearch && (
+        <section className={`${glass} w-full p-10 xl:p-12 rounded-xl border-l-4 border-l-[#1A6AFF] space-y-6 mt-8 relative`}>
+          <div className="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-white/10">
+            <h3 className="font-serif text-2xl text-slate-900 dark:text-white">Analyse: {selectedResearch.title}</h3>
+            <button
+              type="button"
+              onClick={() => setSelectedResearch(null)}
+              className="text-slate-400 hover:text-slate-900 dark:text-white/40 dark:hover:text-white transition-colors"
+              title="Schließen"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          </div>
+
+          {analysisLoading ? (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <div className={styles.spinner} />
+              <p className="font-mono text-xs text-[#1A6AFF] animate-pulse">
+                {analysisSteps[analysisStep]}
+              </p>
+            </div>
+          ) : selectedResearch.analysisData ? (
+            <div className="space-y-6">
+
+              {/* Inline Video Player */}
+              {playingVideoId && (
+                <div className={styles.videoPlayerContainer}>
+                  <iframe
+                    src={`https://www.youtube.com/embed/${playingVideoId}?autoplay=1`}
+                    title="YouTube video player"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    className={styles.videoPlayerIframe}
+                  />
+                  <button className={styles.videoPlayerClose} onClick={() => setPlayingVideoId(null)}>✕</button>
+                </div>
+              )}
+
+              {/* Mode: Multi-channels found */}
+              {selectedResearch.analysisData.mode === 'multiple_channels' && (
+                <div className={styles.pickerContainer}>
+                  <h4 className={styles.pickerTitle}>Mehrere Kanäle gefunden. Welchen meintest du?</h4>
+                  <div className={styles.pickerGrid}>
+                    {selectedResearch.analysisData.channels.map(chan => (
+                      <div key={chan.channelId} className={styles.pickerCard}>
+                        <img src={chan.thumbnail || '/avatar-placeholder.png'} className={styles.pickerAvatar} alt={chan.title} />
+                        <div className={styles.pickerInfo}>
+                          <div className={styles.pickerName}>
+                            {chan.title} {chan.verified && <span className={styles.verifiedCheck}>✓</span>}
+                          </div>
+                          <div className={styles.pickerMeta}>{chan.subscribersText || 'Keine Angabe'}</div>
+                        </div>
+                        <button
+                          className={styles.pickerSelectBtn}
+                          onClick={() => runOutlierAnalysis(selectedResearch, chan.channelId)}
+                        >
+                          Auswählen
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
+              )}
 
-                <div className={styles.chartArea}>
-                  {selectedChartType === 'line' && (
-                    <LineChart transactions={transactions} />
-                  )}
-
-                  {selectedChartType === 'bar' && (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                        <button
-                          type="button"
-                          className={`${styles.typeToggleBtn} ${doughnutFocusType === 'expense' ? styles.typeToggleActiveRed : ''}`}
-                          style={{ padding: '0.2rem 0.6rem', fontSize: '0.65rem' }}
-                          onClick={() => setDoughnutFocusType('expense')}
-                        >
-                          Ausgaben
-                        </button>
-                        <button
-                          type="button"
-                          className={`${styles.typeToggleBtn} ${doughnutFocusType === 'income' ? styles.typeToggleActiveGreen : ''}`}
-                          style={{ padding: '0.2rem 0.6rem', fontSize: '0.65rem' }}
-                          onClick={() => setDoughnutFocusType('income')}
-                        >
-                          Einnahmen
-                        </button>
-                      </div>
-                      <BarChart data={chartCategoryData} total={doughnutTotal} />
-                    </>
-                  )}
-
-                  {selectedChartType === 'doughnut' && (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                        <button
-                          type="button"
-                          className={`${styles.typeToggleBtn} ${doughnutFocusType === 'expense' ? styles.typeToggleActiveRed : ''}`}
-                          style={{ padding: '0.2rem 0.6rem', fontSize: '0.65rem' }}
-                          onClick={() => setDoughnutFocusType('expense')}
-                        >
-                          Ausgaben
-                        </button>
-                        <button
-                          type="button"
-                          className={`${styles.typeToggleBtn} ${doughnutFocusType === 'income' ? styles.typeToggleActiveGreen : ''}`}
-                          style={{ padding: '0.2rem 0.6rem', fontSize: '0.65rem' }}
-                          onClick={() => setDoughnutFocusType('income')}
-                        >
-                          Einnahmen
-                        </button>
-                      </div>
-                      <DoughnutChart data={chartCategoryData} total={doughnutTotal} />
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Intelligent Search bar & Stats */}
-            <div className={styles.card}>
-              <h3 className={styles.cardTitle}>Intelligente Transaktionssuche</h3>
-              <div className={styles.searchBarContainer} style={{ marginBottom: '1rem' }}>
-                <input
-                  type="text"
-                  placeholder="Empfänger, Händler oder Kategorie eingeben..."
-                  className={styles.input}
-                  value={financeSearch}
-                  onChange={(e) => setFinanceSearch(e.target.value)}
-                  style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem' }}
-                />
-                {financeSearch && (
-                  <div className={styles.searchStats} style={{ marginTop: '0.5rem', display: 'flex', gap: '1.5rem', fontSize: '0.75rem', color: 'var(--text2)' }}>
-                    <span>Einträge: <strong>{searchedTransactions.length}</strong></span>
-                    <span>Umsatz: <strong>{searchTotal.toFixed(2)} €</strong></span>
-                    <span>Schnitt: <strong>{searchAvg.toFixed(2)} €</strong></span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Drill-down Detail Panel */}
-            {selectedDrillDownCategory && (
-              <div className={styles.card}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                  <h3 className={styles.cardTitle}>Details: {selectedDrillDownCategory}</h3>
-                  <button
-                    type="button"
-                    className={styles.subNavTab}
-                    onClick={() => setSelectedDrillDownCategory(null)}
-                    style={{ padding: '0.25rem 0.75rem', fontSize: '0.7rem' }}
-                  >
-                    Details ausblenden
-                  </button>
-                </div>
-                {(() => {
-                  const catTxs = transactions.filter(t => t.category === selectedDrillDownCategory);
-                  const catTotal = catTxs.reduce((sum, t) => sum + t.amount, 0);
-                  const catBudget = budgets[selectedDrillDownCategory] || 0;
-                  return (
-                    <div className={styles.drillDownContent}>
-                      <div className={styles.drillDownMetrics} style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.75rem', fontSize: '0.8rem' }}>
-                        <span>Ausgegeben: <strong>{catTotal.toFixed(2)} €</strong></span>
-                        {catBudget > 0 && <span>Budget: <strong>{catBudget.toFixed(2)} €</strong></span>}
-                        {catBudget > 0 && (
-                          <span>Verbleibend: <strong style={{ color: catBudget - catTotal < 0 ? '#ff4d4d' : '#00c48c' }}>{(catBudget - catTotal).toFixed(2)} €</strong></span>
-                        )}
-                      </div>
-                      <div className={styles.timelineList}>
-                        {catTxs.map(t => (
-                          <div key={t.id} className={styles.timelineRow} style={{ cursor: 'default' }}>
-                            <div className={styles.timelineLeft}>
-                              <span className={styles.timelineDate}>{t.date}</span>
-                              <span className={styles.timelineDesc}>{t.description || 'Pronoia Transaktion'}</span>
-                            </div>
-                            <div className={styles.timelineRight}>
-                              <span className={t.type === 'income' ? styles.timelineIncome : styles.timelineExpense}>
-                                {t.type === 'income' ? '+' : '-'}{t.amount.toFixed(2)} €
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-
-            {/* Timeline Activity View (Heute, Gestern, Letzte Woche, Älter) */}
-            <div className={styles.card}>
-              <h3 className={styles.cardTitle}>Aktivität</h3>
-              <div className={styles.timelineContainer}>
-                {searchedTransactions.length === 0 ? (
-                  <div className={styles.emptyState}>
-                    <p className={styles.emptyText}>Keine passenden Transaktionen gelistet.</p>
-                  </div>
-                ) : (
-                  (() => {
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    const yesterday = new Date(today);
-                    yesterday.setDate(yesterday.getDate() - 1);
-                    const lastWeek = new Date(today);
-                    lastWeek.setDate(lastWeek.getDate() - 7);
-
-                    const sections = {
-                      heute: [],
-                      gestern: [],
-                      letzteWoche: [],
-                      aelter: []
-                    };
-
-                    searchedTransactions.forEach(t => {
-                      if (!t.date) {
-                        sections.aelter.push(t);
-                        return;
-                      }
-                      const tDate = new Date(t.date);
-                      tDate.setHours(0, 0, 0, 0);
-                      if (tDate.getTime() === today.getTime()) {
-                        sections.heute.push(t);
-                      } else if (tDate.getTime() === yesterday.getTime()) {
-                        sections.gestern.push(t);
-                      } else if (tDate.getTime() >= lastWeek.getTime()) {
-                        sections.letzteWoche.push(t);
-                      } else {
-                        sections.aelter.push(t);
-                      }
-                    });
-
-                    return Object.entries(sections).map(([key, list]) => {
-                      if (list.length === 0) return null;
-                      const title = key === 'heute' ? 'Heute' : key === 'gestern' ? 'Gestern' : key === 'letzteWoche' ? 'Letzte Woche' : 'Älter';
-                      return (
-                        <div key={key} className={styles.timelineSection} style={{ marginBottom: '1rem' }}>
-                          <h4 className={styles.timelineSectionHeader} style={{ fontSize: '0.75rem', color: 'var(--text3)', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.25rem', marginBottom: '0.5rem' }}>
-                            {title}
+              {/* Mode: Single Channel Dashboard */}
+              {selectedResearch.analysisData.mode === 'channel' && (
+                <div className={styles.channelDashboard}>
+                  <div className={styles.channelHeaderCard}>
+                    {selectedResearch.analysisData.channel && (
+                      <>
+                        <img src={selectedResearch.analysisData.channel.thumbnail || '/avatar-placeholder.png'} className={styles.channelAvatar} alt="" />
+                        <div className={styles.channelInfo}>
+                          <h4 className={styles.channelName}>
+                            {selectedResearch.analysisData.channel.title}
+                            {selectedResearch.analysisData.channel.verified && <span className={styles.verifiedBadge} title="Verifiziert">✓</span>}
                           </h4>
-                          <div className={styles.timelineList} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                            {list.map(t => (
-                              <div
-                                key={t.id}
-                                className={styles.timelineRow}
-                                onClick={() => setSelectedDrillDownCategory(t.category)}
-                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', cursor: 'pointer', transition: 'background 0.2s' }}
-                              >
-                                <div className={styles.timelineLeft} style={{ display: 'flex', flexDirection: 'column' }}>
-                                  <span className={styles.timelineDesc} style={{ fontSize: '0.8rem', fontWeight: 500 }}>{t.description || 'Pronoia Transaktion'}</span>
-                                  <span className={styles.timelineCategory} style={{ fontSize: '0.65rem', color: 'var(--text3)', marginTop: '0.1rem' }}>{t.category}</span>
-                                </div>
-                                <div className={styles.timelineRight} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                  <span className={t.type === 'income' ? styles.timelineIncome : styles.timelineExpense} style={{ fontSize: '0.8rem', fontWeight: 'bold', color: t.type === 'income' ? '#00c48c' : 'var(--text)' }}>
-                                    {t.type === 'income' ? '+' : '-'}{t.amount.toFixed(2)} €
-                                  </span>
-                                  <button
-                                    type="button"
-                                    className={styles.deleteBtn}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteTransaction(t.id);
-                                    }}
-                                    title="Löschen"
-                                    style={{ fontSize: '0.7rem', opacity: 0.5 }}
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                          <div className={styles.channelSubscribers}>{selectedResearch.analysisData.channel.subscribersText}</div>
+                          <a href={`https://youtube.com/${selectedResearch.analysisData.channel.handle}`} target="_blank" rel="noopener noreferrer" className={styles.channelLink}>
+                            Kanal ansehen ↗
+                          </a>
                         </div>
-                      );
-                    });
-                  })()
-                )}
-              </div>
-            </div>
-            </>
-            )}
-
-            {financeActiveSection === 'buy_interest' && (
-              <div className={styles.buyInterestPanel}>
-                {/* Form to add Buy Interest item */}
-                <div className={styles.card}>
-                  <h3 className={styles.cardTitle}>Kaufinteresse erfassen</h3>
-                  <form onSubmit={handleSaveBuyInterest} className={styles.mappingForm}>
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Produkt-Link (URL)</label>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <input
-                          type="text"
-                          placeholder="https://..."
-                          className={styles.input}
-                          value={buyUrl}
-                          onChange={(e) => setBuyUrl(e.target.value)}
-                        />
-                        <button
-                          type="button"
-                          className={styles.submitBtn}
-                          onClick={handleScanLink}
-                          disabled={linkLoading}
-                          style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-                        >
-                          {linkLoading ? 'Lese aus...' : 'Link auslesen'}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Titel / Produktname</label>
-                      <input
-                        type="text"
-                        placeholder="z.B. Ergonomischer Stuhl"
-                        className={styles.input}
-                        value={buyTitle}
-                        onChange={(e) => setBuyTitle(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Richtpreis (€)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        className={styles.input}
-                        value={buyPrice}
-                        onChange={(e) => setBuyPrice(e.target.value)}
-                      />
-                    </div>
-
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Notizen / Beschreibung</label>
-                      <textarea
-                        placeholder="Warum möchtest du das kaufen? Details..."
-                        className={styles.textarea}
-                        value={buyNotes}
-                        onChange={(e) => setBuyNotes(e.target.value)}
-                      />
-                    </div>
-
-                    <button type="submit" className={styles.submitBtn}>
-                      Kaufinteresse speichern
-                    </button>
-                  </form>
-                </div>
-
-                {/* Wishlist Grid */}
-                <div className={styles.card}>
-                  <h3 className={styles.cardTitle}>Wunschliste ({buyInterestList.length})</h3>
-                  <div className={styles.wishlistGrid}>
-                    {buyInterestList.length === 0 ? (
-                      <p className={styles.emptyText} style={{ opacity: 0.65, fontSize: '0.75rem' }}>
-                        Keine Einträge vorhanden. Trage oben Links oder Produkte ein, die du demnächst kaufen möchtest.
-                      </p>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        {buyInterestList.map((item) => (
-                          <div key={item.id} className={styles.wishlistCard}>
-                            <div className={styles.wishlistHeader}>
-                              <h4 className={styles.wishlistTitle}>{item.title}</h4>
-                              <span className={styles.wishlistPrice}>
-                                {item.price > 0 ? `${item.price.toFixed(2)} €` : 'Preis offen'}
-                              </span>
-                            </div>
-                            {item.notes && <p className={styles.wishlistNotes}>{item.notes}</p>}
-                            {item.url && (
-                              <a
-                                href={item.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={styles.wishlistLink}
-                              >
-                                Produktseite öffnen ↗
-                              </a>
-                            )}
-                            <div className={styles.wishlistActions}>
-                              <button
-                                type="button"
-                                className={styles.submitBtn}
-                                onClick={() => handleConvertBuyInterestToExpense(item)}
-                                style={{ flex: 1, fontSize: '0.7rem', padding: '0.4rem' }}
-                              >
-                                Gekauft (als Ausgabe verbuchen)
-                              </button>
-                              <button
-                                type="button"
-                                className={styles.deleteBtn}
-                                onClick={() => handleDeleteBuyInterest(item.id)}
-                                style={{ padding: '0.4rem' }}
-                                title="Löschen"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      </>
                     )}
                   </div>
+
+                  <h4 className="font-mono text-xs text-slate-500 dark:text-white/60 mb-3 uppercase tracking-wider">Die 5 neuesten Videos des Kanals:</h4>
+                  <div className={styles.videoGrid}>
+                    {selectedResearch.analysisData.videos && selectedResearch.analysisData.videos.map(vid => (
+                      <div key={vid.videoId} className={styles.videoCard} onClick={() => setPlayingVideoId(vid.videoId)}>
+                        <div className={styles.videoThumbContainer}>
+                          <img src={vid.thumbnail} alt="" className={styles.videoThumb} />
+                          <div className={styles.playIconOverlay}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          </div>
+                        </div>
+                        <div className={styles.videoTitle} title={vid.title}>{vid.title}</div>
+                        <div className={styles.videoMeta}>
+                          <span>{vid.viewsText}</span>
+                          <span>•</span>
+                          <span>{vid.publishedText}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
 
-        {activeSubTab === 'focus' && (
+              {/* Mode: Keyword search dashboard & Uncertain Fallback */}
+              {(selectedResearch.analysisData.mode === 'keyword' || selectedResearch.analysisData.mode === 'uncertain') && (
+                <div className={styles.keywordDashboard}>
+                  <h4 className="font-mono text-xs text-slate-500 dark:text-white/60 mb-3 uppercase tracking-wider">Suchergebnisse für Nische:</h4>
+                  <div className={styles.videoList}>
+                    {selectedResearch.analysisData.videos && selectedResearch.analysisData.videos.map(vid => (
+                      <div key={vid.videoId} className={styles.videoListRow} onClick={() => setPlayingVideoId(vid.videoId)}>
+                        <img src={vid.thumbnail} className={styles.videoRowThumb} alt="" />
+                        <div className={styles.videoRowInfo}>
+                          <div className={styles.videoRowTitle}>{vid.title}</div>
+                          <div className={styles.videoRowMeta}>{vid.viewsText} • {vid.publishedText}</div>
+                        </div>
+                        <button className={styles.videoRowPlayBtn}>Abspielen</button>
+                      </div>
+                    ))}
+                  </div>
 
-
-          <div className={styles.focusLayout}>
-            <div className={styles.focusTimerContainer}>
-              <div className={styles.focusRing}>
-                <svg className={styles.focusRingSvg}>
-                  <circle className={styles.focusRingBg} cx="90" cy="90" r="80" />
-                  <circle
-                    className={styles.focusRingFill}
-                    cx="90"
-                    cy="90"
-                    r="80"
-                    strokeDasharray="502"
-                    strokeDashoffset={strokeDashoffset}
-                  />
-                </svg>
-                <div className={styles.focusTimeDisplay}>
-                  <span className={styles.focusMinutes}>{formatTime(focusTimeLeft)}</span>
-                  <span className={styles.focusSeconds}>ÜBRIG</span>
-                </div>
-              </div>
-
-              <div className={styles.focusModeLabel}>
-                {focusRunning ? 'FOCUS AKTIV' : 'PAUSIERT'}
-              </div>
-
-              <div className={styles.focusPresets}>
-                {[25, 45, 60].map((mins) => (
-                  <button
-                    key={mins}
-                    type="button"
-                    className={`${styles.focusPresetBtn} ${focusPreset === mins ? styles.focusPresetActive : ''}`}
-                    onClick={() => handlePresetSelect(mins)}
-                  >
-                    {mins} Min
-                  </button>
-                ))}
-              </div>
-
-              <div className={styles.focusControls}>
-                <button
-                  type="button"
-                  className={`${styles.focusControlBtn} ${styles.focusStartBtn}`}
-                  onClick={handleStartPauseFocus}
-                >
-                  {focusRunning ? 'Pause' : 'Start'}
-                </button>
-                <button
-                  type="button"
-                  className={styles.focusControlBtn}
-                  onClick={handleResetFocus}
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeSubTab === 'notes' && (
-          <div className={styles.notesLayout}>
-            {/* Create note card */}
-            <div className={styles.card}>
-              <h3 className={styles.cardTitle}>Session Notizen</h3>
-              <p className={styles.desc} style={{ marginTop: '-0.5rem' }}>
-                Halte wichtige Erkenntnisse oder Aufgaben während deines aktuellen Blocks <strong>"{activeBlock.title}"</strong> fest.
-              </p>
-
-              <form onSubmit={handleAddNote} className={styles.mappingForm}>
-                <div className={styles.formGroup}>
-                  <textarea
-                    placeholder="Notizen zum aktiven Block verfassen..."
-                    className={styles.textarea}
-                    value={newNote}
-                    onChange={(e) => setNewNote(e.target.value)}
-                    required
-                  />
-                </div>
-                <button type="submit" className={styles.submitBtn}>
-                  Notiz Speichern
-                </button>
-              </form>
-            </div>
-
-            {/* List notes */}
-            <div className={styles.card}>
-              <h3 className={styles.cardTitle}>Verlauf Notizen ({notesList.length})</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {notesList.map((n) => (
-                  <div key={n.id} className={styles.noteEntry}>
-                    <div className={styles.noteHeader}>
-                      <span className={styles.noteBlock}>Block: {n.blockTitle}</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span className={styles.noteTime}>{n.time}</span>
-                        <button
-                          type="button"
-                          className={styles.noteDeleteBtn}
-                          onClick={() => handleDeleteNote(n.id)}
-                        >
-                          Löschen
-                        </button>
+                  {/* Suggestions for uncertain channel matching */}
+                  {selectedResearch.analysisData.mode === 'uncertain' && selectedResearch.analysisData.suggestedChannels && (
+                    <div className={styles.pickerContainer} style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
+                      <h4 className={styles.pickerTitle} style={{ fontSize: '0.8rem' }}>Meintest du einen dieser Kanäle?</h4>
+                      <div className={styles.pickerGrid}>
+                        {selectedResearch.analysisData.suggestedChannels.map(chan => (
+                          <div key={chan.channelId} className={styles.pickerCard} style={{ padding: '0.5rem 0.75rem' }}>
+                            <img src={chan.thumbnail || '/avatar-placeholder.png'} className={styles.pickerAvatar} style={{ width: '30px', height: '30px' }} alt="" />
+                            <div className={styles.pickerInfo}>
+                              <div className={styles.pickerName} style={{ fontSize: '0.75rem' }}>{chan.title}</div>
+                              <div className={styles.pickerMeta} style={{ fontSize: '0.65rem' }}>{chan.subscribersText}</div>
+                            </div>
+                            <button
+                              className={styles.pickerSelectBtn}
+                              style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem' }}
+                              onClick={() => runOutlierAnalysis(selectedResearch, chan.channelId)}
+                            >
+                              Analysieren
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    <p className={styles.noteText}>{n.text}</p>
-                  </div>
-                ))}
+                  )}
+                </div>
+              )}
 
-                {notesList.length === 0 && (
-                  <div className={styles.emptyState}>
-                    <p className={styles.emptyText}>Noch keine Notizen verfasst.</p>
-                    <p className={styles.emptyText} style={{ opacity: 0.65, fontSize: '0.85em', marginTop: '0.35rem' }}>
-                      Halte Gedanken aus deinen Fokus-Blöcken fest — Notizen bleiben über Sessions erhalten.
-                    </p>
+              {/* Notes & Tags Editor */}
+              <div className="p-5 bg-slate-100/50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 rounded-xl space-y-4">
+                <h5 className={`${label} text-[10px] text-slate-800 dark:text-white/70`}>Notizen &amp; Tags</h5>
+                <div className="space-y-3">
+                  <div>
+                    <label className={`${label} text-[8px] text-slate-500 dark:text-[rgba(236,232,242,0.5)] block mb-1`}>Tags (kommagetrennt)</label>
+                    <input
+                      type="text"
+                      value={researchTags}
+                      onChange={(e) => setResearchTags(e.target.value)}
+                      placeholder="competitor, hook-idea, learning..."
+                      className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-xs font-mono placeholder:text-slate-400 dark:placeholder:text-white/20 text-slate-800 dark:text-[#ECE8F2] focus:ring-1 focus:ring-[#1A6AFF] focus:border-[#1A6AFF] transition-all outline-none"
+                    />
                   </div>
-                )}
+                  <div>
+                    <label className={`${label} text-[8px] text-slate-500 dark:text-[rgba(236,232,242,0.5)] block mb-1`}>Eigene Notizen</label>
+                    <textarea
+                      value={researchNotes}
+                      onChange={(e) => setResearchNotes(e.target.value)}
+                      placeholder="Eigene Gedanken..."
+                      rows={3}
+                      className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-xs font-mono placeholder:text-slate-400 dark:placeholder:text-white/20 text-slate-800 dark:text-[#ECE8F2] focus:ring-1 focus:ring-[#1A6AFF] focus:border-[#1A6AFF] transition-all outline-none resize-none"
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleSaveResearchNotes(researchNotes, researchTags)}
+                      className="flex-1 py-2 rounded-lg text-[10px] font-mono tracking-wider bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-800 dark:text-white transition-all font-medium"
+                    >
+                      Änderungen speichern
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => exportToVault(selectedResearch)}
+                      className="flex-1 py-2 rounded-lg text-[10px] font-mono tracking-wider text-white transition-all bg-[#1A6AFF] hover:bg-[#3b82f6] flex items-center justify-center gap-1 font-medium"
+                    >
+                      <span className="material-symbols-outlined text-xs">archive</span>
+                      In den Vault exportieren
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
 
-      </div>
+              {/* Strategic Report text */}
+              {selectedResearch.analysisReport && (
+                <div className={styles.reportViewer}>
+                  <h4 className="font-mono text-xs text-slate-500 dark:text-white/60 mb-2 uppercase tracking-wider">Strategische Auswertung:</h4>
+                  <div className="reportContent text-slate-800 dark:text-[#ECE8F2]">{selectedResearch.analysisReport}</div>
+                </div>
+              )}
+
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 space-y-4">
+              <p className="text-sm text-slate-400 dark:text-white/40">Noch keine Outlier-Analyse für dieses Ziel durchgeführt.</p>
+              <button
+                type="button"
+                onClick={() => runOutlierAnalysis(selectedResearch)}
+                className="px-6 py-2.5 rounded-lg text-xs font-mono tracking-widest uppercase text-white transition-all active:scale-95 hover:brightness-110"
+                style={{ background: ACCENT }}
+              >
+                Outlier Analyse starten
+              </button>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Footer bar */}
+      <footer className={`mt-12 border-t border-slate-200 dark:border-white/5 pt-6 flex flex-col sm:flex-row justify-between gap-3 ${label} text-slate-500 dark:text-[rgba(236,232,242,0.6)]`} style={{ letterSpacing: '0.3em' }}>
+        <span>System: {isOnline ? 'Optimal' : 'Offline'}</span>
+        <div className="flex gap-8">
+          <span>Latenz: {latency}ms</span>
+          <span>Bio-Sync: {bioSync}%</span>
+          <span style={{ color: ACCENT }}>Pronoia OS Cloud Linked</span>
+        </div>
+      </footer>
     </div>
   );
 }

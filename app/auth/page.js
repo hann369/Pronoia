@@ -4,6 +4,35 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import styles from './page.module.css';
 
+// Map Firebase auth error codes to human-readable messages so users never
+// see raw codes like "auth/invalid-credential".
+function friendlyAuthError(err) {
+  const code = err?.code || '';
+  switch (code) {
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found':
+      return 'E-Mail oder Passwort ist falsch. Bitte versuche es erneut.';
+    case 'auth/invalid-email':
+      return 'Diese E-Mail-Adresse sieht nicht korrekt aus.';
+    case 'auth/user-disabled':
+      return 'Dieses Konto wurde deaktiviert. Bitte kontaktiere den Support.';
+    case 'auth/email-already-in-use':
+      return 'Mit dieser E-Mail existiert bereits ein Konto. Melde dich stattdessen an.';
+    case 'auth/weak-password':
+      return 'Bitte wähle ein stärkeres Passwort (mindestens 6 Zeichen).';
+    case 'auth/too-many-requests':
+      return 'Zu viele Versuche. Bitte warte einen Moment und versuche es erneut.';
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+      return 'Anmeldung abgebrochen. Bitte versuche es erneut.';
+    case 'auth/network-request-failed':
+      return 'Netzwerkfehler. Prüfe deine Verbindung und versuche es erneut.';
+    default:
+      return 'Etwas ist schiefgelaufen. Bitte versuche es erneut.';
+  }
+}
+
 export default function AuthPage() {
   const router = useRouter();
   const { login, signup, loginWithGoogle, resetPassword } = useAuth();
@@ -36,7 +65,7 @@ export default function AuthPage() {
         }
       }
     } catch (err) {
-      setError(err.message.replace('Firebase: ', ''));
+      setError(friendlyAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -57,7 +86,7 @@ export default function AuthPage() {
         router.push('/store');
       }
     } catch (err) {
-      setError(err.message.replace('Firebase: ', ''));
+      setError(friendlyAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -70,14 +99,14 @@ export default function AuthPage() {
         <div className={styles.header}>
           <span className="label-mono" style={{ color: 'var(--tan)' }}>Pronoia System</span>
           <h1 className={styles.title}>
-            {mode === 'login' ? 'Welcome back.' : mode === 'signup' ? 'Create account.' : 'Reset Password.'}
+            {mode === 'login' ? 'Willkommen zurück.' : mode === 'signup' ? 'Konto erstellen.' : 'Passwort zurücksetzen.'}
           </h1>
           <p className={styles.sub}>
             {mode === 'login'
-              ? 'Access your protocols, purchases, and agent.'
+              ? 'Zugriff auf deine Protokolle, Käufe und deinen Agenten.'
               : mode === 'signup'
-              ? 'Join the Pronoia ecosystem.'
-              : 'Enter your email to receive a password reset link.'}
+              ? 'Werde Teil des Pronoia-Ökosystems.'
+              : 'Gib deine E-Mail ein, um einen Link zum Zurücksetzen zu erhalten.'}
           </p>
         </div>
 
@@ -90,14 +119,14 @@ export default function AuthPage() {
               <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
               <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
             </svg>
-            Continue with Google
+            Mit Google fortfahren
           </button>
         )}
 
         {mode !== 'forgot' && (
           <div className={styles.dividerRow}>
             <div className={styles.dividerLine} />
-            <span className={styles.dividerText}>or</span>
+            <span className={styles.dividerText}>oder</span>
             <div className={styles.dividerLine} />
           </div>
         )}
@@ -105,7 +134,7 @@ export default function AuthPage() {
         {/* Form */}
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.field}>
-            <label className="label-mono" htmlFor="auth-email">Email</label>
+            <label className="label-mono" htmlFor="auth-email">E-Mail</label>
             <input
               id="auth-email"
               type="email"
@@ -120,7 +149,7 @@ export default function AuthPage() {
           {mode !== 'forgot' && (
             <div className={styles.field}>
               <div style={{ display: 'flex', justifyContent: 'between', alignItems: 'center' }}>
-                <label className="label-mono" htmlFor="auth-pw" style={{ flex: 1 }}>Password</label>
+                <label className="label-mono" htmlFor="auth-pw" style={{ flex: 1 }}>Passwort</label>
                 {mode === 'login' && (
                   <button
                     type="button"
@@ -150,7 +179,7 @@ export default function AuthPage() {
           {info && <p className={styles.info} style={{ color: 'var(--green)', fontSize: '0.85rem', fontFamily: 'var(--font-mono)', margin: '0.5rem 0' }}>{info}</p>}
 
           <button type="submit" className="btn btn-primary btn-lg" disabled={loading} style={{ width: '100%', justifyContent: 'center' }}>
-            {loading ? '...' : mode === 'login' ? 'Sign In →' : mode === 'signup' ? 'Create Account →' : 'Send Reset Link →'}
+            {loading ? '...' : mode === 'login' ? 'Anmelden →' : mode === 'signup' ? 'Konto erstellen →' : 'Link senden →'}
           </button>
         </form>
 
@@ -158,25 +187,25 @@ export default function AuthPage() {
         <div className={styles.toggle}>
           {mode === 'login' && (
             <span>
-              Don&apos;t have an account?{' '}
+              Noch kein Konto?{' '}
               <button
                 type="button"
                 className={styles.toggleBtn}
                 onClick={() => { setMode('signup'); setError(''); setInfo(''); }}
               >
-                Sign up
+                Registrieren
               </button>
             </span>
           )}
           {mode === 'signup' && (
             <span>
-              Already a member?{' '}
+              Bereits Mitglied?{' '}
               <button
                 type="button"
                 className={styles.toggleBtn}
                 onClick={() => { setMode('login'); setError(''); setInfo(''); }}
               >
-                Sign in
+                Anmelden
               </button>
             </span>
           )}
@@ -186,7 +215,7 @@ export default function AuthPage() {
               className={styles.toggleBtn}
               onClick={() => { setMode('login'); setError(''); setInfo(''); }}
             >
-              ← Back to Login
+              ← Zurück zur Anmeldung
             </button>
           )}
         </div>

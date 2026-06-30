@@ -38,7 +38,9 @@ export async function POST(req) {
         const s = evt.data.object;
         const uid = s.client_reference_id || s.metadata?.uid;
         const tierId = s.metadata?.tierId;
-        if (uid) {
+        // Only subscription checkouts activate a tier. One-time store-product
+        // purchases (mode: 'payment') must NOT grant a subscription.
+        if (uid && s.mode === 'subscription') {
           await adminDb.collection('users').doc(uid).set(
             {
               subscriptionTier: tierId || 'premium',

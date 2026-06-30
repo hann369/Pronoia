@@ -817,3 +817,81 @@
   border-bottom-color: rgba(0, 0, 0, 0.05);
 }
 
+/* ===================================================================
+   CALM "OS" OVERRIDES — solid surfaces, single cobalt accent, no glow.
+   Replaces the sunset-orange palette + glass blur for the os baseline.
+   Token-based → adapts to os-dark and os-light. Other modes unchanged.
+   =================================================================== */
+:global([data-ui-mode="os"]) .floatingButton {
+  background: var(--bg-card);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+:global([data-ui-mode="os"]) .floatingButton:hover {
+  transform: none;
+  background: var(--bg3);
+  border-color: var(--theme-accent);
+  box-shadow: var(--shadow-md);
+}
+:global([data-ui-mode="os"]) .unreadBadge,
+:global([data-ui-mode="os"]) .unreadDot,
+:global([data-ui-mode="os"]) .statusDotOnline { box-shadow: none; }
+
+:global([data-ui-mode="os"]) .chatDrawer {
+  background: var(--bg-card);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+}
+:global([data-ui-mode="os"]) .drawerHeader,
+:global([data-ui-mode="os"]) .searchWrapper,
+:global([data-ui-mode="os"]) .inputForm,
+:global([data-ui-mode="os"]) .contactsScroll {
+  background: var(--bg2);
+  border-color: var(--border);
+}
+:global([data-ui-mode="os"]) .drawerBody { background: var(--bg); }
+:global([data-ui-mode="os"]) .searchInput,
+:global([data-ui-mode="os"]) .msgInput {
+  background: var(--bg3);
+  border-color: var(--border-s);
+  color: var(--text);
+}
+:global([data-ui-mode="os"]) .searchInput:focus,
+:global([data-ui-mode="os"]) .msgInput:focus { border-color: var(--theme-accent); }
+:global([data-ui-mode="os"]) .sendBtn {
+  font-family: var(--font-body);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Active chat header → calm neutral instead of sunset gradient */
+:global([data-ui-mode="os"]) .headerActiveChat {
+  background: var(--bg2) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+:global([data-ui-mode="os"]) .headerActiveChat .headerTitle,
+:global([data-ui-mode="os"]) .headerActiveChat .backBtn,
+:global([data-ui-mode="os"]) .headerActiveChat .closeBtn {
+  color: var(--text) !important;
+}
+
+/* Bubbles → single cobalt accent, flat, no shadow */
+:global([data-ui-mode="os"]) .bubble { box-shadow: none; }
+:global([data-ui-mode="os"]) .bubbleSelf .bubble {
+  background: var(--theme-accent);
+  border-color: transparent;
+  color: #fff;
+}
+:global([data-ui-mode="os"]) .bubbleSelf .bubbleMeta { color: rgba(255, 255, 255, 0.7); }
+:global([data-ui-mode="os"]) .bubbleOther .bubble {
+  background: var(--bg3);
+  border-color: var(--border);
+}
+:global([data-ui-mode="os"]) .bubbleSender { color: var(--theme-accent); }
+:global([data-ui-mode="os"]) .bubbleSelf .bubbleSender { color: rgba(255, 255, 255, 0.85); }
+

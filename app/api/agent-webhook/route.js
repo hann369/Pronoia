@@ -87,6 +87,13 @@ export async function POST(req) {
       return NextResponse.json({ ok: true, status, debug });
     }
 
+    if (event === "manager_config_sync") {
+      const { managerConfig } = payload;
+      await updateManagerConfig({ telegramId, managerConfig });
+      const { status, debug } = await getUserStatusWithDebug(telegramId);
+      return NextResponse.json({ ok: true, status, debug });
+    }
+
     if (event === "biometrics_update") {
       const { hrv, sleep } = payload;
       await updateBiometrics({ telegramId, hrv, sleep });
@@ -148,227 +155,281 @@ export async function POST(req) {
 
       // Check if serverless execution is enabled via HERMES_PRIVATE_KEY
       const hermesPrvKeyJwkStr = process.env.HERMES_PRIVATE_KEY;
-      if (hermesPrvKeyJwkStr) {
-        console.log("[Pronoia Webhook] Running Hermes Agent locally (serverless)...");
-        try {
-          const chatId = payload.chatId;
-          const message = payload.message || {};
-          const senderUid = message.senderUid;
-
-          // 1. Decrypt incoming message
-          let plaintext = null;
-          try {
-            const encMap = message.enc || {};
-            const myCipher = encMap["hermes_agent_node"];
-            if (myCipher) {
-              const prvKeyJwk = JSON.parse(hermesPrvKeyJwkStr);
-              const prvKey = await importPrivateKey(prvKeyJwk);
-              plaintext = await eciesDecryptText(myCipher, prvKey);
-            } else if (message.text) {
-              plaintext = message.text;
-            }
-          } catch (decErr) {
-            console.error("[Pronoia Webhook] Serverless E2E decryption failed:", decErr.message);
-          }
-
-          if (plaintext === null) {
-            console.warn("[Pronoia Webhook] No readable E2E message for serverless agent.");
-            return NextResponse.json({ ok: false, error: "no_readable_message" }, { status: 202 });
-          }
-
-          console.log(`[Pronoia Webhook] Decrypted message: "${plaintext}"`);
-
-          // 2. Fetch context (calendar & suggestions) directly from Firestore
-          const context = { calendar: {}, suggestions: [] };
-          if (senderUid) {
-            try {
-              const userSnap = await adminDb.collection("users").doc(senderUid).get();
-              if (userSnap.exists) {
-                context.calendar = userSnap.data().calendar || {};
-              }
-              const sugSnap = await adminDb.collection("users").doc(senderUid).collection("suggestions").get();
-              context.suggestions = sugSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-            } catch (ctxErr) {
-              console.warn("[Pronoia Webhook] Failed to retrieve context for user:", ctxErr.message);
-            }
-          }
-
-          // 3. Invoke Mistral API
-          const SYSTEM_PROMPT = (
-            "Du bist Hermes, der KI-Begleiter im Pronoia Life OS. Antworte direkt, " +
-            "präzise, wissenschaftlich fundiert und auf Deutsch. Du hilfst bei Fokus, " +
-            "Schlaf, Supplementation und Tagesstruktur. Halte dich kurz."
-          );
-
-          let ctxNote = "";
-          if (context.calendar && Object.keys(context.calendar).length > 0) {
-            ctxNote += `\n[Kalender-Kontext vorhanden: ${Object.keys(context.calendar).length} Tage]`;
-          }
-          if (context.suggestions && context.suggestions.length > 0) {
-            ctxNote += `\n[${context.suggestions.length} offene Vorschläge]`;
-          }
-
-          let replyText = "";
-          const mistralApiKey = process.env.MISTRAL_API_KEY;
-          if (mistralApiKey && mistralApiKey !== 'REPLACE_ME') {
-            try {
-              const messages = [
-                { role: "system", content: SYSTEM_PROMPT + ctxNote },
-                { role: "user", content: plaintext }
-              ];
-              let mistralRes = null;
-              let attempts = 3;
-              for (let i = 0; i < attempts; i++) {
-                try {
-                  mistralRes = await fetch("https://api.mistral.ai/v1/chat/completions", {
-                    method: "POST",
-                    headers: {
-                      "Authorization": `Bearer ${mistralApiKey}`,
-                      "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                      model: "mistral-large-latest",
-                      messages,
-                      temperature: 0.7,
-                      max_tokens: 500
-                    })
-                  });
-                  if (mistralRes.ok) break;
-                  
-                  if (mistralRes.status === 429 || mistralRes.status >= 500) {
-                    const delay = (i + 1) * 1000;
-                    console.warn(`[Pronoia Webhook] Mistral API returned status ${mistralRes.status}. Retrying in ${delay}ms... (Attempt ${i + 1}/${attempts})`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                  } else {
-                    break;
-                  }
-                } catch (fetchErr) {
-                  if (i === attempts - 1) throw fetchErr;
-                  const delay = (i + 1) * 1000;
-                  console.warn(`[Pronoia Webhook] Mistral fetch failed: ${fetchErr.message}. Retrying in ${delay}ms... (Attempt ${i + 1}/${attempts})`);
-                  await new Promise(resolve => setTimeout(resolve, delay));
-                }
-              }
-              
-              if (mistralRes && mistralRes.ok) {
-                const mistralData = await mistralRes.json();
-                replyText = mistralData.choices?.[0]?.message?.content?.trim() || "";
-              } else {
-                const status = mistralRes ? mistralRes.status : "unknown";
-                let errBody = "";
-                if (mistralRes) {
-                  try { errBody = await mistralRes.text(); } catch (_) {}
-                }
-                console.error(`[Pronoia Webhook] Mistral API failed after ${attempts} attempts. Final Status: ${status}, Body: ${errBody}`);
-                replyText = "Hermes: Kurze Störung im Reasoning-Kern. Bitte erneut versuchen.";
-              }
-            } catch (mistralErr) {
-              console.error("[Pronoia Webhook] Mistral API call failed with exception:", mistralErr.message);
-              replyText = "Hermes: Verbindung zum Reasoning-Netzwerk gestört.";
-            }
-          } else {
-            replyText = `Hermes (offline): Verstanden — „${plaintext.substring(0, 140)}“. Konfiguriere MISTRAL_API_KEY für volle Antworten.`;
-          }
-
-          // 4. Encrypt reply for all participants
-          const encReplies = {};
-          for (const [uid, jwk] of Object.entries(participantKeys)) {
-            try {
-              const pubKey = await importPublicKey(jwk);
-              encReplies[uid] = await eciesEncryptText(replyText, pubKey);
-            } catch (encErr) {
-              console.error(`[Pronoia Webhook] Failed to encrypt reply for user ${uid}:`, encErr.message);
-            }
-          }
-
-          // 5. Write reply back to Firestore
-          const timestamp = new Date().toISOString();
-          const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-          const readBy = ["hermes_agent_node"];
-
-          const msgBody = Object.keys(encReplies).length > 0 ? { enc: encReplies } : { text: replyText };
-          const lastBody = Object.keys(encReplies).length > 0
-            ? { enc: true }
-            : { text: replyText.substring(0, 60) };
-
-          await adminDb.collection("chats").doc(chatId).collection("messages").add({
-            senderUid: "hermes_agent_node",
-            senderName: "Hermes AI Agent",
-            timestamp,
-            expiresAt,
-            type: "text",
-            ...msgBody,
-            readBy,
-          });
-
-          await adminDb.collection("chats").doc(chatId).set(
-            {
-              lastMessage: { ...lastBody, senderUid: "hermes_agent_node", timestamp, readBy },
-            },
-            { merge: true }
-          );
-
-          return NextResponse.json({ ok: true, serverless: true, encrypted: Object.keys(encReplies).length > 0 });
-        } catch (serverlessErr) {
-          console.error("[Pronoia Webhook] Critical serverless Hermes run failure:", serverlessErr);
-          return NextResponse.json({ ok: false, error: serverlessErr.message }, { status: 500 });
-        }
+      if (!hermesPrvKeyJwkStr) {
+        console.error("[Pronoia Webhook] HERMES_PRIVATE_KEY is not configured on server.");
+        return NextResponse.json({ ok: false, error: "HERMES_PRIVATE_KEY not configured" }, { status: 500 });
       }
 
-      // FALLBACK: forward to local Hermes bridge daemon
-      const hermesAgentUrl = process.env.HERMES_AGENT_URL || "http://localhost:8080/pronoia-webhook";
-      const forwardSecret = process.env.WEBHOOK_SECRET;
-      if (!forwardSecret) {
-        return NextResponse.json(
-          { ok: false, error: "WEBHOOK_SECRET not configured; cannot reach Hermes daemon" },
-          { status: 503 }
-        );
-      }
+      console.log("[Pronoia Webhook] Running Hermes Agent natively (serverless)...");
       try {
-        console.log(`[Pronoia Webhook] Forwarding hermes_trigger to ${hermesAgentUrl}`);
-        const fResponse = await fetch(hermesAgentUrl, {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json", 
-            "x-bot-secret": forwardSecret,
-            "ngrok-skip-browser-warning": "true"
-          },
-          body: JSON.stringify(payload),
+        const chatId = payload.chatId;
+        const message = payload.message || {};
+        const senderUid = message.senderUid;
+
+        const prvKeyJwk = JSON.parse(hermesPrvKeyJwkStr);
+        const prvKey = await importPrivateKey(prvKeyJwk);
+        
+        // Derive public key JWK from private key JWK to encrypt updated memory
+        const pubKeyJwk = {
+          kty: prvKeyJwk.kty,
+          crv: prvKeyJwk.crv,
+          x: prvKeyJwk.x,
+          y: prvKeyJwk.y
+        };
+        const pubKey = await importPublicKey(pubKeyJwk);
+
+        // 1. Decrypt incoming message
+        let plaintext = null;
+        try {
+          const encMap = message.enc || {};
+          const myCipher = encMap["hermes_agent_node"];
+          if (myCipher) {
+            plaintext = await eciesDecryptText(myCipher, prvKey);
+          } else if (message.text) {
+            plaintext = message.text;
+          }
+        } catch (decErr) {
+          console.error("[Pronoia Webhook] Serverless E2E decryption failed:", decErr.message);
+        }
+
+        if (plaintext === null) {
+          console.warn("[Pronoia Webhook] No readable E2E message for serverless agent.");
+          return NextResponse.json({ ok: false, error: "no_readable_message" }, { status: 202 });
+        }
+
+        console.log(`[Pronoia Webhook] Decrypted message: "${plaintext}"`);
+
+        // 2. Fetch context & memories directly from Firestore
+        const context = { calendar: {}, suggestions: [] };
+        let user_md = "# User Profile\n";
+        let memory_md = "# Agent Notes\n";
+
+        if (senderUid) {
+          try {
+            const userSnap = await adminDb.collection("users").doc(senderUid).get();
+            if (userSnap.exists) {
+              const userData = userSnap.data() || {};
+              context.calendar = userData.calendar || {};
+              
+              // Decrypt memory if exists
+              const agentMemory = userData.agentMemory || {};
+              if (agentMemory.user_md) {
+                try {
+                  user_md = await eciesDecryptText(agentMemory.user_md, prvKey);
+                } catch (err) {
+                  console.warn("[Pronoia Webhook] Failed to decrypt user_md memory:", err.message);
+                }
+              }
+              if (agentMemory.memory_md) {
+                try {
+                  memory_md = await eciesDecryptText(agentMemory.memory_md, prvKey);
+                } catch (err) {
+                  console.warn("[Pronoia Webhook] Failed to decrypt memory_md memory:", err.message);
+                }
+              }
+            }
+            const sugSnap = await adminDb.collection("users").doc(senderUid).collection("suggestions").get();
+            context.suggestions = sugSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          } catch (ctxErr) {
+            console.warn("[Pronoia Webhook] Failed to retrieve context/memory for user:", ctxErr.message);
+          }
+        }
+
+        // 3. Construct System Prompt with Memory
+        const BASE_SYSTEM_PROMPT = (
+          "Du bist Hermes, der KI-Begleiter im Pronoia Life OS. Antworte direkt, " +
+          "präzise, wissenschaftlich fundiert und auf Deutsch. Du hilfst bei Fokus, " +
+          "Schlaf, Supplementation und Tagesstruktur. Halte dich kurz."
+        );
+
+        let systemPrompt = BASE_SYSTEM_PROMPT;
+        systemPrompt += `\n\n=== USER PROFILE (user.md) ===\n${user_md}`;
+        systemPrompt += `\n\n=== AGENT NOTES (memory.md) ===\n${memory_md}`;
+        
+        systemPrompt += `\n\nDu hast Zugriff auf zwei persistente Speicherdateien (User Profile und Agent Notes), die oben gelistet sind.`;
+        systemPrompt += ` Wenn du neue wichtige Informationen über den Benutzer (Name, Präferenzen, Routinen usw.) erfährst, aktualisiere das User Profile.`;
+        systemPrompt += ` Wenn du wichtige Fakten, Vereinbarungen oder Erkenntnisse für zukünftige Interaktionen gelernt hast, aktualisiere die Agent Notes.`;
+        systemPrompt += ` Um diese zu aktualisieren, hänge am Ende deiner Antwort einen speziellen Block im folgenden Format an (ändere nur, was nötig ist, und lasse Blöcke weg, die sich nicht ändern):`;
+        systemPrompt += `\n\nUPDATE_USER:\n# User Profile\n[Vollständiger aktualisierter Inhalt für user.md]`;
+        systemPrompt += `\n\nUPDATE_MEMORY:\n# Agent Notes\n[Vollständiger aktualisierter Inhalt für memory.md]`;
+        systemPrompt += `\n\nHalte die Dateien kompakt und strukturiert. Deine eigentliche Antwort an den Benutzer muss vor diesen Blöcken stehen. Maximale Limits: ca. 800 Tokens pro Datei.`;
+
+        let ctxNote = "";
+        if (context.calendar && Object.keys(context.calendar).length > 0) {
+          ctxNote += `\n[Kalender-Kontext vorhanden: ${Object.keys(context.calendar).length} Tage]`;
+        }
+        if (context.suggestions && context.suggestions.length > 0) {
+          ctxNote += `\n[${context.suggestions.length} offene Vorschläge]`;
+        }
+        systemPrompt += ctxNote;
+
+        // 4. Invoke LLM API
+        let replyText = "";
+        const modelUrl = process.env.HERMES_MODEL_URL || "https://api.mistral.ai/v1/chat/completions";
+        const apiKey = process.env.HERMES_API_KEY || process.env.MISTRAL_API_KEY;
+        const modelName = process.env.HERMES_MODEL_NAME || "mistral-large-latest";
+
+        if (apiKey && apiKey !== 'REPLACE_ME') {
+          try {
+            const messages = [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: plaintext }
+            ];
+            let llmRes = null;
+            let attempts = 3;
+            for (let i = 0; i < attempts; i++) {
+              try {
+                llmRes = await fetch(modelUrl, {
+                  method: "POST",
+                  headers: {
+                    "Authorization": `Bearer ${apiKey}`,
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify({
+                    model: modelName,
+                    messages,
+                    temperature: 0.7,
+                    max_tokens: 1000
+                  })
+                });
+                if (llmRes.ok) break;
+                
+                if (llmRes.status === 429 || llmRes.status >= 500) {
+                  const delay = (i + 1) * 1000;
+                  console.warn(`[Pronoia Webhook] LLM API returned status ${llmRes.status}. Retrying in ${delay}ms... (Attempt ${i + 1}/${attempts})`);
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                } else {
+                  break;
+                }
+              } catch (fetchErr) {
+                if (i === attempts - 1) throw fetchErr;
+                const delay = (i + 1) * 1000;
+                console.warn(`[Pronoia Webhook] LLM fetch failed: ${fetchErr.message}. Retrying in ${delay}ms... (Attempt ${i + 1}/${attempts})`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+              }
+            }
+            
+            if (llmRes && llmRes.ok) {
+              const llmData = await llmRes.json();
+              replyText = llmData.choices?.[0]?.message?.content?.trim() || "";
+            } else {
+              const status = llmRes ? llmRes.status : "unknown";
+              let errBody = "";
+              if (llmRes) {
+                try { errBody = await llmRes.text(); } catch (_) {}
+              }
+              console.error(`[Pronoia Webhook] LLM API failed after ${attempts} attempts. Final Status: ${status}, Body: ${errBody}`);
+              replyText = "Hermes: Kurze Störung im Reasoning-Kern. Bitte erneut versuchen.";
+            }
+          } catch (llmErr) {
+            console.error("[Pronoia Webhook] LLM API call failed with exception:", llmErr.message);
+            replyText = "Hermes: Verbindung zum Reasoning-Netzwerk gestört.";
+          }
+        } else {
+          replyText = `Hermes (offline): Verstanden — „${plaintext.substring(0, 140)}“. Konfiguriere MISTRAL_API_KEY oder HERMES_MODEL_URL für volle Antworten.`;
+        }
+
+        // 5. Parse memory updates from LLM response
+        let cleanReplyText = replyText;
+        let updatedUserMd = null;
+        let updatedMemoryMd = null;
+
+        // Robust case-insensitive parsing of memory blocks
+        const updateTagsRegex = /(UPDATE_USER:|UPDATE_MEMORY:)/gi;
+        let match;
+        const sections = [];
+
+        while ((match = updateTagsRegex.exec(replyText)) !== null) {
+          sections.push({
+            tag: match[0].toUpperCase(),
+            index: match.index
+          });
+        }
+
+        if (sections.length > 0) {
+          sections.sort((a, b) => a.index - b.index);
+          cleanReplyText = replyText.substring(0, sections[0].index).trim();
+
+          for (let i = 0; i < sections.length; i++) {
+            const current = sections[i];
+            const nextIndex = (i + 1 < sections.length) ? sections[i + 1].index : replyText.length;
+            const contentStart = current.index + current.tag.length;
+            const content = replyText.substring(contentStart, nextIndex).trim();
+
+            if (current.tag === "UPDATE_USER:") {
+              updatedUserMd = content;
+            } else if (current.tag === "UPDATE_MEMORY:") {
+              updatedMemoryMd = content;
+            }
+          }
+        }
+
+        // 6. Encrypt and save updated memories to Firestore
+        if ((updatedUserMd !== null || updatedMemoryMd !== null) && senderUid) {
+          try {
+            const memoryUpdate = {};
+            if (updatedUserMd !== null) {
+              memoryUpdate["agentMemory.user_md"] = await eciesEncryptText(updatedUserMd, pubKey);
+              console.log(`[Pronoia Webhook] Encrypted user_md update (length: ${updatedUserMd.length})`);
+            }
+            if (updatedMemoryMd !== null) {
+              memoryUpdate["agentMemory.memory_md"] = await eciesEncryptText(updatedMemoryMd, pubKey);
+              console.log(`[Pronoia Webhook] Encrypted memory_md update (length: ${updatedMemoryMd.length})`);
+            }
+            if (Object.keys(memoryUpdate).length > 0) {
+              await adminDb.collection("users").doc(senderUid).update(memoryUpdate);
+              console.log(`[Pronoia Webhook] Saved memory updates to Firestore for user ${senderUid}`);
+            }
+          } catch (saveMemErr) {
+            console.error("[Pronoia Webhook] Failed to save updated memory to Firestore:", saveMemErr.message);
+          }
+        }
+
+        // 7. Encrypt reply for all participants
+        const encReplies = {};
+        for (const [uid, jwk] of Object.entries(participantKeys)) {
+          try {
+            const pPubKey = await importPublicKey(jwk);
+            encReplies[uid] = await eciesEncryptText(cleanReplyText, pPubKey);
+          } catch (encErr) {
+            console.error(`[Pronoia Webhook] Failed to encrypt reply for user ${uid}:`, encErr.message);
+          }
+        }
+
+        // 8. Write reply back to Firestore
+        const timestamp = new Date().toISOString();
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        const readBy = ["hermes_agent_node"];
+
+        const msgBody = Object.keys(encReplies).length > 0 ? { enc: encReplies } : { text: cleanReplyText };
+        const lastBody = Object.keys(encReplies).length > 0
+          ? { enc: true }
+          : { text: cleanReplyText.substring(0, 60) };
+
+        await adminDb.collection("chats").doc(chatId).collection("messages").add({
+          senderUid: "hermes_agent_node",
+          senderName: "Hermes AI Agent",
+          timestamp,
+          expiresAt,
+          type: "text",
+          ...msgBody,
+          readBy,
         });
-        return NextResponse.json({ ok: fResponse.ok, status: fResponse.status });
-      } catch (err) {
-        console.error("[Agent Webhook] Failed to forward to Hermes Agent daemon:", err.message);
-        return NextResponse.json({ ok: false, error: err.message }, { status: 502 });
+
+        await adminDb.collection("chats").doc(chatId).set(
+          {
+            lastMessage: { ...lastBody, senderUid: "hermes_agent_node", timestamp, readBy },
+          },
+          { merge: true }
+        );
+
+        return NextResponse.json({ ok: true, serverless: true, reply: cleanReplyText, encrypted: Object.keys(encReplies).length > 0 });
+      } catch (serverlessErr) {
+        console.error("[Pronoia Webhook] Critical serverless Hermes run failure:", serverlessErr);
+        return NextResponse.json({ ok: false, error: serverlessErr.message }, { status: 500 });
       }
     }
 
-    if (event === "hermes_accept_friendship") {
-      // Hermes is an AI companion without an auth session, so it cannot click
-      // "accept" itself — the server accepts on its behalf. Only friendships
-      // that actually involve hermes_agent_node are eligible, and a browser
-      // caller (ID token) must be the other participant.
-      const { friendshipId } = payload;
-      if (!friendshipId) {
-        return NextResponse.json({ ok: false, error: "friendshipId missing" }, { status: 400 });
-      }
-      const ref = adminDb.collection("friendships").doc(friendshipId);
-      const snap = await ref.get();
-      if (!snap.exists) {
-        return NextResponse.json({ ok: false, error: "Friendship not found" }, { status: 404 });
-      }
-      const users = snap.data().users || [];
-      if (!users.includes("hermes_agent_node")) {
-        return NextResponse.json({ ok: false, error: "Not a hermes friendship" }, { status: 403 });
-      }
-      if (authedUser && !users.includes(authedUser.uid)) {
-        return NextResponse.json({ ok: false, error: "Not a participant" }, { status: 403 });
-      }
-      await ref.set(
-        { status: "accepted", updatedAt: new Date().toISOString() },
-        { merge: true }
-      );
-      return NextResponse.json({ ok: true, status: "accepted" });
-    }
 
     if (event === "hermes_accept_friendship") {
       // Hermes is an AI companion without an auth session, so it cannot click
@@ -642,6 +703,21 @@ function defaultStatus() {
   };
 }
 
+async function updateManagerConfig({ telegramId, managerConfig }) {
+  if (!telegramId) return;
+  try {
+    const userDoc = await getTelegramUser(telegramId);
+    if (userDoc) {
+      await userDoc.ref.update({
+        "profile.managerConfig": managerConfig,
+        "tabs.managerConfig": managerConfig
+      });
+    }
+  } catch (e) {
+    console.error("[Pronoia Webhook] updateManagerConfig Firestore error:", e);
+  }
+}
+
 async function updateBiometrics({ telegramId, hrv, sleep }) {
   if (!telegramId) return;
   try {
@@ -906,6 +982,7 @@ async function getUserStatusWithDebug(telegramId) {
         email: data.profile?.email || null,
         customization: data.profile?.customization || { accent: "blue", mode: "serious" },
         directives: data.directives || [],
+        managerConfig: data.tabs?.managerConfig || data.profile?.managerConfig || {}
       };
     } else {
       debug.error = "No document found matching this Telegram ID";

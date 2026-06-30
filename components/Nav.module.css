@@ -36,6 +36,15 @@
   letter-spacing: 0.25em;
   color: var(--text);
 }
+.logoImg {
+  height: 22px;
+  width: auto;
+  display: block;
+  /* black wordmark by default (light theme); inverted to white on dark themes */
+}
+:global([data-theme="dark"]) .logoImg {
+  filter: invert(1) brightness(1.6);
+}
 
 .divider {
   width: 1px;
@@ -129,10 +138,16 @@
 .burger {
   display: none;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 5px;
   background: none;
   border: none;
-  padding: 0.5rem;
+  /* 44px minimum touch target */
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  cursor: pointer;
 }
 .burger span {
   display: block;
@@ -160,17 +175,69 @@
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--text2);
-  padding: 0.5rem 0;
+  padding: 0.65rem 0;
 }
 .mobileLink.active { color: var(--text); }
 
+/* Auth action surfaced inside the mobile menu (hidden from the top bar on small screens) */
+.mobileAuth {
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.mobileAuth :global(.btn) {
+  width: 100%;
+  justify-content: center;
+}
+
+.authDesktop { display: inline-flex; }
+
 /* Responsive */
 @media (max-width: 900px) {
+  .inner { gap: 1rem; }
+  .right { gap: 0.75rem; }
   .links { display: none; }
   .burger { display: flex; }
   .badge { display: none; }
+  /* Auth moves into the mobile menu so the top bar can never overflow off-screen */
+  .authDesktop { display: none; }
 }
 
-@media (max-width: 480px) {
-  .themeBtn { display: none; }
+/* Never show the mobile dropdown on desktop, even if it was left open before a resize */
+@media (min-width: 901px) {
+  .mobileMenu { display: none; }
+}
+
+/* ═══ Calm "OS" overrides — only on internal os-mode surfaces ═══
+   Landing (cyber) keeps the original uppercase-mono nav. */
+:global([data-ui-mode="os"]) .scrolled {
+  backdrop-filter: blur(16px) saturate(1.1);
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
+}
+:global([data-ui-mode="os"]) .link,
+:global([data-ui-mode="os"]) .mobileLink {
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+:global([data-ui-mode="os"]) .link::after {
+  background: var(--theme-accent);
+}
+:global([data-ui-mode="os"]) .storeLink {
+  font-family: var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  background: var(--theme-accent-dim);
+  color: var(--theme-accent) !important;
+}
+:global([data-ui-mode="os"]) .storeLink:hover {
+  background: var(--theme-accent);
+  color: #fff !important;
+  transform: none;
+  box-shadow: none;
+}
+:global([data-ui-mode="os"]) .storeLink.active {
+  background: var(--theme-accent);
+  color: #fff !important;
 }

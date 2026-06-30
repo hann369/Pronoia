@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="de"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pronoia - NorthStar</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            bg: "#060509",
+                            surface: "rgba(255, 255, 255, 0.03)",
+                            border: "rgba(255, 255, 255, 0.08)",
+                            text: "#ECE8F2",
+                            textMuted: "rgba(236, 232, 242, 0.6)",
+                            accent: "#1A6AFF",
+                            accentGlow: "rgba(26, 106, 255, 0.15)"
+                        }
+                    },
+                    fontFamily: {
+                        headline: ["'Playfair Display'", "serif"],
+                        body: ["'Inter'", "sans-serif"],
+                        mono: ["'JetBrains Mono'", "monospace"]
+                    },
+                    backgroundImage: {
+                        'glass-gradient': 'linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%)',
+                        'radial-glow': 'radial-gradient(circle at top right, rgba(26, 106, 255, 0.15) 0%, transparent 40%)'
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #060509;
+            color: #ECE8F2;
+            font-family: 'Inter', sans-serif;
+            background-image: radial-gradient(circle at 80% 20%, rgba(26, 106, 255, 0.12) 0%, transparent 50%);
+            background-attachment: fixed;
+        }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .custom-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            border-radius: 9999px;
+        }
+
+        .custom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #1A6AFF;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(26, 106, 255, 0.5);
+            transition: transform 0.2s;
+        }
+
+        .custom-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+        
+        .editable-serif {
+            background: transparent;
+            border: none;
+            color: #ECE8F2;
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            width: 100%;
+            outline: none;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+            padding-bottom: 4px;
+        }
+        
+        .editable-serif:focus {
+            border-bottom-color: #1A6AFF;
+        }
+
+        /* TopAppBar Styles from JSON */
+        .top-app-bar {
+            @apply fixed top-0 w-full z-50 bg-[#060509]/80 backdrop-blur-md border-b border-white/5 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] flex justify-between items-center px-8 h-20;
+        }
+        .top-app-bar-logo {
+            @apply text-xl font-headline font-normal tracking-[0.2em] text-[#ECE8F2];
+        }
+        .top-app-bar-icon {
+            @apply text-[#ECE8F2]/60 hover:text-[#1A6AFF] transition-colors duration-300;
+        }
+
+        /* SideNavBar Styles from JSON */
+        .side-nav-bar {
+            @apply fixed left-0 top-0 h-full w-24 flex flex-col items-center py-12 bg-[#060509]/40 backdrop-blur-xl border-r border-white/5 shadow-2xl z-40 gap-8;
+        }
+        .side-nav-header {
+            @apply font-headline italic text-[#ECE8F2] mb-8 text-sm;
+        }
+        .nav-item {
+            @apply text-[#ECE8F2]/30 hover:text-[#ECE8F2] hover:bg-white/5 transition-all duration-500 w-12 h-12 flex flex-col items-center justify-center rounded-xl relative cursor-pointer;
+        }
+        .nav-item.active {
+            @apply text-[#1A6AFF] after:content-[''] after:absolute after:-right-[26px] after:w-1 after:h-8 after:bg-[#1A6AFF] after:rounded-full after:shadow-[0_0_15px_rgba(26,106,255,0.6)];
+        }
+        .nav-label {
+            @apply font-mono uppercase tracking-[0.2em] text-[0.5rem] mt-1 opacity-0 absolute -bottom-4 transition-opacity duration-300;
+        }
+        .nav-item:hover .nav-label {
+            @apply opacity-100;
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen selection:bg-brand-accent selection:text-white overflow-x-hidden">
+<!-- TopAppBar Component -->
+<nav class="top-app-bar">
+<div class="top-app-bar-logo">PRONOIA</div>
+<div class="flex items-center gap-6">
+<button class="top-app-bar-icon">
+<span class="material-symbols-outlined">flare</span>
+</button>
+<button class="top-app-bar-icon">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</nav>
+<!-- SideNavBar Component (Hidden on mobile) -->
+<aside class="side-nav-bar hidden md:flex">
+<div class="side-nav-header text-center leading-tight">
+            A.07
+        </div>
+<div class="flex flex-col gap-6 w-full items-center mt-4">
+<div class="nav-item active group">
+<span class="material-symbols-outlined">explore</span>
+<span class="nav-label">NorthStar</span>
+</div>
+<div class="nav-item group">
+<span class="material-symbols-outlined">waves</span>
+<span class="nav-label">Frequency</span>
+</div>
+<div class="nav-item group">
+<span class="material-symbols-outlined">auto_awesome</span>
+<span class="nav-label">Rituals</span>
+</div>
+<div class="nav-item group">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="nav-label">Archives</span>
+</div>
+<div class="nav-item group">
+<span class="material-symbols-outlined">architecture</span>
+<span class="nav-label">Synthesis</span>
+</div>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="pt-32 pb-24 px-6 md:pl-36 md:pr-12 max-w-7xl mx-auto">
+<!-- Editorial Hero -->
+<header class="mb-20 relative">
+<!-- Decorative Star Motif -->
+<div class="absolute -top-4 -left-4 text-brand-accent opacity-60">
+<span class="material-symbols-outlined" style="font-size: 32px;">flare</span>
+</div>
+<p class="font-mono text-[0.65rem] uppercase tracking-[0.24em] text-brand-textMuted mb-6 pl-6">
+                NORTHSTAR · DEIN ZUKÜNFTIGES ICH
+            </p>
+<h1 class="font-headline font-light text-5xl md:text-7xl leading-[1.1] mb-6 pl-6">
+                Erinnere dich,<br/>wer du wirst.
+            </h1>
+<p class="font-body text-brand-textMuted text-lg max-w-2xl pl-6 mb-12 font-light">
+                Ein ruhiger Raum, um deine Vision zu klären — und heute einen Schritt darauf zuzugehen.
+            </p>
+<blockquote class="pl-6 ml-6 border-l-2 border-brand-accent/50 py-2">
+<p class="font-headline italic text-2xl text-brand-text/80 leading-relaxed">
+                    "Die Zukunft gehört denen, die die Klarheit besitzen, sie im Jetzt zu formen."
+                </p>
+</blockquote>
+</header>
+<!-- Two-Column Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+<!-- MAIN COLUMN (Left, wide) -->
+<div class="lg:col-span-8 space-y-8">
+<!-- Identität Card -->
+<section class="glass-panel rounded-2xl p-8">
+<h2 class="font-mono text-[0.65rem] uppercase tracking-[0.2em] text-brand-textMuted mb-4">Identität</h2>
+<input class="editable-serif" placeholder="Ich bin jemand, der..." type="text" value="Ich bin jemand, der Ruhe in das Chaos bringt."/>
+</section>
+<!-- Vision Card -->
+<section class="glass-panel rounded-2xl p-8">
+<h2 class="font-mono text-[0.65rem] uppercase tracking-[0.2em] text-brand-textMuted mb-6">Vision Timeline</h2>
+<div class="space-y-6">
+<div class="flex gap-4 items-start">
+<span class="font-mono text-xs text-brand-accent mt-2 w-8">1J</span>
+<input class="w-full bg-transparent border-b border-white/10 pb-2 text-brand-text font-light outline-none focus:border-brand-accent transition-colors" type="text" value="Ein gefestigtes Morgenritual etabliert haben."/>
+</div>
+<div class="flex gap-4 items-start">
+<span class="font-mono text-xs text-brand-accent mt-2 w-8">3J</span>
+<input class="w-full bg-transparent border-b border-white/10 pb-2 text-brand-text font-light outline-none focus:border-brand-accent transition-colors" type="text" value="Kreative Führung in einem Sinn-orientierten Umfeld."/>
+</div>
+<div class="flex gap-4 items-start">
+<span class="font-mono text-xs text-brand-accent mt-2 w-8">10J</span>
+<input class="w-full bg-transparent border-b border-white/10 pb-2 text-brand-text font-light outline-none focus:border-brand-accent transition-colors" type="text" value="Ein Vermächtnis von Gelassenheit und Innovation hinterlassen."/>
+</div>
+</div>
+</section>
+<!-- Werte & Säulen Split -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<!-- Werte Card -->
+<section class="glass-panel rounded-2xl p-8">
+<h2 class="font-mono text-[0.65rem] uppercase tracking-[0.2em] text-brand-textMuted mb-6">Kernwerte</h2>
+<div class="flex flex-wrap gap-3">
+<span class="px-4 py-2 rounded-full border border-white/10 text-sm font-light hover:border-brand-accent/50 hover:bg-brand-accent/5 transition-all cursor-pointer">Klarheit</span>
+<span class="px-4 py-2 rounded-full border border-brand-accent/30 bg-brand-accent/10 text-sm font-light text-brand-accent cursor-pointer">Integrität</span>
+<span class="px-4 py-2 rounded-full border border-white/10 text-sm font-light hover:border-brand-accent/50 hover:bg-brand-accent/5 transition-all cursor-pointer">Wachstum</span>
+<span class="px-4 py-2 rounded-full border border-white/10 text-sm font-light hover:border-brand-accent/50 hover:bg-brand-accent/5 transition-all cursor-pointer">Ruhe</span>
+<span class="px-4 py-2 rounded-full border border-white/5 border-dashed text-brand-textMuted text-sm font-light hover:border-white/20 transition-all cursor-pointer">+ Wert</span>
+</div>
+</section>
+<!-- Säulen Card -->
+<section class="glass-panel rounded-2xl p-8">
+<h2 class="font-mono text-[0.65rem] uppercase tracking-[0.2em] text-brand-textMuted mb-6">Lebenssäulen</h2>
+<div class="space-y-5">
+<!-- Pillar 1 -->
+<div>
+<div class="flex justify-between items-center mb-2">
+<span class="text-sm font-light text-brand-text/80">Körper</span>
+<span class="font-mono text-xs text-brand-accent">8.5</span>
+</div>
+<input class="custom-slider" max="10" min="0" step="0.1" type="range" value="8.5"/>
+</div>
+<!-- Pillar 2 -->
+<div>
+<div class="flex justify-between items-center mb-2">
+<span class="text-sm font-light text-brand-text/80">Geist</span>
+<span class="font-mono text-xs text-brand-accent">7.0</span>
+</div>
+<input class="custom-slider" max="10" min="0" step="0.1" type="range" value="7.0"/>
+</div>
+<!-- Pillar 3 -->
+<div>
+<div class="flex justify-between items-center mb-2">
+<span class="text-sm font-light text-brand-text/80">Beziehungen</span>
+<span class="font-mono text-xs text-brand-accent">9.0</span>
+</div>
+<input class="custom-slider" max="10" min="0" step="0.1" type="range" value="9.0"/>
+</div>
+<!-- Pillar 4 -->
+<div>
+<div class="flex justify-between items-center mb-2">
+<span class="text-sm font-light text-brand-text/80">Beruf</span>
+<span class="font-mono text-xs text-brand-accent">6.5</span>
+</div>
+<input class="custom-slider" max="10" min="0" step="0.1" type="range" value="6.5"/>
+</div>
+<!-- Pillar 5 -->
+<div>
+<div class="flex justify-between items-center mb-2">
+<span class="text-sm font-light text-brand-text/80">Sinn</span>
+<span class="font-mono text-xs text-brand-accent">8.0</span>
+</div>
+<input class="custom-slider" max="10" min="0" step="0.1" type="range" value="8.0"/>
+</div>
+</div>
+</section>
+</div>
+</div>
+<!-- RIGHT COLUMN (Narrow, sticky) -->
+<div class="lg:col-span-4 lg:sticky lg:top-28">
+<section class="glass-panel rounded-2xl p-6 relative overflow-hidden">
+<!-- Subtle glow behind agent -->
+<div class="absolute top-0 right-0 w-32 h-32 bg-brand-accent/10 rounded-full blur-3xl"></div>
+<!-- Header -->
+<div class="flex items-center gap-3 mb-6 pb-6 border-b border-white/5">
+<span class="material-symbols-outlined text-brand-accent">flare</span>
+<div>
+<div class="text-sm font-medium">NorthStar</div>
+<div class="font-mono text-[0.55rem] uppercase tracking-[0.2em] text-brand-accent">Future Self Agent</div>
+</div>
+</div>
+<!-- Message Block -->
+<div class="mb-8">
+<p class="font-headline italic text-lg leading-relaxed text-brand-text/90 mb-4">
+                            "Du hast heute die Intention gesetzt, mehr Struktur in deinen Vormittag zu bringen. Ich sehe den Fortschritt."
+                        </p>
+<button class="w-full py-3 px-4 bg-brand-accent/10 hover:bg-brand-accent/20 border border-brand-accent/30 rounded-xl text-brand-accent text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">mark_email_unread</span>
+                            Botschaft empfangen
+                        </button>
+</div>
+<!-- Daily Impuls -->
+<div class="bg-brand-accent/[0.03] border border-brand-accent/10 rounded-xl p-4 mb-6">
+<h3 class="font-mono text-[0.6rem] uppercase tracking-[0.15em] text-brand-accent mb-2">Tages-Impuls</h3>
+<p class="text-sm text-brand-text/80 font-light leading-relaxed">
+                            Welche kleine Entscheidung heute spiegelt die Person wider, die du in 3 Jahren sein möchtest?
+                        </p>
+</div>
+<!-- Rekalibrierung -->
+<div class="pt-6 border-t border-white/5">
+<h3 class="font-mono text-[0.6rem] uppercase tracking-[0.15em] text-brand-textMuted mb-2">Rekalibrierung</h3>
+<p class="text-xs text-brand-textMuted mb-4">Fühlst du dich abgebracht? Lass uns den Kurs anpassen.</p>
+<button class="w-full py-2.5 px-4 border border-white/10 hover:border-white/30 rounded-xl text-brand-text/80 text-sm transition-all duration-300 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">sync</span>
+                            Neu ausrichten
+                        </button>
+</div>
+</section>
+</div>
+</div>
+</main>
+</body></html>

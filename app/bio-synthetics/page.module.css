@@ -919,3 +919,76 @@
   background: rgba(255, 255, 255, 0.95);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
 }
+
+/* ═══════════════════════════════════════════════════════
+   CALM "OS" — solid black/white surfaces, single cobalt accent,
+   no glass blur, no glows, no lift. Semantic status colors
+   (open/closed, air-quality) are kept but de-glowed.
+   macOS segmented-control treatment for the tab rows.
+═══════════════════════════════════════════════════════ */
+:global([data-ui-mode="os"]) .heroGlow,
+:global([data-ui-mode="os"]) .heroGlow2 { opacity: 0.2; }
+
+/* Emphasis tan → single cobalt accent */
+:global([data-ui-mode="os"]) .heroTitle em { color: var(--theme-accent); }
+
+/* Cards & panels → solid, hairline, faint elevation, no blur/lift */
+:global([data-ui-mode="os"]) .foodCard,
+:global([data-ui-mode="os"]) .scanner,
+:global([data-ui-mode="os"]) .envContainer,
+:global([data-ui-mode="os"]) .envCard,
+:global([data-ui-mode="os"]) .wearVisual,
+:global([data-ui-mode="os"]) .integrationWidget {
+  background: var(--bg-card);
+  border-color: var(--border);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: var(--shadow-sm);
+}
+:global([data-ui-mode="os"]) .foodCard:hover,
+:global([data-ui-mode="os"]) .envCard:hover {
+  transform: none;
+  border-color: var(--border-s);
+}
+:global([data-ui-mode="os"]) .scanner,
+:global([data-ui-mode="os"]) .envContainer,
+:global([data-ui-mode="os"]) .wearVisual { box-shadow: none; }
+:global([data-ui-mode="os"]) .integrationWidget { box-shadow: var(--shadow-md); }
+
+/* Drop status-dot glows + button glow */
+:global([data-ui-mode="os"]) .scannerPulse,
+:global([data-ui-mode="os"]) .iwDot { box-shadow: none; }
+:global([data-ui-mode="os"]) .scannerBtn:hover:not(:disabled) {
+  box-shadow: none;
+  background: var(--theme-accent-dark);
+}
+
+/* Tab rows → macOS segmented control */
+:global([data-ui-mode="os"]) .tabRow {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+  width: fit-content;
+}
+:global([data-ui-mode="os"]) .tabBtn {
+  border-color: transparent;
+  border-radius: 7px;
+}
+:global([data-ui-mode="os"]) .tabBtn:hover {
+  border-color: transparent;
+  background: var(--bg3);
+  color: var(--text2);
+}
+:global([data-ui-mode="os"]) .tabBtnActive {
+  background: var(--bg-card);
+  border-color: var(--border-s);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+}
+:global([data-ui-mode="os"]) .categoryTabActive {
+  background: var(--theme-accent-dim) !important;
+  border-color: transparent !important;
+  color: var(--theme-accent) !important;
+}

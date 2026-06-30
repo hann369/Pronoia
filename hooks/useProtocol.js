@@ -226,13 +226,21 @@ export function useProtocol() {
     liabilities: [],
     customization: {
       accent: 'blue',
-      mode: 'serious',
+      mode: 'os',
       layout: {
         telemetry: true,
         directives: true,
         friction: true,
         connectors: true
       }
+    },
+    // NorthStar — the user's Future Self. The NorthStar agent uses this as its
+    // long-horizon reference; Hermes checks day-to-day alignment against it.
+    futureSelf: {
+      identity: '',
+      visions: { y1: '', y3: '', y5: '' },
+      values: [],
+      pillarTargets: { focus: 3, health: 3, skills: 3, social: 3, recovery: 3 }
     }
   });
 
@@ -270,7 +278,11 @@ export function useProtocol() {
     }
   });
 
-  const triggerConsensusEvaluation = useCallback(async (hrv, sleep, logs) => {
+  const [consensusLoading, setConsensusLoading] = useState(false);
+  const [lastConsensusAt, setLastConsensusAt] = useState(null);
+
+  const triggerConsensusEvaluation = useCallback(async (hrv, sleep, logs, block) => {
+    setConsensusLoading(true);
     try {
       const response = await fetch('/api/consensus', {
         method: 'POST',
@@ -279,12 +291,14 @@ export function useProtocol() {
           hrv: hrv || 72,
           sleep: sleep || 84,
           frictionLogs: logs || [],
-          activeBlock: 'Focus'
+          activeBlock: block?.title || 'Freier Block',
+          pillar: block?.pillar || block?.type || null
         })
       });
       if (response.ok) {
         const data = await response.json();
         setConsensusData(data);
+        setLastConsensusAt(new Date().toISOString());
         if (data.directive) {
           setDirectives(prev => {
             if (prev[0]?.text === data.directive) return prev;
@@ -297,8 +311,18 @@ export function useProtocol() {
       }
     } catch (err) {
       console.error("Failed to run consensus fetch:", err);
+    } finally {
+      setConsensusLoading(false);
     }
   }, []);
+
+  // Acknowledge / dismiss directives (persisted via the protocol state sync).
+  const acknowledgeDirective = (idx) => {
+    setDirectives(prev => prev.map((d, i) => (i === idx ? { ...d, acked: true, ackedAt: new Date().toISOString() } : d)));
+  };
+  const dismissDirective = (idx) => {
+    setDirectives(prev => prev.filter((_, i) => i !== idx));
+  };
 
   // Date-Based Calendar States
   const [calendar, setCalendar] = useState({});
@@ -474,13 +498,20 @@ export function useProtocol() {
     return () => clearTimeout(timer);
   }, [profile, blocks, blockIdx, isRunning, circadianMode, stack, frictionLogs, directives, dataSources, calendar, user]);
 
-  // Consensus Evaluation trigger on biometrics/friction changes
+  // Consensus Evaluation trigger on biometrics/friction/active-block changes
   useEffect(() => {
     if (profileLoading) return;
     const hrv = profile?.metrics?.hrv || 72;
     const sleep = profile?.metrics?.sleep || 84;
-    triggerConsensusEvaluation(hrv, sleep, frictionLogs);
-  }, [profile?.metrics?.hrv, profile?.metrics?.sleep, frictionLogs, profileLoading, triggerConsensusEvaluation]);
+    triggerConsensusEvaluation(hrv, sleep, frictionLogs, blocks[blockIdx]);
+  }, [profile?.metrics?.hrv, profile?.metrics?.sleep, frictionLogs, blockIdx, blocks[blockIdx]?.title, profileLoading, triggerConsensusEvaluation]);
+
+  // Manual re-evaluation (Agents "Konsens neu berechnen" button).
+  const refreshConsensus = useCallback(() => {
+    const hrv = profile?.metrics?.hrv || 72;
+    const sleep = profile?.metrics?.sleep || 84;
+    triggerConsensusEvaluation(hrv, sleep, frictionLogs, blocks[blockIdx]);
+  }, [profile?.metrics?.hrv, profile?.metrics?.sleep, frictionLogs, blocks, blockIdx, triggerConsensusEvaluation]);
 
   // Timer Logic
   const tick = useCallback(() => {
@@ -1935,6 +1966,11 @@ export function useProtocol() {
     restoreCalendarBlocks,
     setCalendar,
     consensusData,
+    consensusLoading,
+    lastConsensusAt,
+    refreshConsensus,
+    acknowledgeDirective,
+    dismissDirective,
     activateOptimalProtocol
   };
 }
