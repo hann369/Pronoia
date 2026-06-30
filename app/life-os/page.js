@@ -543,6 +543,15 @@ function LifeOSDashboard() {
 
   useEffect(() => {
     if (tabParam) {
+      // The Skill Lab is a modal, not a real tab. Switching activeTab to
+      // 'skills' oscillates with the URL-mirror effect below (replaceState →
+      // useSearchParams → setActiveTab → …), which the browser throttles with
+      // "Too many calls to History API" → crash. Route the deep link straight
+      // to the modal and leave activeTab untouched.
+      if (tabParam === 'skills') {
+        setIsSkillLabOpen(true);
+        return;
+      }
       Promise.resolve().then(() => {
         setActiveTab(tabParam);
       });
@@ -564,15 +573,17 @@ function LifeOSDashboard() {
     window.history.replaceState(null, '', url.toString());
   }, [activeTab]);
 
-  const prevTabRef = useRef('apps');
-  useEffect(() => {
-    if (activeTab !== 'skills') {
-      prevTabRef.current = activeTab;
-    } else {
+  // Tab selection. The Skill Lab is a modal, not a tab — selecting it opens the
+  // modal and leaves activeTab where it is. Routing it through activeTab (the
+  // old "bounce" effect) caused an infinite setActiveTab ⇄ URL-mirror loop that
+  // crashed the History API. Use this everywhere a tab/app is clicked.
+  const selectTab = (id) => {
+    if (id === 'skills') {
       setIsSkillLabOpen(true);
-      setActiveTab(prevTabRef.current);
+      return;
     }
-  }, [activeTab]);
+    setActiveTab(id);
+  };
 
   const [portalTab, setPortalTab] = useState('subscriptions'); // 'subscriptions' | 'store'
   const [storeView, setStoreView] = useState('grid'); // 'grid' | 'product' | 'cart'
@@ -2691,7 +2702,7 @@ function LifeOSDashboard() {
                     }}
                     onClick={() => {
                       if (!isEditing) {
-                        setActiveTab(app.id);
+                        selectTab(app.id);
                       }
                     }}
                   >
@@ -3374,7 +3385,7 @@ function LifeOSDashboard() {
               <button
                 key={item.id}
                 className={`${styles.sidebarBtn} ${activeTab === item.id ? styles.sidebarBtnActive : ''} ${reorderDragOverId === item.id ? styles.sidebarBtnDragOver : ''}`}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => selectTab(item.id)}
                 title={item.name || item.label}
                 draggable={item.id !== 'apps'}
                 onDragStart={(e) => {
