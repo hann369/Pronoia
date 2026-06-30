@@ -41,15 +41,21 @@ export async function POST(req) {
         // Only subscription checkouts activate a tier. One-time store-product
         // purchases (mode: 'payment') must NOT grant a subscription.
         if (uid && s.mode === 'subscription') {
+          // The app stores and reads everything under `profile.*` (see
+          // hooks/useProtocol.js — only data.profile is hydrated). Writing the
+          // tier at the document root would never be read, so a paying customer
+          // would still show as Free. Keep it under profile.
           await adminDb.collection('users').doc(uid).set(
             {
-              subscriptionTier: tierId || 'premium',
-              subscription: {
-                status: 'active',
-                stripeCustomerId: s.customer || null,
-                stripeSubscriptionId: s.subscription || null,
-                tierId: tierId || 'premium',
-                updatedAt: new Date().toISOString(),
+              profile: {
+                subscriptionTier: tierId || 'premium',
+                subscription: {
+                  status: 'active',
+                  stripeCustomerId: s.customer || null,
+                  stripeSubscriptionId: s.subscription || null,
+                  tierId: tierId || 'premium',
+                  updatedAt: new Date().toISOString(),
+                },
               },
             },
             { merge: true }
@@ -66,13 +72,15 @@ export async function POST(req) {
           const active = sub.status === 'active' || sub.status === 'trialing';
           await adminDb.collection('users').doc(uid).set(
             {
-              subscriptionTier: active ? sub.metadata?.tierId || 'premium' : 'free',
-              subscription: {
-                status: sub.status,
-                stripeCustomerId: sub.customer || null,
-                stripeSubscriptionId: sub.id,
-                tierId: sub.metadata?.tierId || 'premium',
-                updatedAt: new Date().toISOString(),
+              profile: {
+                subscriptionTier: active ? sub.metadata?.tierId || 'premium' : 'free',
+                subscription: {
+                  status: sub.status,
+                  stripeCustomerId: sub.customer || null,
+                  stripeSubscriptionId: sub.id,
+                  tierId: sub.metadata?.tierId || 'premium',
+                  updatedAt: new Date().toISOString(),
+                },
               },
             },
             { merge: true }
@@ -87,8 +95,10 @@ export async function POST(req) {
         if (uid) {
           await adminDb.collection('users').doc(uid).set(
             {
-              subscriptionTier: 'free',
-              subscription: { status: 'canceled', updatedAt: new Date().toISOString() },
+              profile: {
+                subscriptionTier: 'free',
+                subscription: { status: 'canceled', updatedAt: new Date().toISOString() },
+              },
             },
             { merge: true }
           );
@@ -113,7 +123,7 @@ async function uidByCustomer(customerId) {
   if (!customerId) return null;
   const snap = await adminDb
     .collection('users')
-    .where('subscription.stripeCustomerId', '==', customerId)
+    .where('profile.subscription.stripeCustomerId', '==', customerId)
     .limit(1)
     .get();
   return snap.empty ? null : snap.docs[0].id;

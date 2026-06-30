@@ -78,6 +78,7 @@ export default function ConnectorsTab({
   setExpandedConnectors,
   profile,
   saveProfile,
+  requireConnectorSlot,
   terminalLogs = [],
   handleWhoopSync,
   isSyncingWhoop,
@@ -98,6 +99,9 @@ export default function ConnectorsTab({
 
   const installConnector = (item) => {
     if (isInstalled(item.id)) return;
+    // Free tier is capped at a max number of connectors (see lib/tiers.js). The
+    // gate opens an upgrade prompt and aborts the install when the limit is hit.
+    if (requireConnectorSlot && !requireConnectorSlot(installed.length)) return;
     const conn = { ...(profile?.connectors || {}) };
     conn.installed = [...installed, { id: item.id, name: item.name, icon: item.icon, desc: item.desc, active: true, addedAt: new Date().toISOString() }];
     saveProfile({ connectors: conn });

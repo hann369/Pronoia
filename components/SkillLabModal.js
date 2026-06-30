@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { useProtocol } from '../hooks/useProtocol';
+import { useState, useMemo } from 'react';
 import { DOMAIN_WHITELIST, detectDomain } from '@/lib/skillLabWhitelist';
 import LearnYourWay from './LearnYourWay';
 import styles from './SkillLabModal.module.css';
@@ -73,8 +72,12 @@ function getLocalFallbackCurriculum(skill, domain) {
   return { title, skillSummary, modules };
 }
 
-export default function SkillLabModal({ isOpen, onClose }) {
-  const { profile, saveProfile } = useProtocol();
+export default function SkillLabModal({ isOpen, onClose, profile, saveProfile }) {
+  // NOTE: profile/saveProfile are passed as props from the parent page, which
+  // already owns the single useProtocol() instance. Calling useProtocol() here
+  // would spin up a SECOND instance whose Firestore onSnapshot listener and
+  // debounced auto-save (see hooks/useProtocol.js) fight the parent's instance
+  // in an endless write/snapshot loop — that froze/crashed the browser.
   const [inputSkill, setInputSkill] = useState('');
   const [disambigOptions, setDisambigOptions] = useState([]);
   const [isDisambiguating, setIsDisambiguating] = useState(false);

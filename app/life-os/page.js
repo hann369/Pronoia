@@ -34,6 +34,8 @@ import ProfileTab from '@/components/lifeos/ProfileTab';
 import GymTab from '@/components/lifeos/GymTab';
 import BehaviorTab from '@/components/lifeos/BehaviorTab';
 import SkillLabModal from '@/components/SkillLabModal';
+import UpgradePrompt from '@/components/UpgradePrompt';
+import { connectorLimit } from '@/lib/tiers';
 import LearnYourWay from '@/components/LearnYourWay';
 import FrequencyEngine from '@/components/frequency/FrequencyEngine';
 import CinematicThemeSwitcher from '@/components/ui/cinematic-theme-switcher';
@@ -1293,6 +1295,26 @@ function LifeOSDashboard() {
       );
     }
   }, [searchParams]);
+
+  /* ─── Feature gating (Free vs Premium/Max) ─── */
+  // A single active upgrade prompt: { title?, message?, requiredTier }. The gated
+  // control stays usable; the gate is enforced by the helpers below, which open
+  // this prompt instead of performing the action.
+  const [upgradeGate, setUpgradeGate] = useState(null);
+
+  // Connector slot gate. Free is capped (see lib/tiers.js); premium/max unlimited.
+  // Returns true when there's room to install another connector, false (and opens
+  // the upgrade prompt) when the limit is reached.
+  const requireConnectorSlot = (currentCount) => {
+    const limit = connectorLimit(profile);
+    if (currentCount < limit) return true;
+    setUpgradeGate({
+      requiredTier: 'premium',
+      title: 'Mehr Konnektoren',
+      message: `Dein Free-Abo erlaubt max. ${limit} API-Konnektoren. Mit Premium oder Max verbindest du unbegrenzt viele Datenquellen.`,
+    });
+    return false;
+  };
 
   /* ─── Subscription checkout (used by the PricingCard selector) ─── */
   const [tierCheckoutBusy, setTierCheckoutBusy] = useState(false);
@@ -3172,6 +3194,7 @@ function LifeOSDashboard() {
             setExpandedConnectors={setExpandedConnectors}
             profile={profile}
             saveProfile={saveProfile}
+            requireConnectorSlot={requireConnectorSlot}
             terminalLogs={terminalLogs}
             handleWhoopSync={handleWhoopSync}
             isSyncingWhoop={isSyncingWhoop}
@@ -3718,8 +3741,14 @@ function LifeOSDashboard() {
       )}
 
       {isSkillLabOpen && (
-        <SkillLabModal isOpen={isSkillLabOpen} onClose={() => setIsSkillLabOpen(false)} />
+        <SkillLabModal isOpen={isSkillLabOpen} onClose={() => setIsSkillLabOpen(false)} profile={profile} saveProfile={saveProfile} />
       )}
+
+      <UpgradePrompt
+        gate={upgradeGate}
+        onClose={() => setUpgradeGate(null)}
+        onUpgrade={() => { setUpgradeGate(null); setActiveTab('store'); }}
+      />
 
       <FloatingChat />
       <SpotifyMiniPlayer profile={profile} saveProfile={saveProfile} />
